@@ -1,16 +1,437 @@
 // THROWAWAY PROTOTYPE ONLY — fictional browser state, no network or system access.
-import './style.css';import{m}from'./messages.js';import{scenarios,initialState,modules,summary,transition}from'./flow-machine.js';
-const app=document.querySelector('#app');const q=new URLSearchParams(location.search);let s=initialState(scenarios[q.get('scenario')]?q.get('scenario'):'normal');
-const status={applied_verified:'verified',skipped_permission:'skipped',skipped_user:'skipped',manual_action_required:'manual',failed_recoverable:'failed',unknown_requires_review:'unknown'};const stage={welcome:0,scan:1,questions:2,export:3,import:4,plan:5,permission:6,complete:7,report:7,guide:7,home:7,recovery:7};const question=[['keyboard','内置键盘：让普通编辑应用可用常用 Ctrl 快捷键','保留 Command；终端、远程桌面和虚拟机仍用真实 Ctrl。',[]],['external','外接 Windows 键盘：单独保留常用 Ctrl 兼容','只应用于检测到的虚构外接键盘，不套用到所有设备。',[]],['pointer','分别保留鼠标与触控板的滚动习惯','鼠标为 Windows 式方向，触控板保持自然滚动。',['thirdParty']],['wifi','包含个人 Wi‑Fi 密码','迁移包第一版不加密；只在模拟中标记，不显示或保存密码。',['sensitive','admin']],['guide','生成个性化 Mac 使用指南','只说明实际选择与模拟结果相关的内容。',[]]];
-const tag=t=>`<span class="tag tag-${t}">${m[t]}</span>`;const btn=(x,e,p='',c='primary')=>`<button class="${c}" data-event="${e}"${p?` data-payload="${p}"`:''}>${x}</button>`;const os=()=>['welcome','scan','questions','export'].includes(s.screen)?'windows':'mac';
-function header(){return`<header><div class="logo"><b>↗ MacWin</b><small>${m.proto}</small></div><strong class="demo">◌ ${m.demo}</strong><div class="platform"><span class="${os()==='windows'?'active':''}">▣ ${m.windows}</span>→<span class="${os()==='mac'?'active':''}">● ${m.mac}</span></div></header>`}function track(){let n=stage[s.screen];return`<nav class="track">${['检查','扫描','选择','导出','导入','计划','执行','结果'].map((x,i)=>`<span class="${i<=n?'done':''} ${i===n?'current':''}"><i>${i+1}</i>${x}</span>`).join('')}</nav>`}function page(title,intro,body,actions){return`<main><span class="eyebrow">${os()==='windows'?'Windows 端':'Mac 端'} · 虚构流程</span><h1>${title}</h1><p class="intro">${intro}</p>${body}<footer>${actions}</footer></main>`}
-function welcome(){return page(m.welcome,m.welcomeText,`<div class="board"><div class="handoff"><b>▣ Windows</b><span>━━ <i>习惯交接单</i> ━━</span><b>● Mac</b></div><p><strong>演示兼容：</strong>Windows 11 x64 → Apple 芯片 Mac / macOS 26</p><ul><li>下一步只会模拟扫描：键盘、指针、已知软件、开发、Wi‑Fi。</li><li>迁移包与后续计划均为虚构数据。</li><li>不会读取、修改、上传或安装任何东西。</li></ul></div>`,btn(m.start,'START'))}
-function scan(){let a=[['键盘与输入','2','2','0'],['鼠标与触控板','2','2','0'],['软件','3','2','1'],['开发','1','1','0'],['Wi‑Fi','3','1','2']];return page(m.scan,m.scanText,`<div class="rows">${a.map(x=>`<div class="row"><div><b>${x[0]}</b><small>虚构白名单结果</small></div><span><b>${x[1]}</b><small>发现</small></span><span><b>${x[2]}</b><small>可迁移</small></span><span><b>${x[3]}</b><small>已排除</small></span><button class="text">查看排除原因</button></div>`).join('')}</div>`,btn(m.questions,'QUESTIONS'))}
-function questions(){return page(m.questions,m.questionsText,`<div class="questions ${s.density==='compact'?'compact':''}">${question.map(x=>`<section><label><input type="checkbox" data-event="TOGGLE" data-payload="${x[0]}" ${s.selected[x[0]]?'checked':''}/><span><b>${x[1]}</b><em>${x[3].map(tag).join('')}</em><small>${s.selected[x[0]]?'已选择（演示）':'未选择（演示）'}</small></span></label><details><summary>查看细节</summary><p>${x[2]}</p></details></section>`).join('')}</div>`,btn('查看导出确认','GO_EXPORT'))}
-function exportPage(){let declined=s.scenario==='uacDenied',secret=s.selected.wifi&&!declined;return page(m.export,m.exportText,`<div class="ticket"><div>Windows → Mac <b>.habitpack</b></div><h2>macwin-demo-2026.habitpack</h2><p>${declined?'UAC 已拒绝：仅迁移网络名称，密码不可用':secret?'模拟包含 Wi‑Fi 密码（不回显）':'不含 Wi‑Fi 密码'}</p>${declined?tag('admin')+'<span class="tag">已降级：仅网络名称</span>':secret?tag('sensitive')+tag('admin'):'<span class="tag">只含非秘密偏好</span>'}<dl><dt>包含</dt><dd>键盘、指针、软件选择、指南${secret?'、Wi‑Fi 凭据引用':'、网络名称'}</dd><dt>排除</dt><dd>个人文件、账号、浏览器数据、真实设备信息</dd></dl></div>${s.exported?`<aside class="success"><b>模拟包已生成</b><p>请自行把文件带到 Mac。原型不会传输文件。</p>${btn('在 Mac 端模拟导入','IMPORT')}</aside>`:''}`,s.exported?btn(m.reset,'RESET','','secondary'):btn(m.exportButton,'EXPORT'))}
-function importPage(){return page(m.import,m.importText,s.importError?`<aside class="error"><b>模拟包被阻断</b><p>文件损坏或格式不兼容：完整性检查未通过。请重新从 Windows 端导出。</p>${btn('尝试另一份模拟包','SCENARIO','normal','secondary')}</aside>`:`<div class="file"><b>⌁</b><span><strong>macwin-demo-2026.habitpack</strong><small>虚构文件 · Windows 11 x64 来源 · 包含 5 个声明式模块</small></span></div>`,s.importError?btn(m.reset,'RESET','','secondary'):btn(m.inspect,'CHECK'))}
-function module(x){let open=s.planMode==='expanded'||s.expanded.includes(x.id);return`<article class="module"><div><strong>${x.title}</strong><div>${x.tags.map(tag).join('')}</div></div><button class="text" data-event="EXPAND" data-payload="${x.id}">${open?'收起细节':'查看细节'}</button>${open?`<dl><dt>会改变什么</dt><dd>${x.change}</dd><dt>为什么</dt><dd>${x.why}</dd><dt>好处</dt><dd>${x.benefit}</dd><dt>例外 / 代价</dt><dd>${x.exception}</dd><dt>需要你做什么</dt><dd>${x.needs}</dd><dt>怎么恢复</dt><dd>${x.restore}</dd><dt>怎么确认成功</dt><dd>${x.verify}</dd></dl>`:`<p>${x.change}</p>`}</article>`}function plan(){return page(m.plan,m.planText,`<div class="modules">${modules(s).map(module).join('')}</div><aside class="confirm"><span><b>确认 5 个动作 · 1 个第三方候选 · 2 项权限说明 · 无密码回显</b><small>确认后才会创建一份模拟迁移前快照。</small></span>${btn(m.confirm,'CONFIRM')}</aside>`,btn('返回导入','IMPORT','','secondary'))}
-function permission(){let tool=s.scenario==='toolDeclined';return page(m.permission,m.permissionText,`<div class="permissions"><section><b>辅助功能权限（模拟说明）</b><p>键盘与输入模块需要它；拒绝后键盘模块被跳过，其他模块继续。</p>${tag('admin')}</section><section><b>${tool?'LinearMouse（第三方工具候选）':'第三方工具与网络操作（模拟说明）'}</b><p>${tool?'用户拒绝后，保留原生可行设置；不会显示为安装成功。':'软件安装和第三方工具均不会实际下载、联网或安装。'}</p>${tag('thirdParty')}${tag('network')}</section></div>`,btn(tool?m.toolDeny:s.scenario==='permissionDenied'?m.deny:m.allow,'EXECUTE'))}
-function results(){return`<div class="results">${modules(s).map(x=>{let code=s.results[x.id]||'unknown_requires_review';return`<div><span><b>${x.title}</b><small>${x.change}</small></span><strong class="status ${code}">${m[status[code]]}</strong></div>`}).join('')}</div>`}function completion(){let z=summary(s.results),title=z==='all'?m.conclusionAll:z==='actions'?m.conclusionActions:m.conclusionPartial;return page(title,'以下均为模拟结果，不代表设备已发生任何变化。',results(),`${btn(m.report,'REPORT')}${btn(m.guide,'GUIDE','','secondary')}${btn(m.home,'HOME','','secondary')}${btn(m.recovery,'RECOVERY','','secondary')}`)}
-function report(){return page('完成报告（模拟）','报告只含非秘密摘要；没有 SSID、密码、用户名、路径或账号。',`<div class="report"><h2>本次计划与验证</h2>${modules(s).map(x=>`<p><b>${x.title}</b> · ${x.why}<br/><small>${m[status[s.results[x.id]]]||m.unknown}；恢复方式：${x.restore}</small></p>`).join('')}<hr/><p>导出格式尚未决定（OD-010）。本原型不生成文件。</p></div>`,btn(m.home,'HOME'))}function guide(){let yes=s.results.keyboard==='applied_verified';return page(m.guideTitle,'只显示与这次模拟选择和结果相关的内容。',`<div class="guides"><section><b>${yes?'Ctrl 兼容是选择性的':'键盘兼容尚未应用'}</b><p>${yes?'普通编辑应用可用常用 Ctrl；终端、VS Code 集成终端、远程桌面和虚拟机仍使用真实 Ctrl。':'可在主页重试或恢复后再核对权限。'}</p></section><section><b>安装应用时，先认识 DMG</b><p>DMG 是磁盘映像；把 App 放进“应用程序”后可弹出它。关闭窗口不等于退出应用，使用 Command+Q。</p></section><section><b>Mac 的优势取决于场景</b><p>对轻量工作和外出使用，能效与触控板体验可能更顺手；专用 Windows 软件、游戏、企业系统或特殊外设仍可能更适合留在 Windows。</p></section></div>`,btn(m.home,'HOME'))}function home(){let z=summary(s.results);return page(m.homeTitle,'这是一次虚构迁移的本地摘要；原型不会读取或保留系统状态。',`<div class="home"><b>${z==='all'?m.conclusionAll:z==='actions'?m.conclusionActions:m.conclusionPartial}</b><p>最近一次：演示中的虚构结果 · 不会持久化</p></div><p>${btn(m.guide,'GUIDE','','secondary')}${btn(m.report,'REPORT','','secondary')}${btn(m.recovery,'RECOVERY','','secondary')}<button disabled>检查更新（演示中离线）</button></p><small>GitHub 与支持入口待负责人确定（OD-001）</small>`,btn(m.reset,'RESET'))}function recovery(){return page(m.recoverTitle,m.recoverText,`<div class="restore">${modules(s).map(x=>{let yes=['applied_verified','failed_recoverable'].includes(s.results[x.id]),done=s.restored.includes(x.id);return`<div><span><b>${x.title}</b><small>${yes?(done?'已模拟恢复并验证':'可恢复到迁移前模拟值'):'本次没有可自动恢复的模拟变更'}</small></span>${yes?btn(done?'已恢复':m.restore,'RESTORE',x.id,'secondary'):''}</div>`}).join('')}</div>`,`${btn(m.restoreAll,'RESTORE_ALL')}${btn(m.home,'HOME','','secondary')}`)}
-function toolbar(){return`<aside class="toolbar"><label>${m.scenario}<select data-event="SCENARIO">${Object.entries(scenarios).map(([k,v])=>`<option value="${k}" ${s.scenario===k?'selected':''}>${m[v]}</option>`).join('')}</select></label><label>${m.density}<select data-event="DENSITY"><option value="spacious">${m.spacious}</option><option value="compact" ${s.density==='compact'?'selected':''}>${m.compact}</option></select></label><label>${m.planMode}<select data-event="MODE"><option value="collapsed">${m.collapsed}</option><option value="expanded" ${s.planMode==='expanded'?'selected':''}>${m.expanded}</option></select></label>${btn((s.reduced?'✓ ':'')+m.reduced,'REDUCED','','toolbutton')}${btn(m.reset,'RESET','','toolbutton')}</aside>`}function render(){document.documentElement.classList.toggle('reduced',s.reduced);let f={welcome,scan,questions,export:exportPage,import:importPage,plan,permission,complete:completion,report,guide,home,recovery}[s.screen];app.innerHTML=`<div class="shell" data-prototype-state="${s.screen}">${header()}${track()}${f()}<aside class="boundary"><b>${m.boundary}</b><span>${m.boundaryText}</span></aside><details class="state"><summary>${m.state}</summary><code>${JSON.stringify({screen:s.screen,planConfirmed:s.planConfirmed,scenario:s.scenario,results:s.results,restored:s.restored},null,2)}</code></details>${toolbar()}</div>`}function go(e,p){s=transition(s,e,p);let u=new URL(location.href);u.searchParams.set('scenario',s.scenario);history.replaceState({},'',u);render()}app.addEventListener('click',e=>{let t=e.target.closest('[data-event]');if(t&&t.tagName!=='SELECT'&&t.type!=='checkbox')go(t.dataset.event,t.dataset.payload)});app.addEventListener('change',e=>{let t=e.target;if(t.dataset.event)go(t.dataset.event,t.type==='checkbox'?t.dataset.payload:t.value)});render();
+
+import './style.css';
+import { m } from './messages.js';
+import { scenarios, initialState, modules, summary, transition } from './flow-machine.js';
+
+const app = document.querySelector('#app');
+const query = new URLSearchParams(location.search);
+let state = initialState(scenarios[query.get('scenario')] ? query.get('scenario') : 'normal');
+
+const statusKey = {
+  applied_verified: 'verified',
+  skipped_permission: 'skipped',
+  skipped_user: 'skipped',
+  manual_action_required: 'manual',
+  failed_recoverable: 'failed',
+  unknown_requires_review: 'unknown',
+};
+
+const questions = [
+  {
+    id: 'keyboard',
+    title: '常用 Ctrl 快捷键',
+    description: '在普通应用继续用 Ctrl+C / V / Z；终端和远程工具仍保留真实 Ctrl。',
+    tags: [],
+  },
+  {
+    id: 'external',
+    title: '外接 Windows 键盘',
+    description: '只对检测到的外接键盘启用兼容，不影响其他键盘。',
+    tags: [],
+  },
+  {
+    id: 'pointer',
+    title: '鼠标与触控板滚动',
+    description: '鼠标保持 Windows 式方向，触控板保持自然滚动。',
+    tags: ['thirdParty'],
+  },
+  {
+    id: 'wifi',
+    title: '带上个人 Wi‑Fi 密码',
+    description: '迁移包第一版不加密，需要 Windows 管理员授权，默认不勾选。',
+    tags: ['sensitive', 'admin'],
+  },
+  {
+    id: 'guide',
+    title: '生成简短的 Mac 使用指南',
+    description: '只解释这次实际迁移的内容，不给你一份通用长文。',
+    tags: [],
+  },
+];
+
+const scanGroups = [
+  {
+    title: '操作习惯',
+    items: ['Ctrl+C / V / Z', '外接 Windows 键盘', '鼠标与触控板滚动'],
+  },
+  {
+    title: '软件与开发',
+    items: ['Chrome', 'Microsoft 365', 'VS Code', 'Git', 'Node.js 22'],
+  },
+  {
+    title: '系统设置',
+    items: ['中英文输入切换', 'Caps Lock', '显示与通知建议'],
+  },
+  {
+    title: 'Wi‑Fi',
+    items: ['1 个个人网络', '密码需单独确认'],
+  },
+];
+
+const tag = (name) => `<span class="tag tag-${name}">${m[name]}</span>`;
+const button = (label, event, payload = '', style = 'primary') => (
+  `<button class="${style}" data-event="${event}"${payload ? ` data-payload="${payload}"` : ''}>${label}</button>`
+);
+
+const platform = () => {
+  if (['scan', 'questions', 'export'].includes(state.screen)) return 'windows';
+  if (state.screen === 'welcome') return 'neutral';
+  return 'mac';
+};
+
+function header() {
+  const current = platform();
+  return `
+    <header>
+      <div class="logo"><b>↗ MacWin</b><small>${m.proto}</small></div>
+      <strong class="demo">${m.demo}</strong>
+      <div class="platforms" aria-label="当前平台">
+        <span class="${current === 'windows' ? 'active' : ''}">▣ ${m.windows}</span>
+        <i>交给</i>
+        <span class="${current === 'mac' ? 'active' : ''}">● ${m.mac}</span>
+      </div>
+    </header>`;
+}
+
+function progress() {
+  const current = platform();
+  if (current === 'neutral') return '';
+
+  const definitions = current === 'windows'
+    ? { labels: ['检测', '选择', '导出'], screens: { scan: 0, questions: 1, export: 2 } }
+    : {
+        labels: ['导入', '确认', '完成'],
+        screens: {
+          import: 0,
+          plan: 1,
+          permission: 1,
+          complete: 2,
+          report: 2,
+          guide: 2,
+          home: 2,
+          recovery: 2,
+        },
+      };
+  const active = definitions.screens[state.screen] ?? 0;
+
+  return `
+    <nav class="progress" aria-label="${current === 'windows' ? 'Windows' : 'Mac'} 端进度">
+      <b>${current === 'windows' ? 'Windows 准备迁移包' : 'Mac 应用迁移包'}</b>
+      <div>${definitions.labels.map((label, index) => (
+        `<span class="${index < active ? 'done' : ''} ${index === active ? 'current' : ''}">
+          <i>${index < active ? '✓' : index + 1}</i>${label}
+        </span>`
+      )).join('')}</div>
+    </nav>`;
+}
+
+function page(title, intro, body, actions, kicker) {
+  return `
+    <main>
+      <span class="eyebrow">${kicker || (platform() === 'windows' ? 'Windows 端 · 演示流程' : 'Mac 端 · 演示流程')}</span>
+      <h1>${title}</h1>
+      <p class="intro">${intro}</p>
+      ${body}
+      <footer>${actions}</footer>
+    </main>`;
+}
+
+function welcome() {
+  return page(
+    '从现在这台电脑开始',
+    '旧 Windows 负责检测并生成迁移包；新 Mac 直接导入已经准备好的迁移包。',
+    `<div class="entry-grid">
+      <section class="entry entry-windows">
+        <span>▣ Windows</span>
+        <h2>检测这台 Windows</h2>
+        <p>自动找出能带到 Mac 的操作习惯、软件环境和少量系统设置。</p>
+        ${button('开始兼容检测', 'START')}
+      </section>
+      <section class="entry entry-mac">
+        <span>● Mac</span>
+        <h2>导入迁移包</h2>
+        <p>已经从旧电脑拿到 <code>.habitpack</code>？从这里直接检查并预览计划。</p>
+        ${button('在 Mac 导入配置', 'IMPORT_DIRECT', '', 'secondary')}
+      </section>
+    </div>
+    <p class="quiet-note">只迁移习惯与环境，不搬个人文件、账号、浏览器记录或项目文件。</p>`,
+    '',
+    'Windows → Mac · 两种入口',
+  );
+}
+
+function scan() {
+  return page(
+    '检测完成，找到了这些内容',
+    '这里只列出可以继续处理的项目。不能迁移的内容不会占用你的注意力。',
+    `<div class="scan-list">
+      ${scanGroups.map((group) => `
+        <section class="scan-group">
+          <div><b>${group.title}</b><small>${group.items.length} 项</small></div>
+          <p>${group.items.map((item) => `<span>${item}</span>`).join('')}</p>
+        </section>`).join('')}
+    </div>`,
+    button('继续选择要带走的内容', 'QUESTIONS'),
+  );
+}
+
+function questionPage() {
+  return page(
+    '只确认这 5 项',
+    '常用选项已经替你勾好。不想要的取消即可，不需要展开说明。',
+    `<div class="choice-list">
+      ${questions.map((item) => `
+        <label class="choice-row">
+          <input type="checkbox" data-event="TOGGLE" data-payload="${item.id}" ${state.selected[item.id] ? 'checked' : ''}/>
+          <strong>${item.title}</strong>
+          <span>${item.description}</span>
+          <em>${item.tags.map(tag).join('')}</em>
+        </label>`).join('')}
+    </div>`,
+    button('继续生成迁移包', 'GO_EXPORT'),
+  );
+}
+
+function exportPage() {
+  const declined = state.scenario === 'uacDenied';
+  const containsSecret = state.selected.wifi && !declined;
+  const includedModules = modules(state).map((item) => item.title).join('、');
+  const wifiSummary = declined
+    ? '管理员授权已拒绝：只带走网络名称'
+    : containsSecret
+      ? '包含 Wi‑Fi 密码（不会在界面显示）'
+      : '只带走网络名称，不含密码';
+
+  return page(
+    '生成迁移包',
+    '最后看一眼将带走的内容，然后把迁移包交给你的 Mac。',
+    `<div class="package-summary">
+      <div><span>Windows</span><b>macwin-demo.habitpack</b><span>Mac</span></div>
+      <p><b>包含：</b>${includedModules}；${wifiSummary}</p>
+      <p><b>不包含：</b>个人文件、账号、浏览器资料、真实设备信息</p>
+      <aside>${containsSecret ? `${tag('sensitive')}${tag('admin')} 迁移包第一版不加密` : declined ? '已安全降级，不包含密码' : '不包含敏感信息'}</aside>
+    </div>
+    ${state.exported ? `
+      <div class="inline-success">
+        <span><b>模拟迁移包已准备好</b><small>原型不会写入磁盘或传输文件。</small></span>
+        ${button('在 Mac 端继续导入', 'IMPORT')}
+      </div>` : ''}`,
+    state.exported ? button(m.reset, 'RESET', '', 'secondary') : button('生成模拟迁移包', 'EXPORT'),
+  );
+}
+
+function importPage() {
+  const body = state.importError
+    ? `<aside class="error"><b>这份迁移包不能使用</b><p>文件损坏或版本不兼容。请回到 Windows 重新生成。</p></aside>`
+    : `<div class="file-row">
+        <b>⌁</b>
+        <span><strong>macwin-demo.habitpack</strong><small>Windows 11 x64 · 5 个迁移模块 · 演示文件</small></span>
+        <em>等待检查</em>
+      </div>`;
+  const actions = state.importError
+    ? button('回到首页', 'RESET', '', 'secondary')
+    : button(m.inspect, 'CHECK');
+
+  return page(
+    '导入 Windows 迁移包',
+    '先检查文件，再让你确认会改什么。检查通过前不会发生任何模拟更改。',
+    body,
+    actions,
+  );
+}
+
+function moduleRow(item) {
+  const open = state.planMode === 'expanded' || state.expanded.includes(item.id);
+  return `
+    <article class="module">
+      <div class="module-head">
+        <span><strong>${item.title}</strong><small>${item.change}</small></span>
+        <em>${item.tags.map(tag).join('')}</em>
+        <button class="text" data-event="EXPAND" data-payload="${item.id}">${open ? '收起' : '更多'}</button>
+      </div>
+      ${open ? `<dl>
+        <dt>为什么</dt><dd>${item.why}</dd>
+        <dt>好处</dt><dd>${item.benefit}</dd>
+        <dt>例外</dt><dd>${item.exception}</dd>
+        <dt>需要你做什么</dt><dd>${item.needs}</dd>
+        <dt>恢复</dt><dd>${item.restore}</dd>
+        <dt>验证</dt><dd>${item.verify}</dd>
+      </dl>` : ''}
+    </article>`;
+}
+
+function planPage() {
+  const items = modules(state);
+  const permissionCount = (state.selected.keyboard || state.selected.external ? 1 : 0) + (state.selected.wifi ? 1 : 0);
+  const thirdPartyCount = items.some((item) => item.tags.includes('thirdParty')) ? 1 : 0;
+  return page(
+    '确认 Mac 会做什么',
+    '这是不能跳过的一页。默认只给结论，需要时再展开。',
+    `<div class="modules">${items.map(moduleRow).join('')}</div>
+    <aside class="confirm-strip">
+      <span><b>${items.length} 个模块 · ${thirdPartyCount} 个第三方候选 · ${permissionCount} 项权限说明</b><small>确认后才会创建模拟迁移前快照。</small></span>
+      ${button(m.confirm, 'CONFIRM')}
+    </aside>`,
+    button('返回导入', 'IMPORT', '', 'secondary'),
+  );
+}
+
+function permissionPage() {
+  const toolDeclined = state.scenario === 'toolDeclined';
+  const permissionDenied = state.scenario === 'permissionDenied';
+  return page(
+    '接下来可能出现两类确认',
+    '这里只提前说清原因。原型不会弹出真实系统权限框，也不会下载第三方工具。',
+    `<div class="permission-list">
+      ${state.selected.keyboard || state.selected.external ? `<section><span>${tag('admin')}</span><div><b>辅助功能权限</b><p>用于选择性 Ctrl 兼容；拒绝后只跳过操作习惯模块。</p></div></section>` : ''}
+      ${state.selected.pointer ? `<section><span>${tag('thirdParty')}</span><div><b>LinearMouse 候选</b><p>用于分开鼠标和触控板滚动方向；拒绝后保留原生可行部分。</p></div></section>` : ''}
+    </div>`,
+    button(
+      toolDeclined ? '模拟拒绝第三方工具' : permissionDenied ? '模拟拒绝 Mac 权限' : '模拟允许并执行',
+      'EXECUTE',
+    ),
+  );
+}
+
+function resultList() {
+  return `<div class="results">${modules(state).map((item) => {
+    const code = state.results[item.id] || 'unknown_requires_review';
+    return `<div><span><b>${item.title}</b><small>${item.change}</small></span><strong class="status ${code}">${m[statusKey[code]]}</strong></div>`;
+  }).join('')}</div>`;
+}
+
+function completionPage() {
+  const resultSummary = summary(state.results);
+  const title = resultSummary === 'all'
+    ? m.conclusionAll
+    : resultSummary === 'actions'
+      ? m.conclusionActions
+      : m.conclusionPartial;
+  return page(
+    title,
+    '下面是模拟结果，不代表设备已经发生变化。',
+    resultList(),
+    `${button(m.report, 'REPORT')}${state.selected.guide ? button(m.guide, 'GUIDE', '', 'secondary') : ''}${button(m.recovery, 'RECOVERY', '', 'secondary')}`,
+  );
+}
+
+function reportPage() {
+  return page(
+    '这次迁移改了什么',
+    '报告只保留非敏感摘要，不包含 Wi‑Fi 名称或密码、用户名、路径和账号。',
+    `<div class="report">
+      ${modules(state).map((item) => `
+        <p><b>${item.title}</b><span>${m[statusKey[state.results[item.id]]] || m.unknown}</span><small>${item.change}；${item.restore}</small></p>`).join('')}
+      <p class="report-note">导出格式仍由 OD-010 决定，本原型不会生成文件。</p>
+    </div>`,
+    button(m.home, 'HOME'),
+  );
+}
+
+function guidePage() {
+  const habitsApplied = state.results.habits === 'applied_verified';
+  return page(
+    '你的 Mac 快速指南',
+    '只保留与你这次迁移结果有关的三件事。',
+    `<div class="guide-list">
+      <section><b>${habitsApplied ? '普通应用继续用 Ctrl' : '操作习惯尚未应用'}</b><p>${habitsApplied ? '复制、粘贴和撤销可以继续用 Ctrl；终端、远程桌面和虚拟机仍使用真实 Ctrl。' : '可以回到主页重试权限，其他模块不受影响。'}</p></section>
+      <section><b>Command、Option 和 Fn</b><p>Command 是 Mac 的主要快捷键；Option 提供替代操作；Fn 控制功能键和地球仪键。</p></section>
+      <section><b>关闭窗口不等于退出应用</b><p>红色按钮只关闭窗口；真正退出应用使用 Command+Q。</p></section>
+    </div>`,
+    button(m.home, 'HOME'),
+  );
+}
+
+function homePage() {
+  const resultSummary = summary(state.results);
+  const title = resultSummary === 'all'
+    ? m.conclusionAll
+    : resultSummary === 'actions'
+      ? m.conclusionActions
+      : m.conclusionPartial;
+  return page(
+    '迁移主页',
+    '只留下结果、指南、报告和恢复入口。MacWin 不常驻，也不自启动。',
+    `<div class="home-summary"><b>${title}</b><span>刚刚 · 演示结果 · 不会持久化</span></div>
+    <div class="home-actions">
+      ${state.selected.guide ? button(m.guide, 'GUIDE', '', 'secondary') : ''}
+      ${button(m.report, 'REPORT', '', 'secondary')}
+      ${button(m.recovery, 'RECOVERY', '', 'secondary')}
+      <button disabled>检查更新（演示离线）</button>
+    </div>`,
+    button(m.reset, 'RESET'),
+  );
+}
+
+function recoveryPage() {
+  return page(
+    '恢复到迁移前状态',
+    '恢复的是本次迁移前的相关设置，不是恢复出厂，也不会碰其他设置。',
+    `<div class="restore-list">${modules(state).map((item) => {
+      const recoverable = ['applied_verified', 'failed_recoverable'].includes(state.results[item.id]);
+      const done = state.restored.includes(item.id);
+      return `<div><span><b>${item.title}</b><small>${recoverable ? (done ? '已模拟恢复并验证' : '可以恢复到迁移前状态') : '本次没有可自动恢复的设置'}</small></span>${recoverable ? button(done ? '已恢复' : m.restore, 'RESTORE', item.id, 'secondary') : ''}</div>`;
+    }).join('')}</div>`,
+    `${button(m.restoreAll, 'RESTORE_ALL')}${button(m.home, 'HOME', '', 'secondary')}`,
+  );
+}
+
+function prototypeControls() {
+  return `
+    <details class="prototype-controls">
+      <summary>原型控制</summary>
+      <div>
+        <label>${m.scenario}<select data-event="SCENARIO">${Object.entries(scenarios).map(([key, value]) => `<option value="${key}" ${state.scenario === key ? 'selected' : ''}>${m[value]}</option>`).join('')}</select></label>
+        <label>${m.planMode}<select data-event="MODE"><option value="collapsed">${m.collapsed}</option><option value="expanded" ${state.planMode === 'expanded' ? 'selected' : ''}>${m.expanded}</option></select></label>
+        ${button(`${state.reduced ? '✓ ' : ''}${m.reduced}`, 'REDUCED', '', 'toolbutton')}
+        ${button(m.reset, 'RESET', '', 'toolbutton')}
+        <details class="state"><summary>${m.state}</summary><code>${JSON.stringify({ screen: state.screen, scenario: state.scenario, planConfirmed: state.planConfirmed, results: state.results, restored: state.restored }, null, 2)}</code></details>
+      </div>
+    </details>`;
+}
+
+function render() {
+  document.documentElement.classList.toggle('reduced', state.reduced);
+  const screen = {
+    welcome,
+    scan,
+    questions: questionPage,
+    export: exportPage,
+    import: importPage,
+    plan: planPage,
+    permission: permissionPage,
+    complete: completionPage,
+    report: reportPage,
+    guide: guidePage,
+    home: homePage,
+    recovery: recoveryPage,
+  }[state.screen];
+
+  app.innerHTML = `<div class="shell" data-prototype-state="${state.screen}">${header()}${progress()}${screen()}${prototypeControls()}</div>`;
+}
+
+function go(event, payload) {
+  state = transition(state, event, payload);
+  const url = new URL(location.href);
+  url.searchParams.set('scenario', state.scenario);
+  history.replaceState({}, '', url);
+  render();
+  window.scrollTo({ top: 0, behavior: state.reduced ? 'auto' : 'smooth' });
+}
+
+app.addEventListener('click', (event) => {
+  const target = event.target.closest('[data-event]');
+  if (target && target.tagName !== 'SELECT' && target.type !== 'checkbox') {
+    go(target.dataset.event, target.dataset.payload);
+  }
+});
+
+app.addEventListener('change', (event) => {
+  const target = event.target;
+  if (target.dataset.event) {
+    go(target.dataset.event, target.type === 'checkbox' ? target.dataset.payload : target.value);
+  }
+});
+
+render();

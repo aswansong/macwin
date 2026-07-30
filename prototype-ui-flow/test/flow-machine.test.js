@@ -1,7 +1,77 @@
-import test from'node:test';import assert from'node:assert/strict';import{initialState,transition,execute,summary}from'../src/flow-machine.js';
-test('cannot execute before forced plan confirmation',()=>assert.equal(execute({...initialState(),screen:'plan'}).screen,'plan'));
-test('export confirmation is separate from package generation',()=>{let s=initialState();for(const e of ['START','QUESTIONS','GO_EXPORT'])s=transition(s,e);assert.equal(s.screen,'export');assert.equal(s.exported,false);s=transition(s,'EXPORT');assert.equal(s.exported,true)});
-test('confirmed plan is the only route to execution',()=>{let s=initialState();for(const e of ['START','QUESTIONS','GO_EXPORT','EXPORT','IMPORT','CHECK'])s=transition(s,e);assert.equal(s.screen,'plan');s=transition(s,'CONFIRM');assert.equal(s.planConfirmed,true);assert.equal(s.screen,'permission')});
-test('permission refusal isolates its dependent module',()=>{let s=transition({...initialState('permissionDenied'),screen:'permission',planConfirmed:true},'EXECUTE');assert.equal(s.results.keyboard,'skipped_permission');assert.equal(s.results.pointer,'applied_verified');assert.equal(summary(s.results),'actions')});
-test('offline/failure/tool refusal never report all success',()=>['offline','moduleFailure','toolDeclined'].forEach(x=>assert.notEqual(summary(transition({...initialState(x),screen:'permission',planConfirmed:true},'EXECUTE').results),'all')));
-test('corrupt package cannot enter plan',()=>{const s=transition({...initialState('corrupt'),screen:'import'},'CHECK');assert.equal(s.screen,'import');assert.equal(s.importError,true)});
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { initialState, transition, execute, modules, summary } from '../src/flow-machine.js';
+
+test('welcome offers a direct Mac import route', () => {
+  const state = transition(initialState(), 'IMPORT_DIRECT');
+  assert.equal(state.screen, 'import');
+});
+
+test('cannot execute before forced plan confirmation', () => {
+  assert.equal(execute({ ...initialState(), screen: 'plan' }).screen, 'plan');
+});
+
+test('export confirmation is separate from package generation', () => {
+  let state = initialState();
+  for (const event of ['START', 'QUESTIONS', 'GO_EXPORT']) state = transition(state, event);
+  assert.equal(state.screen, 'export');
+  assert.equal(state.exported, false);
+  state = transition(state, 'EXPORT');
+  assert.equal(state.exported, true);
+});
+
+test('confirmed plan is the only route to execution', () => {
+  let state = initialState();
+  for (const event of ['START', 'QUESTIONS', 'GO_EXPORT', 'EXPORT', 'IMPORT', 'CHECK']) {
+    state = transition(state, event);
+  }
+  assert.equal(state.screen, 'plan');
+  state = transition(state, 'CONFIRM');
+  assert.equal(state.planConfirmed, true);
+  assert.equal(state.screen, 'permission');
+});
+
+test('plan groups scan results into user-facing modules', () => {
+  assert.deepEqual(
+    modules(initialState()).map((item) => item.id),
+    ['habits', 'software', 'system', 'wifi', 'guide'],
+  );
+});
+
+test('user choices remove optional plan modules and habit actions', () => {
+  const state = initialState();
+  state.selected.keyboard = false;
+  state.selected.external = false;
+  state.selected.pointer = false;
+  state.selected.guide = false;
+  assert.deepEqual(
+    modules(state).map((item) => item.id),
+    ['software', 'system', 'wifi'],
+  );
+});
+
+test('permission refusal isolates its dependent module', () => {
+  const state = transition(
+    { ...initialState('permissionDenied'), screen: 'permission', planConfirmed: true },
+    'EXECUTE',
+  );
+  assert.equal(state.results.habits, 'skipped_permission');
+  assert.equal(state.results.system, 'applied_verified');
+  assert.equal(summary(state.results), 'actions');
+});
+
+test('offline/failure/tool refusal never report all success', () => {
+  for (const scenario of ['offline', 'moduleFailure', 'toolDeclined']) {
+    const state = transition(
+      { ...initialState(scenario), screen: 'permission', planConfirmed: true },
+      'EXECUTE',
+    );
+    assert.notEqual(summary(state.results), 'all');
+  }
+});
+
+test('corrupt package cannot enter plan', () => {
+  const state = transition({ ...initialState('corrupt'), screen: 'import' }, 'CHECK');
+  assert.equal(state.screen, 'import');
+  assert.equal(state.importError, true);
+});

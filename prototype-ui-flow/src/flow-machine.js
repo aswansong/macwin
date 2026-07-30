@@ -1,8 +1,187 @@
 // THROWAWAY PROTOTYPE ONLY. Pure in-memory state machine; no platform API calls.
-export const scenarios={normal:'normal',uacDenied:'uac',permissionDenied:'permissionDenied',offline:'offline',moduleFailure:'failure',toolDeclined:'tool',manual:'manualScenario',recovery:'recoverScenario',corrupt:'corrupt'};
-export const initialState=(scenario='normal')=>({screen:'welcome',scenario,planConfirmed:false,exported:false,importError:false,selected:{keyboard:true,external:true,pointer:true,wifi:scenario==='uacDenied',guide:true},density:'spacious',planMode:'collapsed',reduced:false,expanded:[],results:{},restored:[]});
-export const modules=(s)=>[{id:'keyboard',title:'键盘与输入',change:'普通编辑应用支持常用 Ctrl 快捷键',why:'检测到内置与外接 Windows 键盘',benefit:'复制、粘贴等高频操作更连贯',exception:'终端、远程桌面和虚拟机仍使用真实 Ctrl',needs:'辅助功能权限（模拟说明）',restore:'可自动恢复',verify:'模拟检查普通应用与例外上下文',tags:[]},{id:'pointer',title:'鼠标与触控板',change:'鼠标保持 Windows 式方向，触控板保持自然滚动',why:'两种设备被分别选择',benefit:'减少外接鼠标与触控板切换负担',exception:'分离方向候选依赖 LinearMouse',needs:'第三方工具确认（模拟）',restore:'可自动恢复',verify:'模拟分别检查两个设备',tags:['thirdParty']},{id:'software',title:'软件环境',change:'匹配虚构的浏览器与办公应用',why:'只识别白名单中的 2 个应用',benefit:'保留常用应用选择，不搬运数据',exception:'无网时需要稍后重试',needs:'网络仅用于安装（模拟）',restore:'不可自动恢复',verify:'模拟检查应用版本',tags:['network','irreversible']},{id:'wifi',title:'个人 Wi‑Fi',change:s.selected.wifi?'迁移网络与模拟凭据引用':'迁移网络名称，不含密码',why:'仅虚构的 WPA2 Personal 网络被选择',benefit:'在新 Mac 上更容易找到常用网络',exception:s.selected.wifi?'包第一版不加密；密码不会在界面显示':'密码未选择',needs:s.selected.wifi?'Windows 管理员权限（模拟）':'无需权限',restore:'仅恢复非秘密偏好',verify:'模拟检查网络记录，不回显密码',tags:s.selected.wifi?['sensitive','admin']:[]},{id:'guide',title:'个性化 Mac 使用指南',change:'生成与实际结果对应的学习清单',why:'已预选个性化指导',benefit:'理解 Command、DMG 和退出应用',exception:'不替代真实系统帮助',needs:'无需权限',restore:'无需恢复',verify:'模拟检查相关章节',tags:[]}];
-export const resultFor=(id,s)=>s==='permissionDenied'&&id==='keyboard'?'skipped_permission':s==='offline'&&id==='software'?'manual_action_required':s==='moduleFailure'&&id==='pointer'?'failed_recoverable':s==='toolDeclined'&&id==='pointer'?'skipped_user':s==='manual'&&id==='software'?'manual_action_required':'applied_verified';
-export const summary=(r)=>{const a=Object.values(r);return a.some(x=>x==='failed_recoverable'||x==='unknown_requires_review')?'partial':a.some(x=>x!=='applied_verified')?'actions':'all'};
-export const execute=s=>s.screen==='permission'&&s.planConfirmed?{...s,screen:'complete',results:Object.fromEntries(modules(s).map(x=>[x.id,resultFor(x.id,s.scenario)]))}:s;
-export function transition(s,e,p){if(e==='START')return{...s,screen:'scan'};if(e==='QUESTIONS')return{...s,screen:'questions'};if(e==='TOGGLE')return{...s,selected:{...s.selected,[p]:!s.selected[p]}};if(e==='GO_EXPORT')return{...s,screen:'export',exported:false};if(e==='EXPORT')return{...s,exported:true};if(e==='IMPORT')return{...s,screen:'import'};if(e==='CHECK')return s.scenario==='corrupt'?{...s,importError:true}:{...s,screen:'plan'};if(e==='CONFIRM')return{...s,screen:'permission',planConfirmed:true};if(e==='EXECUTE')return execute(s);if(e==='REPORT')return{...s,screen:'report'};if(e==='GUIDE')return{...s,screen:'guide'};if(e==='HOME')return{...s,screen:'home'};if(e==='RECOVERY')return{...s,screen:'recovery'};if(e==='RESTORE')return{...s,restored:[...new Set([...s.restored,p])]};if(e==='RESTORE_ALL')return{...s,restored:modules(s).filter(x=>['applied_verified','failed_recoverable'].includes(s.results[x.id])).map(x=>x.id)};if(e==='EXPAND')return{...s,expanded:s.expanded.includes(p)?s.expanded.filter(x=>x!==p):[...s.expanded,p]};if(e==='SCENARIO')return initialState(p);if(e==='DENSITY')return{...s,density:p};if(e==='MODE')return{...s,planMode:p};if(e==='REDUCED')return{...s,reduced:!s.reduced};if(e==='RESET')return initialState(s.scenario);return s;}
+
+export const scenarios = {
+  normal: 'normal',
+  uacDenied: 'uac',
+  permissionDenied: 'permissionDenied',
+  offline: 'offline',
+  moduleFailure: 'failure',
+  toolDeclined: 'tool',
+  manual: 'manualScenario',
+  recovery: 'recoverScenario',
+  corrupt: 'corrupt',
+};
+
+export const initialState = (scenario = 'normal') => ({
+  screen: 'welcome',
+  scenario,
+  planConfirmed: false,
+  exported: false,
+  importError: false,
+  selected: {
+    keyboard: true,
+    external: true,
+    pointer: true,
+    wifi: scenario === 'uacDenied',
+    guide: true,
+  },
+  planMode: 'collapsed',
+  reduced: false,
+  expanded: [],
+  results: {},
+  restored: [],
+});
+
+export const modules = (state) => {
+  const wifiHasSecret = state.selected.wifi;
+  const habitChanges = [];
+  if (state.selected.keyboard) habitChanges.push('常用 Ctrl 快捷键');
+  if (state.selected.external) habitChanges.push('外接 Windows 键盘');
+  if (state.selected.pointer) habitChanges.push('鼠标与触控板滚动');
+
+  const items = [];
+  if (habitChanges.length) {
+    items.push({
+      id: 'habits',
+      title: '操作习惯',
+      change: `调整：${habitChanges.join('、')}`,
+      why: '检测到高频编辑操作、Windows 布局键盘和外接鼠标',
+      benefit: '减少复制粘贴、撤销和切换输入设备时的误操作',
+      exception: `${state.selected.keyboard || state.selected.external ? '终端、远程桌面和虚拟机仍保留真实 Ctrl' : ''}${state.selected.pointer && (state.selected.keyboard || state.selected.external) ? '；' : ''}${state.selected.pointer ? '分离滚动方向可能需要第三方工具' : ''}`,
+      needs: `${state.selected.keyboard || state.selected.external ? '辅助功能权限' : ''}${state.selected.pointer && (state.selected.keyboard || state.selected.external) ? '与' : ''}${state.selected.pointer ? '第三方工具确认' : ''}（均为模拟）`,
+      restore: '可自动恢复',
+      verify: '模拟检查普通应用、真实 Ctrl 例外和两类指针设备',
+      tags: state.selected.pointer ? ['thirdParty'] : [],
+    });
+  }
+
+  items.push(
+    {
+      id: 'software',
+      title: '软件与开发',
+      change: '准备浏览器、办公软件和轻量开发工具的 Mac 版本',
+      why: '检测到 Chrome、Microsoft 365、VS Code、Git 和 Node.js',
+      benefit: '到 Mac 后不用重新研究常用软件和开发环境',
+      exception: '不迁移账号、项目和浏览器资料；无网时稍后重试',
+      needs: '安装前逐项确认；下载需要网络（模拟）',
+      restore: '应用安装不可自动恢复',
+      verify: '模拟检查应用和命令行工具版本',
+      tags: ['network', 'irreversible'],
+    },
+    {
+      id: 'system',
+      title: '系统设置',
+      change: '准备输入切换、显示与通知等少量安全偏好',
+      why: '这些差异最容易让第一次使用 Mac 的用户困惑',
+      benefit: '减少刚开机时逐项寻找系统设置的时间',
+      exception: '只处理白名单设置，不复制完整个人配置',
+      needs: '部分设置可能需要系统确认（模拟）',
+      restore: '可自动恢复',
+      verify: '模拟读取目标状态并与计划比较',
+      tags: [],
+    },
+    {
+      id: 'wifi',
+      title: 'Wi‑Fi',
+      change: wifiHasSecret ? '迁移个人网络与模拟凭据引用' : '只带走个人网络名称，不含密码',
+      why: '检测到一个符合条件的个人 WPA2 网络',
+      benefit: '在新 Mac 上更容易找到常用网络',
+      exception: wifiHasSecret ? '迁移包第一版不加密；密码不会在界面显示' : '密码未选择',
+      needs: wifiHasSecret ? 'Windows 管理员权限（模拟）' : '无需权限',
+      restore: '仅恢复非秘密偏好',
+      verify: '模拟检查网络记录，不回显密码',
+      tags: wifiHasSecret ? ['sensitive', 'admin'] : [],
+    },
+  );
+
+  if (state.selected.guide) {
+    items.push({
+      id: 'guide',
+      title: 'Mac 使用指南',
+      change: '生成只与本次结果有关的简短使用指南',
+      why: '已预选个性化指导',
+      benefit: '快速理解 Command、Option、Fn、DMG 和退出应用',
+      exception: '只解释实际选择和结果，不提供通用长文',
+      needs: '无需权限',
+      restore: '无需恢复',
+      verify: '模拟检查指南内容与结果一致',
+      tags: [],
+    });
+  }
+
+  return items;
+};
+
+export const resultFor = (id, scenario) => {
+  if (scenario === 'permissionDenied' && id === 'habits') return 'skipped_permission';
+  if (scenario === 'offline' && id === 'software') return 'manual_action_required';
+  if (scenario === 'moduleFailure' && id === 'system') return 'failed_recoverable';
+  if (scenario === 'toolDeclined' && id === 'habits') return 'manual_action_required';
+  if (scenario === 'manual' && id === 'software') return 'manual_action_required';
+  return 'applied_verified';
+};
+
+export const summary = (results) => {
+  const values = Object.values(results);
+  if (values.some((value) => value === 'failed_recoverable' || value === 'unknown_requires_review')) {
+    return 'partial';
+  }
+  if (values.some((value) => value !== 'applied_verified')) return 'actions';
+  return 'all';
+};
+
+export const execute = (state) => {
+  if (state.screen !== 'permission' || !state.planConfirmed) return state;
+  return {
+    ...state,
+    screen: 'complete',
+    results: Object.fromEntries(modules(state).map((item) => [item.id, resultFor(item.id, state.scenario)])),
+  };
+};
+
+export function transition(state, event, payload) {
+  if (event === 'START') return { ...state, screen: 'scan' };
+  if (event === 'IMPORT_DIRECT') return { ...state, screen: 'import' };
+  if (event === 'QUESTIONS') return { ...state, screen: 'questions' };
+  if (event === 'TOGGLE') {
+    return { ...state, selected: { ...state.selected, [payload]: !state.selected[payload] } };
+  }
+  if (event === 'GO_EXPORT') return { ...state, screen: 'export', exported: false };
+  if (event === 'EXPORT') return { ...state, exported: true };
+  if (event === 'IMPORT') return { ...state, screen: 'import' };
+  if (event === 'CHECK') {
+    return state.scenario === 'corrupt'
+      ? { ...state, importError: true }
+      : { ...state, screen: 'plan' };
+  }
+  if (event === 'CONFIRM') return { ...state, screen: 'permission', planConfirmed: true };
+  if (event === 'EXECUTE') return execute(state);
+  if (event === 'REPORT') return { ...state, screen: 'report' };
+  if (event === 'GUIDE') return { ...state, screen: 'guide' };
+  if (event === 'HOME') return { ...state, screen: 'home' };
+  if (event === 'RECOVERY') return { ...state, screen: 'recovery' };
+  if (event === 'RESTORE') {
+    return { ...state, restored: [...new Set([...state.restored, payload])] };
+  }
+  if (event === 'RESTORE_ALL') {
+    return {
+      ...state,
+      restored: modules(state)
+        .filter((item) => ['applied_verified', 'failed_recoverable'].includes(state.results[item.id]))
+        .map((item) => item.id),
+    };
+  }
+  if (event === 'EXPAND') {
+    return {
+      ...state,
+      expanded: state.expanded.includes(payload)
+        ? state.expanded.filter((id) => id !== payload)
+        : [...state.expanded, payload],
+    };
+  }
+  if (event === 'SCENARIO') return initialState(payload);
+  if (event === 'MODE') return { ...state, planMode: payload };
+  if (event === 'REDUCED') return { ...state, reduced: !state.reduced };
+  if (event === 'RESET') return initialState(state.scenario);
+  return state;
+}
