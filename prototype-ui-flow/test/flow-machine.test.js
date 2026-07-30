@@ -19,6 +19,7 @@ import {
   linearMouseCompletionIntro,
   linearMousePermissionCopy,
   renderLinearMousePermission,
+  renderLinearMouseDisclosure,
   renderPointerOutcome,
   renderPointerReport,
   renderPointerGuide,
@@ -349,17 +350,30 @@ test('accepted compact copy does not reintroduce rejected controls', async () =>
   }
 });
 
-test('plan contains explicit LinearMouse disclosure and action-level downstream copy', async () => {
-  const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+test('rendered plan discloses every required LinearMouse field before confirmation', () => {
+  const disclosure = renderLinearMouseDisclosure(toPlan(), '<span>第三方工具</span>');
+  const renderedPlan = `${disclosure}<button>确认 5 个模块并继续</button>`;
+  const confirmIndex = renderedPlan.indexOf('确认 5 个模块并继续');
   for (const required of [
     'LinearMouse · 独立知情确认',
+    '名称与用途',
     '候选来源',
+    '版本策略',
+    '许可证入口',
     '所需权限',
     '是否常驻',
-    '停用或卸载',
+    '已知冲突或兼容性影响',
+    '停用或卸载影响',
+    '候选事实，尚未批准',
+    '以上技术值均未确定',
     '本原型不下载、不安装、不请求真实权限',
-    '动作结果',
-  ]) assert.equal(source.includes(required), true, `missing required disclosure: ${required}`);
+  ]) {
+    const fieldIndex = renderedPlan.indexOf(required);
+    assert.notEqual(fieldIndex, -1, `missing rendered disclosure: ${required}`);
+    assert.ok(fieldIndex < confirmIndex, `disclosure appears after confirmation: ${required}`);
+  }
+  assert.ok((renderedPlan.match(/待 M2 \/ OD-007 验证/g) || []).length >= 7);
+  assert.doesNotMatch(renderedPlan, /版本号：|许可证：|已知无冲突/);
 });
 
 test('rendered LinearMouse surfaces keep unconfirmed, confirmed, and declined copy mutually exclusive', () => {

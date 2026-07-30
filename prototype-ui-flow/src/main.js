@@ -20,6 +20,7 @@ import {
   linearMousePermissionCopy,
   pointerGuideSection,
   pointerOutcomeCopy,
+  renderLinearMouseDisclosure,
   renderLinearMousePermission,
   renderPointerOutcome,
   renderPointerReport,
@@ -325,24 +326,7 @@ function planPage() {
     '确认 Mac 会做什么',
     '逐项保留或取消。确认后先创建迁移前快照，再模拟应用。',
     `<div class="modules">${candidates.map(moduleRow).join('')}</div>
-    ${hasPointer ? `<section class="tool-consent" aria-labelledby="linearmouse-title">
-      <header>
-        <span>${tag('thirdParty')}</span>
-        <div><b id="linearmouse-title">LinearMouse · 独立知情确认</b><small>指针习惯在 Windows 端被选中，不代表同意使用或安装此工具。</small></div>
-      </header>
-      <dl>
-        <dt>名称与用途</dt><dd>LinearMouse 候选；用于尝试让鼠标采用 Windows 式滚动、触控板保留自然滚动。</dd>
-        <dt>候选来源</dt><dd>LinearMouse 官方项目发布页；具体地址、版本、签名与许可证待 M2 / OD-007 验证。</dd>
-        <dt>所需权限</dt><dd>候选方案可能需要 macOS 辅助功能权限，实际最小权限待验证。</dd>
-        <dt>是否常驻</dt><dd>为持续区分两类设备，候选工具可能需要在登录后运行；启动方式与资源影响待验证。</dd>
-        <dt>停用或卸载</dt><dd>分离滚动方向将停止，系统回到当时的滚动设置；Ctrl 子动作不受影响。准确恢复行为待验证。</dd>
-      </dl>
-      <p class="prototype-boundary"><b>候选事实，尚未批准。</b>本原型不下载、不安装、不请求真实权限，也不执行任何系统操作。</p>
-      <label class="tool-consent-check">
-        <input type="checkbox" data-event="LINEAR_MOUSE_TOGGLE" ${state.linearMouseDecision === 'confirmed' ? 'checked' : ''}/>
-        <span><b>我单独确认在本次演示计划中使用 LinearMouse 候选</b><small>保持未选也能继续；只有鼠标与触控板滚动进入“稍后处理”，两个 Ctrl 动作继续。</small></span>
-      </label>
-    </section>` : ''}
+    ${hasPointer ? renderLinearMouseDisclosure(state, tag('thirdParty')) : ''}
     <aside class="confirm-strip">
       <span><b>${items.length} 个模块 · ${thirdPartyCount} 个第三方工具（已确认 ${thirdPartyConfirmed} 个）· ${permissionCount} 项 Mac 权限</b><small>${containsSecret ? '含敏感信息的迁移包；密码不会显示或进入快照。' : '不含 Wi‑Fi 密码。'} ${hasPointer && state.linearMouseDecision !== 'confirmed' ? 'LinearMouse 未确认，指针动作将稍后处理。' : ''} 未选模块不会进入报告或指南。</small></span>
       ${button(`确认 ${items.length} 个模块并继续`, 'CONFIRM', '', 'primary', items.length === 0)}
