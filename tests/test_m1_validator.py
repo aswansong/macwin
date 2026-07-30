@@ -38,6 +38,48 @@ class M1ValidatorTests(unittest.TestCase):
             strict_json(b'{"a":1,"a":2}', "fixture.json")
         self.assertEqual("HP_JSON_DUPLICATE_KEY", caught.exception.code)
 
+    def test_nonfinite_bom_and_non_utf8_json_are_rejected(self) -> None:
+        for token in (b"NaN", b"Infinity", b"-Infinity"):
+            with self.subTest(token), self.assertRaises(HabitpackError) as caught:
+                strict_json(b'{"nested":{"value":' + token + b"}}", "fixture.json")
+            self.assertEqual("HP_JSON_NONFINITE", caught.exception.code)
+        for payload in (b"\xef\xbb\xbf{}", b'{"value":"\xff"}'):
+            with self.subTest(payload), self.assertRaises(HabitpackError) as caught:
+                strict_json(payload, "fixture.json")
+            self.assertEqual("HP_JSON_INVALID", caught.exception.code)
+
+    def test_project_rfc3339_checker_rejects_invalid_datetimes(self) -> None:
+        schemas, _ = _load_schemas()
+        _, manifest = package_source("keyboard")
+        for value in ("not-a-time", "2026-07-31", "2026-02-30T25:61:61Z"):
+            with self.subTest(value):
+                invalid = dict(manifest)
+                invalid["created_at"] = value
+                with self.assertRaises(HabitpackError) as caught:
+                    _schema_validate(invalid, "manifest.schema.json", schemas)
+                self.assertEqual("HP_SCHEMA", caught.exception.code)
+
+    def test_stream_and_zip64_size_errors_are_stable(self) -> None:
+        expected = {
+            "zip-deflate-post-stream-marker": "HP_ZIP_STREAM",
+            "zip-deflate-second-stream": "HP_ZIP_STREAM",
+            "zip-deflate-zero-padding": "HP_ZIP_STREAM",
+            "zip-stored-size-mismatch": "HP_ZIP_STREAM",
+            "zip-local-compressed-size-sentinel": "HP_ZIP64_ENTRY",
+            "zip-local-file-size-sentinel": "HP_ZIP64_ENTRY",
+            "zip-central-compressed-size-sentinel": "HP_ZIP64_ENTRY",
+            "zip-central-file-size-sentinel": "HP_ZIP64_ENTRY",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            for name, code in expected.items():
+                with self.subTest(name):
+                    descriptor = next(x for x in MATRIX["invalid"] if x["name"] == name)
+                    path = Path(directory) / f"{name}.habitpack"
+                    build_fixture(descriptor, path)
+                    with self.assertRaises(HabitpackError) as caught:
+                        validate_habitpack(path, name)
+                    self.assertEqual(code, caught.exception.code)
+
     def test_unselected_secret_is_rejected_without_leaking_content(self) -> None:
         probe = b"NEVER-LOG-THIS-FICTIONAL-SECRET"
         with tempfile.TemporaryDirectory() as directory:

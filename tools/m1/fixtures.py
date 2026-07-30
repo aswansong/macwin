@@ -8,6 +8,7 @@ import stat
 import struct
 import warnings
 import zipfile
+import zlib
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -140,8 +141,13 @@ def _mutate(m: str, e: dict[str, bytes], mf: dict[str, Any], meta: dict[str, Any
     elif m == "extra_prop": _rewrite_json(e, keyboard, lambda d: d.update(extra=True))
     elif m == "duplicate_key": e[keyboard]=b'{"schema_version":"1.0.0","schema_version":"1.0.0"}'
     elif m == "invalid_json": e[keyboard]=b"{"
+    elif m in {"json_nan","json_infinity","json_negative_infinity"}:
+        constant = {"json_nan":"NaN","json_infinity":"Infinity","json_negative_infinity":"-Infinity"}[m]
+        e["selections.json"] = ('{"schema_version":"1.0.0","guide_requested":false,"selected_candidate_ids":[],"nested":{"value":' + constant + '}}').encode()
     elif m in {"major","minor","patch","malformed"}: mf["schema_version"]={"major":"2.0.0","minor":"1.1.0","patch":"1.0.1","malformed":"one"}[m]
-    elif m in {"directory","symlink","special","encrypted","zip64","sfx_prefix","trailing_data","archive_comment","comment_mismatch","multidisk","central_multidisk","central_offset","central_size","local_gap","double_eocd","fake_tail_eocd","data_descriptor","local_extra","central_extra","matching_extra","zero_extra","zip64_extra","flag_low","flag_high","flag_mismatch","bzip2","lzma","method_unknown","method_mismatch","local_version","central_version","both_version","made_by","internal_attr","external_attr_high","external_attr_low","local_timestamp","central_timestamp","both_timestamp","central_reverse","local_only_reverse","local_reverse","manifest_last"}: meta[m]=True
+    elif m in {"created_at_text","created_at_date","created_at_invalid"}: mf["created_at"]={"created_at_text":"not-a-time","created_at_date":"2026-07-31","created_at_invalid":"2026-02-30T25:61:61Z"}[m]
+    elif m in {"directory","symlink","special","encrypted","zip64","sfx_prefix","trailing_data","archive_comment","comment_mismatch","multidisk","central_multidisk","central_offset","central_size","local_gap","double_eocd","fake_tail_eocd","data_descriptor","local_extra","central_extra","matching_extra","zero_extra","zip64_extra","flag_low","flag_high","flag_mismatch","bzip2","lzma","method_unknown","method_mismatch","local_version","central_version","both_version","made_by","internal_attr","external_attr_high","external_attr_low","local_timestamp","central_timestamp","both_timestamp","central_reverse","local_only_reverse","local_reverse","manifest_last","deflate_marker","deflate_second_stream","deflate_zero_padding","stored_size_mismatch","local_compressed_sentinel","local_file_sentinel","central_compressed_sentinel","central_file_sentinel"}: meta[m]=True
+    if m == "stored_size_mismatch": meta["force_stored"] = True
 
 
 def _insert_local_extra(data: bytearray, extra: bytes) -> bytearray:
@@ -192,6 +198,27 @@ def _canonical_info(name: str, compression: int) -> zipfile.ZipInfo:
     info.flag_bits = 0
     info.compress_type = compression
     return info
+
+
+def _append_compressed_suffix(data: bytearray, suffix: bytes, target_index: int) -> bytearray:
+    eocd = data.rfind(b"PK\x05\x06"); cd_offset = struct.unpack_from("<L", data, eocd + 16)[0]
+    central: list[tuple[int, int, int]] = []; position = cd_offset
+    while position < eocd:
+        name_length, extra_length, comment_length = struct.unpack_from("<HHH", data, position + 28)
+        central.append((position, struct.unpack_from("<L", data, position + 42)[0], struct.unpack_from("<L", data, position + 20)[0]))
+        position += 46 + name_length + extra_length + comment_length
+    ordered = sorted(central, key=lambda item: item[1]); target = ordered[target_index]
+    central_position, local_offset, compressed_size = target
+    name_length, extra_length = struct.unpack_from("<HH", data, local_offset + 26)
+    data_end = local_offset + 30 + name_length + extra_length + compressed_size
+    delta = len(suffix); data = data[:data_end] + suffix + data[data_end:]
+    struct.pack_into("<L", data, local_offset + 18, compressed_size + delta)
+    new_eocd = eocd + delta; struct.pack_into("<L", data, new_eocd + 16, cd_offset + delta)
+    for position, offset, size in central:
+        shifted = position + delta
+        if position == central_position: struct.pack_into("<L", data, shifted + 20, size + delta)
+        if offset > local_offset: struct.pack_into("<L", data, shifted + 42, offset + delta)
+    return bytearray(data)
 
 
 def _write_zip(path: Path, entries: dict[str, bytes], manifest: bytes, mutation: str|None, meta: dict[str, Any]) -> None:
@@ -305,6 +332,26 @@ def _write_zip(path: Path, entries: dict[str, bytes], manifest: bytes, mutation:
             data[:cd_offset] = b"".join(blobs[name] for name in new_order)
             for position, name, _ in central:
                 struct.pack_into("<L", data, position + 42, offsets[name])
+        path.write_bytes(data)
+    if any(meta.get(name) for name in ("deflate_marker","deflate_second_stream","deflate_zero_padding","stored_size_mismatch")):
+        data = bytearray(path.read_bytes())
+        if meta.get("deflate_marker"):
+            data = _append_compressed_suffix(data, b"POST-STREAM-MARKER", 0)
+        elif meta.get("deflate_second_stream"):
+            encoder = zlib.compressobj(level=6, wbits=-zlib.MAX_WBITS)
+            second = encoder.compress(b"SECOND-RAW-DEFLATE") + encoder.flush()
+            data = _append_compressed_suffix(data, second, -1)
+        elif meta.get("deflate_zero_padding"):
+            data = _append_compressed_suffix(data, b"\x00\x00\x00\x00", 1)
+        elif meta.get("stored_size_mismatch"):
+            data = _append_compressed_suffix(data, b"X", -1)
+        path.write_bytes(data)
+    if any(meta.get(name) for name in ("local_compressed_sentinel","local_file_sentinel","central_compressed_sentinel","central_file_sentinel")):
+        data = bytearray(path.read_bytes()); eocd = data.rfind(b"PK\x05\x06"); cd_offset = struct.unpack_from("<L", data, eocd + 16)[0]
+        if meta.get("local_compressed_sentinel"): struct.pack_into("<L", data, 18, 0xFFFFFFFF)
+        elif meta.get("local_file_sentinel"): struct.pack_into("<L", data, 22, 0xFFFFFFFF)
+        elif meta.get("central_compressed_sentinel"): struct.pack_into("<L", data, cd_offset + 20, 0xFFFFFFFF)
+        elif meta.get("central_file_sentinel"): struct.pack_into("<L", data, cd_offset + 24, 0xFFFFFFFF)
         path.write_bytes(data)
     if meta.get("encrypted"):
         data=bytearray(path.read_bytes())

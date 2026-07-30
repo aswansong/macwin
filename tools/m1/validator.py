@@ -8,7 +8,9 @@ import stat
 import struct
 import unicodedata
 import zipfile
+import zlib
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
@@ -57,7 +59,10 @@ def strict_json(data: bytes, path: str) -> Any:
         return result
 
     try:
-        return json.loads(data.decode("utf-8"), object_pairs_hook=pairs)
+        def nonfinite(value: str) -> None:
+            fail("HP_JSON_NONFINITE", f"{path}:{value}")
+
+        return json.loads(data.decode("utf-8"), object_pairs_hook=pairs, parse_constant=nonfinite)
     except HabitpackError:
         raise
     except (UnicodeDecodeError, json.JSONDecodeError):
@@ -75,6 +80,25 @@ def _load_schemas() -> tuple[dict[str, Any], dict[str, Any]]:
     return schemas, catalog
 
 
+RFC3339_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$")
+
+
+def _is_rfc3339_datetime(value: object) -> bool:
+    if not isinstance(value, str):
+        return True
+    if not RFC3339_RE.fullmatch(value):
+        return False
+    try:
+        parsed = datetime.fromisoformat(value[:-1] + "+00:00" if value.endswith("Z") else value)
+    except ValueError:
+        return False
+    return parsed.tzinfo is not None
+
+
+PROJECT_FORMAT_CHECKER = FormatChecker()
+PROJECT_FORMAT_CHECKER.checks("date-time")(_is_rfc3339_datetime)
+
+
 def _schema_validate(instance: Any, name: str, schemas: dict[str, Any]) -> None:
     from referencing import Registry, Resource
 
@@ -82,7 +106,7 @@ def _schema_validate(instance: Any, name: str, schemas: dict[str, Any]) -> None:
     for filename, schema in schemas.items():
         uri = schema.get("$id", f"https://macwin.example/schemas/habitpack/{SCHEMA_VERSION}/{filename}")
         registry = registry.with_resource(uri, Resource.from_contents(schema))
-    validator = Draft202012Validator(schemas[name], registry=registry, format_checker=FormatChecker())
+    validator = Draft202012Validator(schemas[name], registry=registry, format_checker=PROJECT_FORMAT_CHECKER)
     error = next(iter(validator.iter_errors(instance)), None)
     if error:
         location = "/".join(str(x) for x in error.absolute_path) or "$"
@@ -168,7 +192,7 @@ def _validate_zip_layout(data: bytes) -> str | None:
         end = position + 46 + name_length + extra_length + entry_comment_length
         if end > eocd_offset or entry_comment_length:
             fail("HP_ZIP_LAYOUT", "archive")
-        if disk_start == 0xFFFF:
+        if disk_start == 0xFFFF or compressed_size == 0xFFFFFFFF or file_size == 0xFFFFFFFF or local_offset == 0xFFFFFFFF:
             fail("HP_ZIP64_ENTRY", "archive")
         if disk_start != 0:
             fail("HP_ZIP_MULTIDISK", "archive")
@@ -195,6 +219,8 @@ def _validate_zip_layout(data: bytes) -> str | None:
             fail("HP_ZIP_LAYOUT", "archive")
         local = struct.unpack_from("<4s5H3L2H", data, local_offset)
         _, version_needed, flags, method, dos_time, dos_date, crc, compressed_size, file_size, name_length, extra_length = local
+        if compressed_size == 0xFFFFFFFF or file_size == 0xFFFFFFFF:
+            fail("HP_ZIP64_ENTRY", "archive")
         name_start = local_offset + 30
         extra_start = name_start + name_length
         data_start = extra_start + extra_length
@@ -228,6 +254,20 @@ def _validate_zip_layout(data: bytes) -> str | None:
                 profile_error = profile_error or "HP_ZIP_TIMESTAMP"
             elif entry["internal_attr"] != 0 or entry["external_attr"] != CANONICAL_EXTERNAL_ATTR:
                 profile_error = profile_error or "HP_ZIP_ATTRIBUTES"
+        compressed = data[data_start:data_end]
+        if method == zipfile.ZIP_STORED:
+            if compressed_size != file_size:
+                fail("HP_ZIP_STREAM", "archive")
+        elif method == zipfile.ZIP_DEFLATED:
+            decoder = zlib.decompressobj(-zlib.MAX_WBITS)
+            try:
+                decoded = decoder.decompress(compressed, file_size + 1)
+                if len(decoded) <= file_size:
+                    decoded += decoder.flush(file_size + 1 - len(decoded))
+            except zlib.error:
+                fail("HP_ZIP_STREAM", "archive")
+            if len(decoded) != file_size or not decoder.eof or decoder.unused_data or decoder.unconsumed_tail:
+                fail("HP_ZIP_STREAM", "archive")
         expected_local_offset = data_end
     if expected_local_offset != cd_offset:
         fail("HP_ZIP_LAYOUT", "archive")

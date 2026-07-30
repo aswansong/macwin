@@ -99,6 +99,10 @@ M1 只验证虚构不透明字节、引用、大小和哈希，不定义编码�
 
 SHA-256、size 和 schema 都针对解压后的原始文件字节；Deflate 可使用不同压缩级别，压缩流与整个 ZIP 不要求字节级完全一致。只有上述 header、布局和顺序字段需要规范化。
 
+每个条目的声明压缩范围必须被完整且只消费一次：Stored 要求 `compressed_size == file_size`；Deflate 使用 raw-deflate 解码并要求到达唯一流结尾，不能留下 `unused_data`、`unconsumed_tail`，且解压字节数必须等于 `file_size`。有效流后的 marker、第二段流和零填充都按 `HP_ZIP_STREAM` 拒绝；不能只依赖宽容的 ZIP 读取器。
+
+所有 JSON 使用无 BOM 的 UTF-8 严格解析，拒绝重复键以及 `NaN`、`Infinity`、`-Infinity`（包括嵌套值）。`created_at` 由项目 RFC3339 checker 验证完整日期、时间和时区；普通文本、仅日期或非法日历/时间全部拒绝。
+
 校验器在读取或解压内容前从文件末尾的固定 EOCD 验证单卷字段、中央目录范围、每个中央条目和 local header/压缩数据的连续边界，并按 ZIP64 locator 与 extra 的结构位置拒绝 ZIP64。它不在不透明内容中裸搜 ZIP 签名字节，因此合法秘密即使包含 EOCD、ZIP64 EOCD 或 locator 签名片段也不会被误判。随后再检查路径、类型、加密、条目数、大小、压缩比和可执行魔数，并进行严格 JSON、schema、媒体、声明、哈希、规则、选择与秘密关系校验。任何一步失败都不把内容交给执行层。
 
 稳定错误格式为 `ERROR [HP_ERROR_CODE] fixture:path`。秘密内容永远不进入错误或日志。
