@@ -4,7 +4,7 @@
 
 MacWin 是一个面向 Windows 迁移用户的本地桌面工具。它计划读取经过用户允许的 Windows 使用习惯，生成 `.habitpack` 迁移包，并在 Apple 芯片 Mac 上把这些习惯转换为安全、可解释、可回滚的配置。
 
-> 当前状态：**M1 原型与格式规范阶段**。M0 文档基线已经完成；可点击原型已获授权但尚未交付，仓库仍没有可运行产品或系统配置代码，请不要把文档中的流程理解为已经实现。
+> 当前状态：**M1 格式规范收口中**。第二版可点击原型已经冻结并获接受，但它只验证虚构浏览器交互；仓库仍没有可运行产品或系统配置代码。
 
 ## 第一版范围
 
@@ -22,12 +22,13 @@ MacWin 是一个面向 Windows 迁移用户的本地桌面工具。它计划读�
 - [产品规格索引](docs/product/specs/README.md)
 - [可验证功能清单](docs/execution/feature-list.json)
 - [当前执行计划](docs/execution/active-plan.md)
+- [冻结原型结论](docs/product/prototype-conclusions.md)
 - [仓库协作规则](AGENTS.md)
 - [安全政策](SECURITY.md)
 
 ## 当前里程碑
 
-当前里程碑交付完整可点击流程原型和闭合的 `.habitpack` 格式规范。原型位于独立的 `prototype/ui-flow-v1` 分支，只使用虚构数据，不扫描、不提权、不联网、不修改系统，也不会直接合入正式实现。生产应用、真实平台适配和安装包仍未开始。
+交互原型已冻结在独立分支 `prototype/ui-flow-v2-hardening` 的提交 `37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75`，只使用虚构数据且不会合入 `main`。当前正在闭合 `.habitpack` 格式规范；M2、生产应用、真实平台适配和安装包均未获授权。[D-028]
 
 ## 名称
 
