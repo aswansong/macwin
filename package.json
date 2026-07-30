@@ -1,0 +1,1 @@
+{"name":"macwin-ui-flow-prototype","version":"0.1.0","private":true,"type":"module","description":"THROWAWAY: fictional browser-only M1 prototype.","scripts":{"dev":"vite --host 127.0.0.1","build":"vite build","test":"node --test prototype-ui-flow/test/*.test.js"},"devDependencies":{"vite":"^6.1.0"}}
