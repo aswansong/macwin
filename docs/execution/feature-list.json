@@ -1,0 +1,587 @@
+{
+  "schema_version": "1.0.0",
+  "product": "MacWin",
+  "direction": "windows_to_macos",
+  "current_milestone": "M0-documentation-baseline",
+  "implementation_authorized": false,
+  "last_updated": "2026-07-30",
+  "status_definitions": {
+    "specified": "行为、边界和验收已记录，但没有实现证据。",
+    "prototyped": "只在不修改真实系统的原型中验证过流程。",
+    "implemented": "实现存在并通过对应自动化检查，但尚未完成真实设备发布验证。",
+    "verified": "通过规格要求的真实设备、可用性和安全验收，并有可复查证据。",
+    "blocked": "存在明确外部决定或技术事实，当前不能安全继续。"
+  },
+  "features": [
+    {
+      "id": "P0-001",
+      "name": "支持矩阵与方向检查",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "execution-agent",
+      "decision_refs": ["D-002", "D-017"],
+      "evidence_refs": ["E-015"],
+      "dependencies": [],
+      "human_decisions_required": [],
+      "acceptance_criteria": [
+        {
+          "id": "P0-001-AC01",
+          "statement": "Windows 来源端仅把 Windows 10/11 x64 标为正式支持。",
+          "verification": "在 Windows 10 x64、Windows 11 x64、Windows ARM 和一个非 Windows 夹具上运行兼容检查；前两者显示支持，后两者阻断且不进入扫描。"
+        },
+        {
+          "id": "P0-001-AC02",
+          "statement": "Mac 目标端仅把 Apple Silicon 上的 macOS 15/26 标为正式支持。",
+          "verification": "在 arm64 macOS 15/26 真实环境和 Intel/不支持版本夹具中测试；正式环境可进入导入，其他环境显示不支持或实验性且默认不执行。"
+        },
+        {
+          "id": "P0-001-AC03",
+          "statement": "首屏明确说明只迁移 Windows 到 Mac 的习惯与环境，不搬个人文件。",
+          "verification": "UI 内容测试定位固定文案；5 名新手测试者在开始扫描前均能复述方向和非目标。"
+        }
+      ],
+      "non_goals": ["Mac 到 Windows", "个人文件搬运", "完整系统克隆"],
+      "risks": ["版本字符串判断错误", "实验性平台被误当成正式支持"]
+    },
+    {
+      "id": "P0-002",
+      "name": "Windows 白名单扫描与最小权限",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "windows-adapter",
+      "decision_refs": ["D-006", "D-009", "D-014"],
+      "evidence_refs": ["E-001", "E-007", "E-015"],
+      "dependencies": ["P0-001"],
+      "human_decisions_required": ["OD-003"],
+      "acceptance_criteria": [
+        {
+          "id": "P0-002-AC01",
+          "statement": "普通扫描只读取规则白名单字段且不触发 UAC。",
+          "verification": "在 Windows 10/11 标准用户与管理员账户中运行扫描，记录 UAC 事件为 0，并将实际访问路径与规则白名单逐项比对。"
+        },
+        {
+          "id": "P0-002-AC02",
+          "statement": "扫描结果为每个发现项输出规则 ID、类别、来源、可迁移状态、权限需求和排除原因。",
+          "verification": "用含已知、未知和不可迁移设置的夹具生成结果；schema 校验通过且每个条目六类字段非空或有明确不适用值。"
+        },
+        {
+          "id": "P0-002-AC03",
+          "statement": "扫描不会完整导出注册表、遍历个人文件或读取浏览器个人数据。",
+          "verification": "用文件/注册表访问审计记录扫描行为；完整注册表根、用户文档目录和浏览器密码/历史/Cookie 存储无读取记录。"
+        },
+        {
+          "id": "P0-002-AC04",
+          "statement": "所有已选择的特权读取在可能时合并为一次 UAC，拒绝后非特权结果仍可导出。",
+          "verification": "分别测试允许和拒绝；允许路径出现一次 UAC，拒绝路径将依赖项标为 skipped_permission，且无关模块仍生成有效包。"
+        }
+      ],
+      "non_goals": ["未知软件全盘盘点", "完整注册表备份", "浏览器资料扫描"],
+      "risks": ["规则白名单过宽", "读取路径随 Windows 更新变化", "UAC 合并扩大特权范围"]
+    },
+    {
+      "id": "P0-003",
+      "name": "动态勾选问卷",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "product-ui",
+      "decision_refs": ["D-006", "D-019", "D-020"],
+      "evidence_refs": ["E-015"],
+      "dependencies": ["P0-002"],
+      "human_decisions_required": [],
+      "acceptance_criteria": [
+        {
+          "id": "P0-003-AC01",
+          "statement": "问卷由扫描结果动态生成，常规路径为 3 至 7 个勾选题且不要求文字输入。",
+          "verification": "对普通办公、开发者、无可迁移项三套夹具做 UI 测试；普通办公和开发者路径题数在 3 至 7，所有回答控件均为选择控件。"
+        },
+        {
+          "id": "P0-003-AC02",
+          "statement": "内置键盘 Ctrl 兼容、检测到的外接 Windows 键盘兼容和个性化指南可预选并在首层可见。",
+          "verification": "对应夹具首屏快照中三个选项可见且状态为选中；用户可取消。"
+        },
+        {
+          "id": "P0-003-AC03",
+          "statement": "Wi-Fi 密码、管理员权限、AI 开发环境和 Homebrew 默认不勾选。",
+          "verification": "UI 状态测试逐项断言默认值为 false；刷新和返回页面不把未确认项改为 true。"
+        },
+        {
+          "id": "P0-003-AC04",
+          "statement": "每项在不展开详情时显示具体结果、权限或敏感性标识。",
+          "verification": "内容测试禁止只出现工具名或“优化”；安全审查确认含秘密和需管理员标识在折叠状态仍可见。"
+        }
+      ],
+      "non_goals": ["开放式文字访谈", "自动替用户同意敏感行为"],
+      "risks": ["默认项造成误解", "动态题数过多", "用户不理解兼容层例外"]
+    },
+    {
+      "id": "P0-004",
+      "name": ".habitpack 生成与安全校验",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "core-format",
+      "decision_refs": ["D-009", "D-019", "D-027"],
+      "evidence_refs": ["E-002", "E-015"],
+      "dependencies": ["P0-002", "P0-003"],
+      "human_decisions_required": ["OD-005", "OD-006", "OD-011"],
+      "acceptance_criteria": [
+        {
+          "id": "P0-004-AC01",
+          "statement": "输出是扩展名为 .habitpack 的标准 ZIP，包含有效 manifest、声明式模块和逐文件完整性信息。",
+          "verification": "用独立 ZIP/JSON 读取器打开三套导出夹具；schema、文件清单、大小和 SHA-256 全部匹配。"
+        },
+        {
+          "id": "P0-004-AC02",
+          "statement": "包中不存在可执行脚本、任意命令、绝对路径、上级路径、链接、未声明文件或未知原始片段。",
+          "verification": "生成正常包并运行内容审计；再对每类恶意夹具导入，均在计划生成前被拒绝。"
+        },
+        {
+          "id": "P0-004-AC03",
+          "statement": "未选择 Wi-Fi 密码时包内无 credential 且 contains_secrets 为 false。",
+          "verification": "导出后解包做字段和二进制秘密扫描；credential 路径数量为 0，manifest 值为 false。"
+        },
+        {
+          "id": "P0-004-AC04",
+          "statement": "选择 Wi-Fi 密码时 contains_secrets 为 true，完成页在不显示密码的前提下提示包未加密和删除建议。",
+          "verification": "含秘密夹具断言 manifest 值为 true；UI 快照包含两项警告；秘密探针值在 UI 文本中零命中。"
+        },
+        {
+          "id": "P0-004-AC05",
+          "statement": "导出完成前由独立读取路径重新验证生成包，失败时不保留可误用的成品。",
+          "verification": "注入哈希错误和截断写入；界面显示失败，目标位置不存在标记为完成的 .habitpack。"
+        }
+      ],
+      "non_goals": ["加密备份格式", "脚本分发", "个人文件容器"],
+      "risks": ["未加密秘密泄漏", "ZIP 解析漏洞", "schema 兼容性失控"]
+    },
+    {
+      "id": "P0-005",
+      "name": "Mac 导入、预检与强制计划预览",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "macos-adapter",
+      "decision_refs": ["D-010", "D-017", "D-027"],
+      "evidence_refs": ["E-014", "E-015"],
+      "dependencies": ["P0-001", "P0-004"],
+      "human_decisions_required": [],
+      "acceptance_criteria": [
+        {
+          "id": "P0-005-AC01",
+          "statement": "导入先完成路径、大小、哈希、schema、规则和平台兼容校验，校验期间系统设置零变化。",
+          "verification": "对有效包和恶意/损坏夹具记录目标偏好基线；计划页前基线无差异，非法包全部阻断。"
+        },
+        {
+          "id": "P0-005-AC02",
+          "statement": "迁移计划不可跳过，每个模块显示改变、依据、原因、收益、权限、第三方依赖、验证和恢复方式。",
+          "verification": "UI 自动化确认不存在绕过计划到执行的路径；内容 schema 对每个计划模块九类字段做非空断言。"
+        },
+        {
+          "id": "P0-005-AC03",
+          "statement": "用户取消模块后依赖图重新计算，不会留下缺少依赖的可执行动作。",
+          "verification": "在含三级依赖的计划夹具中取消父项；所有后代同时取消或变为不可执行，并通过依赖校验。"
+        },
+        {
+          "id": "P0-005-AC04",
+          "statement": "只有明确确认当前计划后才能进入快照阶段。",
+          "verification": "测试关闭窗口、返回、导入新包和修改选择；均使旧确认失效且不能直接执行。"
+        }
+      ],
+      "non_goals": ["一键跳过预览", "导入即应用", "执行未知规则"],
+      "risks": ["计划信息过载", "目标环境变化", "恶意包解析"]
+    },
+    {
+      "id": "P0-006",
+      "name": "迁移前快照与按模块恢复",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "macos-adapter",
+      "decision_refs": ["D-012", "D-019", "D-026"],
+      "evidence_refs": ["E-014", "E-015"],
+      "dependencies": ["P0-005"],
+      "human_decisions_required": ["OD-009"],
+      "acceptance_criteria": [
+        {
+          "id": "P0-006-AC01",
+          "statement": "任何系统变化前创建并验证一份仅覆盖已选动作的迁移前快照。",
+          "verification": "对每个模块记录文件/偏好审计时间线；首个写操作发生在快照完整性验证之后。"
+        },
+        {
+          "id": "P0-006-AC02",
+          "statement": "快照创建或完整性验证失败时，计划动作执行数为 0。",
+          "verification": "注入只读目录、磁盘不足和哈希失败；系统基线无差异且界面显示快照阻断。"
+        },
+        {
+          "id": "P0-006-AC03",
+          "statement": "每个可恢复模块能回到实际迁移前值并经读取验证。",
+          "verification": "为各模块设置非默认基线，迁移后逐模块恢复；读取值与基线完全相等，状态为 rolled_back_verified。"
+        },
+        {
+          "id": "P0-006-AC04",
+          "statement": "删除并重装兼容版本后仍可发现应用包外的快照。",
+          "verification": "完成迁移后删除应用、重装同一兼容版本；主页显示原快照日期和可恢复模块，并完成一次恢复。"
+        },
+        {
+          "id": "P0-006-AC05",
+          "statement": "快照不含 Wi-Fi 密码且不会把“恢复迁移前”描述为“恢复出厂”。",
+          "verification": "用秘密探针扫描快照零命中；UI 与报告文案测试中不存在承诺恢复出厂的表述。"
+        }
+      ],
+      "non_goals": ["整机备份", "最近三次历史", "猜测出厂设置"],
+      "risks": ["快照随版本失效", "部分恢复顺序错误", "删除应用后备份孤立"]
+    },
+    {
+      "id": "P0-007",
+      "name": "选择性 Ctrl 与键盘兼容",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "keyboard-module",
+      "decision_refs": ["D-007", "D-011", "D-027"],
+      "evidence_refs": ["E-001", "E-002"],
+      "dependencies": ["P0-005", "P0-006"],
+      "human_decisions_required": ["OD-003", "OD-007"],
+      "acceptance_criteria": [
+        {
+          "id": "P0-007-AC01",
+          "statement": "普通应用白名单中的复制、粘贴、剪切、撤销、重做、全选、保存和查找可按计划使用 Ctrl 触发。",
+          "verification": "在批准的应用矩阵中逐动作执行并观察真实结果；每个组合记录通过、排除或不支持。"
+        },
+        {
+          "id": "P0-007-AC02",
+          "statement": "Command 原生组合仍可用，且没有全局交换 Ctrl 与 Command。",
+          "verification": "同一应用矩阵执行 Command 对应动作；物理修饰键事件测试确认未发生全局交换。"
+        },
+        {
+          "id": "P0-007-AC03",
+          "statement": "Terminal、VS Code 集成终端、远程桌面和虚拟机上下文保留真实 Ctrl。",
+          "verification": "在四类上下文发送预定 Ctrl 测试序列；接收端事件与未启用兼容层的基线一致。"
+        },
+        {
+          "id": "P0-007-AC04",
+          "statement": "内置和外接 Windows 键盘可独立启用、验证和恢复。",
+          "verification": "只启用其中一类并在两把键盘测试；未选择设备不生效，恢复后两者回到迁移前状态。"
+        },
+        {
+          "id": "P0-007-AC05",
+          "statement": "Option 和 Fn 默认不重映射，Caps Lock 输入法切换仅在用户保留选择时应用。",
+          "verification": "默认计划无 Option/Fn 映射动作；取消 Caps Lock 选项时动作不存在，选择时应用和恢复均通过读取/行为测试。"
+        }
+      ],
+      "non_goals": ["全局修饰键交换", "用户词库迁移", "任意自定义脚本"],
+      "risks": ["应用例外遗漏", "第三方规则冲突", "键盘标识变化"]
+    },
+    {
+      "id": "P0-008",
+      "name": "鼠标与触控板独立设置",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "pointer-module",
+      "decision_refs": ["D-004", "D-011", "D-026"],
+      "evidence_refs": ["E-003"],
+      "dependencies": ["P0-005", "P0-006"],
+      "human_decisions_required": ["OD-007"],
+      "acceptance_criteria": [
+        {
+          "id": "P0-008-AC01",
+          "statement": "鼠标滚轮和触控板滚动方向作为两个独立动作显示、应用和恢复。",
+          "verification": "四种方向组合逐一测试；每次只改变所选设备，另一设备与迁移前基线一致。"
+        },
+        {
+          "id": "P0-008-AC02",
+          "statement": "执行结果通过真实滚动行为或受信任目标状态读取验证。",
+          "verification": "模拟写入成功但禁用实际规则；系统必须返回 unknown_requires_review 或失败，不得返回 applied_verified。"
+        },
+        {
+          "id": "P0-008-AC03",
+          "statement": "外设不存在、断开或重连时不会伪报成功。",
+          "verification": "分别在未连接、执行中断开和执行后重连场景测试；状态为需重试/未知或重新验证后的真实结果。"
+        },
+        {
+          "id": "P0-008-AC04",
+          "statement": "需要 LinearMouse 时在计划中展示来源、权限、常驻与卸载影响，并允许拒绝。",
+          "verification": "计划内容测试四类信息非空；拒绝安装后原生可行模块继续，依赖项标为跳过而非成功。"
+        }
+      ],
+      "non_goals": ["迁移不存在的硬件", "自动复制所有 Windows 指针参数"],
+      "risks": ["系统 API 无法分离方向", "外设重连标识变化", "第三方常驻冲突"]
+    },
+    {
+      "id": "P0-009",
+      "name": "软件与浏览器匹配安装",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "software-module",
+      "decision_refs": ["D-013", "D-016", "D-018"],
+      "evidence_refs": ["E-004", "E-008"],
+      "dependencies": ["P0-002", "P0-005", "P0-006"],
+      "human_decisions_required": ["OD-003", "OD-007"],
+      "acceptance_criteria": [
+        {
+          "id": "P0-009-AC01",
+          "statement": "只显示白名单软件，并为每项给出 macOS 对应项、版本策略、安装方式和官方来源。",
+          "verification": "用含白名单和未知软件的扫描夹具；计划只包含白名单项且四类元数据完整。"
+        },
+        {
+          "id": "P0-009-AC02",
+          "statement": "只有用户选择且来源可验证的软件自动安装，其他项只提供官方入口。",
+          "verification": "分别测试未选择、签名/哈希错误、无自动化能力和正常来源；只有正常且已选择项启动安装。"
+        },
+        {
+          "id": "P0-009-AC03",
+          "statement": "安装成功由目标应用或 CLI 的存在和版本验证，不以下载或安装退出码代替。",
+          "verification": "注入退出码 0 但不落盘的安装夹具；结果必须失败或未知。正常安装记录实际版本。"
+        },
+        {
+          "id": "P0-009-AC04",
+          "statement": "浏览器不读取或迁移书签、历史、密码、Cookie、登录状态和用户配置目录。",
+          "verification": "文件/数据库访问审计与包内容扫描对六类存储零读取、零导出。"
+        },
+        {
+          "id": "P0-009-AC05",
+          "statement": "无网时本地模块继续，软件项显示可重试或官方入口。",
+          "verification": "断网运行完整计划；本地设置完成，所有下载项非成功且可从主页重试。"
+        }
+      ],
+      "non_goals": ["搬运 Windows 二进制", "迁移许可证和登录", "浏览器个人数据迁移"],
+      "risks": ["下载供应链", "地区网络不可达", "软件名称误匹配"]
+    },
+    {
+      "id": "P0-010",
+      "name": "可选轻量 AI 开发环境",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "developer-module",
+      "decision_refs": ["D-020"],
+      "evidence_refs": ["E-007"],
+      "dependencies": ["P0-009"],
+      "human_decisions_required": ["OD-003", "OD-007"],
+      "acceptance_criteria": [
+        {
+          "id": "P0-010-AC01",
+          "statement": "未检测到开发工具且用户未主动选择时，计划不包含开发工具或 Homebrew。",
+          "verification": "普通办公夹具走完整流程；计划动作和安装清单中相关项数量为 0。"
+        },
+        {
+          "id": "P0-010-AC02",
+          "statement": "开发模块仅包含批准白名单内的轻量工具，默认不含 Docker、Ollama 等重型栈。",
+          "verification": "开发夹具生成计划并与 OD-003 白名单比较；重型栈名称和动作均不存在。"
+        },
+        {
+          "id": "P0-010-AC03",
+          "statement": "需要 Homebrew 时先解释其用途、来源、安装位置、更新和卸载影响，并要求独立确认。",
+          "verification": "UI 内容 schema 五项非空；未确认 Homebrew 时不出现其安装动作，依赖工具改用其他批准路径或标为需人工完成。"
+        },
+        {
+          "id": "P0-010-AC04",
+          "statement": "开发工具按实际版本和架构验证，不读取 Token、SSH 私钥、项目文件或聊天记录。",
+          "verification": "运行版本检查并记录架构；文件访问审计对凭据和项目测试目录零读取。"
+        }
+      ],
+      "non_goals": ["通用开发机镜像", "本地大模型环境", "项目或凭据迁移"],
+      "risks": ["包管理器改变系统环境", "版本依赖冲突", "安装时间过长"]
+    },
+    {
+      "id": "P0-011",
+      "name": "个人 Wi-Fi 与可选密码迁移",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "wifi-module",
+      "decision_refs": ["D-009", "D-014", "D-019"],
+      "evidence_refs": ["E-014", "E-015"],
+      "dependencies": ["P0-002", "P0-004", "P0-005", "P0-006"],
+      "human_decisions_required": ["OD-005"],
+      "acceptance_criteria": [
+        {
+          "id": "P0-011-AC01",
+          "statement": "仅允许用户逐项选择的 WPA/WPA2/WPA3 Personal 网络，企业 802.1X、证书和受管网络被排除。",
+          "verification": "用覆盖各安全类型的测试配置扫描；允许列表只含三类个人网络，排除项显示具体原因。"
+        },
+        {
+          "id": "P0-011-AC02",
+          "statement": "密码读取只有在用户明确勾选并确认未加密风险后才请求一次 UAC。",
+          "verification": "未选、选择后取消、允许和拒绝四条路径；前三个未最终确认路径 UAC 为 0，允许/拒绝路径各最多一次。"
+        },
+        {
+          "id": "P0-011-AC03",
+          "statement": "拒绝 UAC 或凭据不可用时可降级为网络名称，且状态明确不是密码迁移成功。",
+          "verification": "拒绝和无凭据夹具生成有效包；网络条目标为 credential_unavailable，结果页显示降级。"
+        },
+        {
+          "id": "P0-011-AC04",
+          "statement": "Wi-Fi 密码在 UI、计划、报告、日志、错误和快照中零出现。",
+          "verification": "为每个测试密码使用唯一秘密探针；对六类输出做自动扫描并人工抽检，命中数必须为 0。"
+        },
+        {
+          "id": "P0-011-AC05",
+          "statement": "Mac 端只通过已批准系统接口写入凭据，失败和成功后均清理临时明文。",
+          "verification": "OD-005 关闭后，用允许、接口失败和进程中断测试；文件系统/日志/崩溃产物秘密扫描零命中，目标网络记录结果符合状态。"
+        },
+        {
+          "id": "P0-011-AC06",
+          "statement": "成功后提示删除不再需要的迁移包，但不会无确认删除用户唯一副本。",
+          "verification": "完成页包含删除提示；取消删除后文件仍存在，确认明确目标后只删除所选文件。"
+        }
+      ],
+      "non_goals": ["企业网络", "证书迁移", "在快照中保留密码", "自动上传迁移包"],
+      "risks": ["未加密包泄密", "平台接口不可用", "临时明文残留", "网络环境漂移"]
+    },
+    {
+      "id": "P0-012",
+      "name": "权限引导、自动执行与失败隔离",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "execution-core",
+      "decision_refs": ["D-010", "D-014", "D-026", "D-027"],
+      "evidence_refs": ["E-006", "E-012", "E-014"],
+      "dependencies": ["P0-005", "P0-006"],
+      "human_decisions_required": [],
+      "acceptance_criteria": [
+        {
+          "id": "P0-012-AC01",
+          "statement": "系统权限触发前展示权限名、依赖模块、理由和拒绝后的结果，且不仿冒系统授权界面。",
+          "verification": "对每类权限做 UI 内容断言和人工安全评审；系统弹窗由操作系统提供。"
+        },
+        {
+          "id": "P0-012-AC02",
+          "statement": "权限拒绝仅跳过直接依赖动作，无依赖模块继续且不重复弹出。",
+          "verification": "在两个权限点分别拒绝；依赖动作状态为 skipped_permission，无关动作完成，同一运行中每项系统请求最多一次。"
+        },
+        {
+          "id": "P0-012-AC03",
+          "statement": "计划确认后，除身份验证和系统强制交互外，无需用户手工打开设置或终端完成可安全自动化动作。",
+          "verification": "真实设备任务记录用户操作；自动化动作不要求复制命令或手动导航，需人工项在计划前已标为 manual_action_required。"
+        },
+        {
+          "id": "P0-012-AC04",
+          "statement": "一个非依赖模块失败不会阻断其他模块，并分别报告状态。",
+          "verification": "向中间模块注入失败；前后独立模块继续验证，最终结论为部分未完成而不是全局成功。"
+        },
+        {
+          "id": "P0-012-AC05",
+          "statement": "每个成功状态来自动作后的独立结果检查。",
+          "verification": "对各模块注入执行返回成功但不改变目标的假成功；状态不得为 applied_verified。"
+        }
+      ],
+      "non_goals": ["绕过 UAC/TCC/SIP/Gatekeeper", "用任意 Shell 命令实现规则", "所有失败全局回滚"],
+      "risks": ["权限弹窗疲劳", "部分状态不一致", "假成功"]
+    },
+    {
+      "id": "P0-013",
+      "name": "验证报告与个性化指南",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "product-ui",
+      "decision_refs": ["D-004", "D-015", "D-026"],
+      "evidence_refs": ["E-004", "E-005", "E-008", "E-009", "E-010"],
+      "dependencies": ["P0-012"],
+      "human_decisions_required": ["OD-010"],
+      "acceptance_criteria": [
+        {
+          "id": "P0-013-AC01",
+          "statement": "每个计划动作报告改变、原因、收益、验证状态和恢复方式。",
+          "verification": "对全成功、部分跳过和部分失败三套结果生成报告；五类字段逐动作非空。"
+        },
+        {
+          "id": "P0-013-AC02",
+          "statement": "报告结论严格区分已验证、跳过、需人工、失败和未知，不把执行过写成成功。",
+          "verification": "状态映射单元测试覆盖所有允许状态；假成功夹具在报告中显示未知或失败。"
+        },
+        {
+          "id": "P0-013-AC03",
+          "statement": "指南只展示与实际选择和结果相关的 Mac 差异。",
+          "verification": "对未选键盘、未装 Homebrew和权限拒绝夹具生成指南；对应成功式教程不出现，改为未应用或后续步骤。"
+        },
+        {
+          "id": "P0-013-AC04",
+          "statement": "可导出报告不含密码、SSID、用户名、绝对路径、账号、原始配置或稳定设备标识。",
+          "verification": "用唯一探针填充各敏感源，对导出文件做自动扫描和人工抽检，命中数为 0。"
+        },
+        {
+          "id": "P0-013-AC05",
+          "statement": "Mac 优势说明使用场景化、可核对表述，并同时列出至少一个 Windows 更适合的限制场景。",
+          "verification": "内容审查禁止绝对优越表述和无来源数字；指南相关章节包含条件语句与限制。"
+        }
+      ],
+      "non_goals": ["通用 Mac 百科", "营销式绝对对比", "包含原始配置的诊断包"],
+      "risks": ["报告泄密", "指南与实际状态不一致", "宣传承诺过度"]
+    },
+    {
+      "id": "P0-014",
+      "name": "迁移后主页、更新与错误入口",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "product-ui",
+      "decision_refs": ["D-008", "D-012", "D-015", "D-016"],
+      "evidence_refs": ["E-015"],
+      "dependencies": ["P0-013"],
+      "human_decisions_required": ["OD-001", "OD-006"],
+      "acceptance_criteria": [
+        {
+          "id": "P0-014-AC01",
+          "statement": "MacWin 不创建开机启动项或常驻后台进程。",
+          "verification": "安装、迁移、重启后检查登录项、LaunchAgents/Daemons 和运行进程；用户未启动应用时 MacWin 进程数为 0。"
+        },
+        {
+          "id": "P0-014-AC02",
+          "statement": "主页提供结果、待处理项、指南、报告、恢复和更新入口，不包含账号或聊天功能。",
+          "verification": "UI 导航测试六个入口可达；账号注册、登录和聊天入口不存在。"
+        },
+        {
+          "id": "P0-014-AC03",
+          "statement": "离线时除额外软件下载与更新外功能可用，联网检查不发送用户扫描数据。",
+          "verification": "断网走本地流程；代理捕获更新请求并断言只有批准的版本、平台和架构字段，无设备清单或稳定标识。"
+        },
+        {
+          "id": "P0-014-AC04",
+          "statement": "自动检查、手动检查和离线规则包导入都在安装前验证来源，并由用户确认更新。",
+          "verification": "正常、签名错误、回滚版本和离线包四类夹具；只有验证通过且用户确认的版本被安装。"
+        },
+        {
+          "id": "P0-014-AC05",
+          "statement": "发生错误时只在本地生成脱敏日志并展示 GitHub 与已拍板支持链接，不自动上传。",
+          "verification": "触发错误并抓取网络流量为 0；日志通过敏感字段扫描；页面链接与 OD-001 最终值一致。"
+        }
+      ],
+      "non_goals": ["常驻教学助手", "自动上传日志", "内置账号和大模型"],
+      "risks": ["更新供应链攻击", "错误日志泄密", "支持链接未确定"]
+    },
+    {
+      "id": "P0-015",
+      "name": "中文优先、可访问与视觉约束",
+      "priority": "P0",
+      "status": "specified",
+      "owner": "product-ui",
+      "decision_refs": ["D-021", "D-024"],
+      "evidence_refs": ["E-015"],
+      "dependencies": ["P0-003", "P0-005", "P0-013", "P0-014"],
+      "human_decisions_required": ["OD-004"],
+      "acceptance_criteria": [
+        {
+          "id": "P0-015-AC01",
+          "statement": "第一版所有用户流程具备简体中文文案，用户字符串通过消息 key 与逻辑分离。",
+          "verification": "扫描源代码中的用户可见硬编码字符串并人工审查；主流程中文快照无缺失 key，不要求完整英文。"
+        },
+        {
+          "id": "P0-015-AC02",
+          "statement": "200% 文字缩放下主流程内容不截断，所有交互可用键盘完成且焦点可见。",
+          "verification": "对每个主流程页面运行 200% 截图比较和仅键盘任务；无被遮挡主操作，焦点顺序与视觉顺序一致。"
+        },
+        {
+          "id": "P0-015-AC03",
+          "statement": "含秘密、需管理员、不可自动恢复等状态不只依赖颜色表达。",
+          "verification": "灰度截图和可访问树检查；每个状态同时有文本或图标语义标签。"
+        },
+        {
+          "id": "P0-015-AC04",
+          "statement": "减少动态效果开启时停用非必要动画，权限、密码、恢复和错误页面不使用幽默弱化风险。",
+          "verification": "系统减少动态效果开关前后录制比较；内容审查四类页面无庆祝或玩笑文案。"
+        },
+        {
+          "id": "P0-015-AC05",
+          "statement": "视觉实现不使用已禁止的全屏渐变、霓虹赛博、重毛玻璃、密集卡片墙或深色荧光绿 AI 风格。",
+          "verification": "设计评审逐项对照 D-021 禁止清单；任一命中即不通过，最终色值和资产仍由 OD-004 拍板。"
+        }
+      ],
+      "non_goals": ["首版完整英文界面", "通用 AI 产品视觉", "用视觉审美替代功能验收"],
+      "risks": ["中文长度溢出", "颜色承载唯一语义", "原型视觉被误当成正式设计"]
+    }
+  ]
+}

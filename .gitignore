@@ -1,0 +1,21 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Build outputs reserved for future implementation
+node_modules/
+dist/
+target/
+src-tauri/target/
+
+# Local diagnostics and logs
+*.log
+diagnostics/
+
+# Migration packages may contain Wi-Fi passwords
+*.habitpack
+
+# Local backups must never be committed
+backups/
+recovery/
