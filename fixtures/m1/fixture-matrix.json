@@ -334,6 +334,78 @@
       "base": "minimal-keyboard",
       "mutation": "zip64",
       "expected_error": "HP_ZIP64_ENTRY"
+    },
+    {
+      "name": "zip-sfx-prefix",
+      "base": "minimal-keyboard",
+      "mutation": "sfx_prefix",
+      "expected_error": "HP_ZIP_PREFIX"
+    },
+    {
+      "name": "zip-trailing-data",
+      "base": "minimal-keyboard",
+      "mutation": "trailing_data",
+      "expected_error": "HP_ZIP_TRAILING_DATA"
+    },
+    {
+      "name": "zip-nonempty-comment",
+      "base": "minimal-keyboard",
+      "mutation": "archive_comment",
+      "expected_error": "HP_ZIP_COMMENT"
+    },
+    {
+      "name": "zip-comment-length-mismatch",
+      "base": "minimal-keyboard",
+      "mutation": "comment_mismatch",
+      "expected_error": "HP_ZIP_COMMENT"
+    },
+    {
+      "name": "zip-multidisk-eocd",
+      "base": "minimal-keyboard",
+      "mutation": "multidisk",
+      "expected_error": "HP_ZIP_MULTIDISK"
+    },
+    {
+      "name": "zip-multidisk-central-entry",
+      "base": "minimal-keyboard",
+      "mutation": "central_multidisk",
+      "expected_error": "HP_ZIP_MULTIDISK"
+    },
+    {
+      "name": "zip-central-offset",
+      "base": "minimal-keyboard",
+      "mutation": "central_offset",
+      "expected_error": "HP_ZIP_LAYOUT"
+    },
+    {
+      "name": "zip-central-size",
+      "base": "minimal-keyboard",
+      "mutation": "central_size",
+      "expected_error": "HP_ZIP_LAYOUT"
+    },
+    {
+      "name": "zip-local-gap",
+      "base": "minimal-keyboard",
+      "mutation": "local_gap",
+      "expected_error": "HP_ZIP_LAYOUT"
+    },
+    {
+      "name": "zip-double-eocd",
+      "base": "minimal-keyboard",
+      "mutation": "double_eocd",
+      "expected_error": "HP_ZIP_LAYOUT"
+    },
+    {
+      "name": "zip-fake-tail-eocd",
+      "base": "minimal-keyboard",
+      "mutation": "fake_tail_eocd",
+      "expected_error": "HP_ZIP_LAYOUT"
+    },
+    {
+      "name": "zip-data-descriptor",
+      "base": "minimal-keyboard",
+      "mutation": "data_descriptor",
+      "expected_error": "HP_ZIP_LAYOUT"
     }
   ]
 }

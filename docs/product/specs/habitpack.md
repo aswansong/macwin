@@ -45,6 +45,8 @@ example.habitpack
 - 不存在 `raw/`，也不接受通用 `system.json`；
 - 不允许新增尚未决定的数据类别；
 - 不允许目录条目、符号链接、硬链接、设备/特殊文件、嵌套压缩包、ZIP64 或加密 ZIP；
+- ZIP 必须是严格单卷、零 archive comment、无 SFX/任意前缀、无 EOCD 尾随数据、无条目间隙或其他未声明区域；首个 local header 位于偏移 0，连续的 local entries 后紧接中央目录和最终 22 字节 EOCD；
+- M1 构建器不使用 data descriptor，对应 flag 一律拒绝；这是 M1 验证档案限制，不是未来公开 ZIP 兼容承诺；
 - 不允许 POSIX/Windows 绝对路径、反斜杠、`..`、重复条目、大小写折叠碰撞或 Unicode NFC 碰撞；
 - 不允许可执行扩展、MZ、ELF、Mach-O、shebang、脚本、`command` 或 `shell` 字段。[D-027]
 
@@ -88,13 +90,13 @@ M1 只验证虚构不透明字节、引用、大小和哈希，不定义编码�
 
 `manifest.files[].sha256` 只发现传输损坏和内容不一致。攻击者可以同时替换 manifest 与内容，所以 SHA-256 不证明来源、发布者或规则可信。OD-006 仍阻断生产更新、离线规则包与来源真实性方案。
 
-校验器在读取或解压内容前按 EOCD/ZIP64 locator、中央目录和本地条目 extra 的结构位置检查 ZIP64，再检查路径、类型、加密、条目数、大小和压缩比；不会在不透明内容中裸搜 ZIP 签名字节，因此合法秘密即使包含 `PK` 签名片段也不会被误判。随后有界读取，检查可执行魔数，再进行严格 JSON、schema、媒体、声明、哈希、规则、选择与秘密关系校验。任何一步失败都不把内容交给执行层。
+校验器在读取或解压内容前从文件末尾的固定 EOCD 验证单卷字段、中央目录范围、每个中央条目和 local header/压缩数据的连续边界，并按 ZIP64 locator 与 extra 的结构位置拒绝 ZIP64。它不在不透明内容中裸搜 ZIP 签名字节，因此合法秘密即使包含 EOCD、ZIP64 EOCD 或 locator 签名片段也不会被误判。随后再检查路径、类型、加密、条目数、大小、压缩比和可执行魔数，并进行严格 JSON、schema、媒体、声明、哈希、规则、选择与秘密关系校验。任何一步失败都不把内容交给执行层。
 
 稳定错误格式为 `ERROR [HP_ERROR_CODE] fixture:path`。秘密内容永远不进入错误或日志。
 
 ## 7. 虚构夹具与统一命令
 
-[`fixtures/m1/fixture-matrix.json`](../../../fixtures/m1/fixture-matrix.json) 保存 7 个有效包来源描述和覆盖容器、JSON、版本、规则、选择、秘密及可执行内容的无效变体。构建器只在临时目录生成实际 `.habitpack`，并通过同一个校验入口读取；仓库不保存迁移包。
+[`fixtures/m1/fixture-matrix.json`](../../../fixtures/m1/fixture-matrix.json) 保存 8 个有效包来源描述和覆盖容器、JSON、版本、规则、选择、秘密及可执行内容的无效变体。构建器只在临时目录生成实际 `.habitpack`，并通过同一个校验入口读取；仓库不保存迁移包。
 
 运行：
 

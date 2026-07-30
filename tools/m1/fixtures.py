@@ -56,7 +56,7 @@ def package_source(profile: str) -> tuple[dict[str, bytes], dict[str, Any]]:
         entries[f"modules/{module}.json"] = _json({"schema_version": "1.0.0", "module": module, "candidates": candidates})
         selected.extend(c["candidate_id"] for c in candidates)
     if profile == "wifi_secret": entries["secrets/wifi/fixture-one.bin"] = b"FICTIONAL-WIFI-OPAQUE-BYTES-v1"
-    if profile == "wifi_secret_zip_signatures": entries["secrets/wifi/fixture-one.bin"] = b"OPAQUE-PK\x06\x06-MIDDLE-PK\x06\x07-END"
+    if profile == "wifi_secret_zip_signatures": entries["secrets/wifi/fixture-one.bin"] = b"OPAQUE-PK\x05\x06-EOCD-PK\x06\x06-ZIP64-PK\x06\x07-LOCATOR-END"
     entries["selections.json"] = _json({"schema_version": "1.0.0", "guide_requested": guide, "selected_candidate_ids": selected})
     manifest = _manifest(entries, profile in {"wifi_secret", "wifi_secret_zip_signatures"})
     return entries, manifest
@@ -141,7 +141,7 @@ def _mutate(m: str, e: dict[str, bytes], mf: dict[str, Any], meta: dict[str, Any
     elif m == "duplicate_key": e[keyboard]=b'{"schema_version":"1.0.0","schema_version":"1.0.0"}'
     elif m == "invalid_json": e[keyboard]=b"{"
     elif m in {"major","minor","patch","malformed"}: mf["schema_version"]={"major":"2.0.0","minor":"1.1.0","patch":"1.0.1","malformed":"one"}[m]
-    elif m in {"directory","symlink","special","encrypted","zip64"}: meta[m]=True
+    elif m in {"directory","symlink","special","encrypted","zip64","sfx_prefix","trailing_data","archive_comment","comment_mismatch","multidisk","central_multidisk","central_offset","central_size","local_gap","double_eocd","fake_tail_eocd","data_descriptor"}: meta[m]=True
 
 
 def _write_zip(path: Path, entries: dict[str, bytes], manifest: bytes, mutation: str|None, meta: dict[str, Any]) -> None:
@@ -157,6 +157,8 @@ def _write_zip(path: Path, entries: dict[str, bytes], manifest: bytes, mutation:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", UserWarning)
                 z.writestr(meta["duplicate"], entries[meta["duplicate"]])
+        if meta.get("archive_comment"):
+            z.comment = b"M1-comments-are-forbidden"
     if meta.get("zip64"):
         data = path.read_bytes()
         eocd = data.rfind(b"PK\x05\x06")
@@ -166,6 +168,30 @@ def _write_zip(path: Path, entries: dict[str, bytes], manifest: bytes, mutation:
         locator = struct.pack("<4sLQL", b"PK\x06\x07", 0, eocd, 1)
         sentinel_eocd = struct.pack("<4s4H2LH", b"PK\x05\x06", 0, 0, 0xFFFF, 0xFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0)
         path.write_bytes(data[:eocd] + zip64_eocd + locator + sentinel_eocd)
+    if any(meta.get(name) for name in ("sfx_prefix","trailing_data","comment_mismatch","multidisk","central_multidisk","central_offset","central_size","local_gap","double_eocd","fake_tail_eocd","data_descriptor")):
+        data = bytearray(path.read_bytes())
+        eocd = data.rfind(b"PK\x05\x06")
+        if meta.get("sfx_prefix"): data = bytearray(b"MZ-SFX-PREFIX" + data)
+        elif meta.get("trailing_data"): data.extend(b"TRAILING-DATA")
+        elif meta.get("comment_mismatch"): struct.pack_into("<H", data, eocd + 20, 7)
+        elif meta.get("multidisk"): struct.pack_into("<H", data, eocd + 4, 1)
+        elif meta.get("central_multidisk"):
+            cd_offset = struct.unpack_from("<L", data, eocd + 16)[0]
+            struct.pack_into("<H", data, cd_offset + 34, 1)
+        elif meta.get("central_offset"): struct.pack_into("<L", data, eocd + 16, struct.unpack_from("<L", data, eocd + 16)[0] + 1)
+        elif meta.get("central_size"): struct.pack_into("<L", data, eocd + 12, struct.unpack_from("<L", data, eocd + 12)[0] - 1)
+        elif meta.get("local_gap"):
+            cd_offset = struct.unpack_from("<L", data, eocd + 16)[0]
+            data = data[:cd_offset] + b"\x00" + data[cd_offset:]
+            eocd += 1
+            struct.pack_into("<L", data, eocd + 16, cd_offset + 1)
+        elif meta.get("double_eocd"): data.extend(data[eocd:eocd + 22])
+        elif meta.get("fake_tail_eocd"): data.extend(struct.pack("<4s4H2LH", b"PK\x05\x06", 0, 0, 0, 0, 0, 0, 0))
+        elif meta.get("data_descriptor"):
+            struct.pack_into("<H", data, 6, struct.unpack_from("<H", data, 6)[0] | 0x08)
+            cd_offset = struct.unpack_from("<L", data, eocd + 16)[0]
+            struct.pack_into("<H", data, cd_offset + 8, struct.unpack_from("<H", data, cd_offset + 8)[0] | 0x08)
+        path.write_bytes(data)
     if meta.get("encrypted"):
         data=bytearray(path.read_bytes())
         for sig,off in ((b"PK\x03\x04",6),(b"PK\x01\x02",8)):

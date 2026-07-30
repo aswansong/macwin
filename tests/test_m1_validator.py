@@ -8,7 +8,7 @@ import zipfile
 from pathlib import Path
 
 from tools.m1.fixtures import MATRIX, _json, _manifest, _write_zip, build_fixture, package_source
-from tools.m1.repo_checks import ROOT, feature_checks, traceability_checks
+from tools.m1.repo_checks import ROOT, feature_checks, json_checks, markdown_checks, traceability_checks
 from tools.m1.validator import HabitpackError, _load_schemas, _schema_validate, strict_json, validate_habitpack
 
 
@@ -64,6 +64,7 @@ class M1ValidatorTests(unittest.TestCase):
                 info = archive.getinfo("secrets/wifi/fixture-one.bin")
                 self.assertEqual(zipfile.ZIP_STORED, info.compress_type)
                 payload = archive.read(info)
+                self.assertIn(b"PK\x05\x06", payload)
                 self.assertIn(b"PK\x06\x06", payload)
                 self.assertIn(b"PK\x06\x07", payload)
             validate_habitpack(path, "zip-signature-payload")
@@ -97,6 +98,27 @@ class M1ValidatorTests(unittest.TestCase):
             (root / "README.md").write_text("unknown decision [D-999]\n")
             with self.assertRaisesRegex(AssertionError, "D-999"):
                 traceability_checks(root)
+
+    def test_uppercase_markdown_references_and_links_are_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs/product").mkdir(parents=True)
+            shutil.copy2(ROOT / "docs/product/decisions.md", root / "docs/product/decisions.md")
+            shutil.copy2(ROOT / "docs/product/evidence.md", root / "docs/product/evidence.md")
+            (root / "docs/extra.MD").write_text("unknown [D-999]\n")
+            with self.assertRaisesRegex(AssertionError, "D-999"):
+                traceability_checks(root)
+            (root / "docs/extra.MD").write_text("[jump](target.MD#标题)\n")
+            (root / "docs/target.MD").write_text("# 标题\n")
+            self.assertEqual(1, markdown_checks(root))
+
+    def test_uppercase_json_is_strictly_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "extra.JSON").write_text('{"duplicate":1,"duplicate":2}')
+            with self.assertRaises(HabitpackError) as caught:
+                json_checks(root)
+            self.assertEqual("HP_JSON_DUPLICATE_KEY", caught.exception.code)
 
 
 if __name__ == "__main__":

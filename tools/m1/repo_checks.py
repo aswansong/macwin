@@ -20,12 +20,16 @@ def check(condition: bool, message: str) -> None:
         raise AssertionError(message)
 
 
-def json_checks() -> int:
+def _ignored(path: Path, root: Path) -> bool:
+    return any(part.startswith(".") or part in {"node_modules", "dist", "__pycache__", ".m1-validation-venv"} for part in path.relative_to(root).parts)
+
+
+def json_checks(root: Path = ROOT) -> int:
     count = 0
-    for path in ROOT.rglob("*.json"):
-        if any(part.startswith(".") or part in {"node_modules", "dist"} for part in path.relative_to(ROOT).parts):
+    for path in root.rglob("*"):
+        if not path.is_file() or path.suffix.lower() != ".json" or _ignored(path, root):
             continue
-        strict_json(path.read_bytes(), str(path.relative_to(ROOT)))
+        strict_json(path.read_bytes(), str(path.relative_to(root)))
         count += 1
     return count
 
@@ -72,11 +76,11 @@ def slug(text: str) -> str:
     return re.sub(r"[ _]+", "-", text).strip("-")
 
 
-def markdown_checks() -> int:
+def markdown_checks(root: Path = ROOT) -> int:
     count = 0
     link_re = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
-    for path in ROOT.rglob("*.md"):
-        if any(part.startswith(".") or part in {"node_modules", "dist"} for part in path.relative_to(ROOT).parts):
+    for path in root.rglob("*"):
+        if not path.is_file() or path.suffix.lower() != ".md" or _ignored(path, root):
             continue
         text = path.read_text()
         for raw in link_re.findall(text):
@@ -85,11 +89,11 @@ def markdown_checks() -> int:
                 continue
             file_part, _, fragment = target.partition("#")
             destination = (path.parent / unquote(file_part)).resolve() if file_part else path.resolve()
-            check(destination.is_relative_to(ROOT.resolve()), f"link escapes repo: {path}:{target}")
-            check(destination.exists(), f"broken link: {path.relative_to(ROOT)} -> {target}")
+            check(destination.is_relative_to(root.resolve()), f"link escapes repo: {path}:{target}")
+            check(destination.exists(), f"broken link: {path.relative_to(root)} -> {target}")
             if fragment and destination.suffix.lower() == ".md":
                 headings = {slug(line.lstrip("# ")) for line in destination.read_text().splitlines() if line.startswith("#")}
-                check(unquote(fragment).lower() in headings, f"broken fragment: {path.relative_to(ROOT)} -> {target}")
+                check(unquote(fragment).lower() in headings, f"broken fragment: {path.relative_to(root)} -> {target}")
             count += 1
     return count
 
@@ -104,10 +108,10 @@ def traceability_checks(root: Path = ROOT) -> dict[str, int]:
         check(len(values) == len(set(values)), f"duplicate {label} definitions")
     known = set(d_defs + od_defs + e_defs)
     referenced: set[str] = set()
-    managed = [path for path in (root / "docs").rglob("*") if path.suffix in {".md", ".json"}]
+    managed = [path for path in (root / "docs").rglob("*") if path.is_file() and path.suffix.lower() in {".md", ".json"}]
     managed.extend(path for path in (root / "README.md", root / "AGENTS.md", root / "SECURITY.md") if path.exists())
     for path in managed:
-        if any(part.startswith(".") or part in {"node_modules", "dist", "__pycache__"} for part in path.relative_to(root).parts):
+        if _ignored(path, root):
             continue
         referenced.update(re.findall(r"(?<![A-Z-])(?:OD|D|E)-\d{3}(?!\d)", path.read_text()))
     check(referenced <= known, f"unknown references: {sorted(referenced-known)}")

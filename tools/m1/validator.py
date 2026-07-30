@@ -119,31 +119,84 @@ def _local_extra(data: bytes, info: zipfile.ZipInfo) -> bytes:
     return data[start:end]
 
 
-def _zip64_structure_present(data: bytes) -> bool:
-    """Inspect EOCD fields and the locator position; payload bytes are irrelevant."""
-    signature = b"PK\x05\x06"
-    start = max(0, len(data) - (22 + 65535))
-    eocd_offset = -1
-    position = len(data)
-    while True:
-        position = data.rfind(signature, start, position)
-        if position < 0:
-            break
+def _classify_missing_final_eocd(data: bytes) -> None:
+    """Classify an invalid tail without treating signatures inside valid payloads as records."""
+    position = data.rfind(b"PK\x05\x06", 0, max(0, len(data) - 21))
+    while position >= 0:
         if position + 22 <= len(data):
             comment_length = struct.unpack_from("<H", data, position + 20)[0]
-            if position + 22 + comment_length == len(data):
-                eocd_offset = position
-                break
-        position -= 1
-    if eocd_offset < 0:
-        return False
-    _, disk, cd_disk, disk_entries, total_entries, cd_size, cd_offset, _ = struct.unpack_from("<4s4H2LH", data, eocd_offset)
-    if disk == 0xFFFF or cd_disk == 0xFFFF or disk_entries == 0xFFFF or total_entries == 0xFFFF or cd_size == 0xFFFFFFFF or cd_offset == 0xFFFFFFFF:
-        return True
-    locator_offset = eocd_offset - 20
-    if locator_offset >= 0 and data[locator_offset : locator_offset + 4] == b"PK\x06\x07":
-        return True
-    return False
+            record_end = position + 22 + comment_length
+            if record_end == len(data) and comment_length:
+                fail("HP_ZIP_COMMENT", "archive")
+            if position + 22 < len(data) and comment_length == 0:
+                fail("HP_ZIP_TRAILING_DATA", "archive")
+        position = data.rfind(b"PK\x05\x06", 0, position)
+    fail("HP_ZIP_LAYOUT", "archive")
+
+
+def _validate_zip_layout(data: bytes) -> None:
+    """Validate the deliberately narrow, contiguous, single-volume M1 ZIP profile."""
+    if len(data) < 22 or data[-22:-18] != b"PK\x05\x06":
+        _classify_missing_final_eocd(data)
+    eocd_offset = len(data) - 22
+    _, disk, cd_disk, disk_entries, total_entries, cd_size, cd_offset, comment_length = struct.unpack_from("<4s4H2LH", data, eocd_offset)
+    if comment_length != 0:
+        fail("HP_ZIP_COMMENT", "archive")
+    if disk in {0xFFFF} or cd_disk in {0xFFFF} or disk_entries == 0xFFFF or total_entries == 0xFFFF or cd_size == 0xFFFFFFFF or cd_offset == 0xFFFFFFFF:
+        fail("HP_ZIP64_ENTRY", "archive")
+    if disk != 0 or cd_disk != 0 or disk_entries != total_entries:
+        fail("HP_ZIP_MULTIDISK", "archive")
+    if not data.startswith(b"PK\x03\x04"):
+        fail("HP_ZIP_PREFIX", "archive")
+    if cd_offset + cd_size != eocd_offset or cd_offset <= 0:
+        fail("HP_ZIP_LAYOUT", "archive")
+    if eocd_offset >= 20 and data[eocd_offset - 20 : eocd_offset - 16] == b"PK\x06\x07":
+        fail("HP_ZIP64_ENTRY", "archive")
+
+    central_entries: list[dict[str, Any]] = []
+    position = cd_offset
+    while position < eocd_offset:
+        if position + 46 > eocd_offset or data[position : position + 4] != b"PK\x01\x02":
+            fail("HP_ZIP_LAYOUT", "archive")
+        fields = struct.unpack_from("<4s6H3L5H2L", data, position)
+        (_, _, _, flags, method, _, _, crc, compressed_size, file_size, name_length, extra_length, entry_comment_length, disk_start, _, _, local_offset) = fields
+        end = position + 46 + name_length + extra_length + entry_comment_length
+        if end > eocd_offset or entry_comment_length:
+            fail("HP_ZIP_LAYOUT", "archive")
+        if disk_start == 0xFFFF:
+            fail("HP_ZIP64_ENTRY", "archive")
+        if disk_start != 0:
+            fail("HP_ZIP_MULTIDISK", "archive")
+        extra_start = position + 46 + name_length
+        if _extra_has_zip64(data[extra_start : extra_start + extra_length]):
+            fail("HP_ZIP64_ENTRY", "archive")
+        central_entries.append({"flags": flags, "method": method, "crc": crc, "compressed_size": compressed_size, "file_size": file_size, "name": data[position + 46 : position + 46 + name_length], "local_offset": local_offset})
+        position = end
+    if position != eocd_offset or len(central_entries) != total_entries:
+        fail("HP_ZIP_LAYOUT", "archive")
+
+    expected_local_offset = 0
+    for entry in sorted(central_entries, key=lambda item: item["local_offset"]):
+        local_offset = entry["local_offset"]
+        if local_offset != expected_local_offset or local_offset + 30 > cd_offset or data[local_offset : local_offset + 4] != b"PK\x03\x04":
+            fail("HP_ZIP_LAYOUT", "archive")
+        local = struct.unpack_from("<4s5H3L2H", data, local_offset)
+        _, _, flags, method, _, _, crc, compressed_size, file_size, name_length, extra_length = local
+        if flags & 0x08:
+            fail("HP_ZIP_LAYOUT", "archive")
+        name_start = local_offset + 30
+        extra_start = name_start + name_length
+        data_start = extra_start + extra_length
+        data_end = data_start + compressed_size
+        if data_end > cd_offset or data[name_start:extra_start] != entry["name"]:
+            fail("HP_ZIP_LAYOUT", "archive")
+        if (flags, method, crc, compressed_size, file_size) != (entry["flags"], entry["method"], entry["crc"], entry["compressed_size"], entry["file_size"]):
+            fail("HP_ZIP_LAYOUT", "archive")
+        if _extra_has_zip64(data[extra_start:data_start]):
+            fail("HP_ZIP64_ENTRY", "archive")
+        expected_local_offset = data_end
+    if expected_local_offset != cd_offset:
+        fail("HP_ZIP_LAYOUT", "archive")
 
 
 def _entry_type(info: zipfile.ZipInfo) -> str:
@@ -180,8 +233,10 @@ def validate_habitpack(path: Path, fixture: str = "package") -> dict[str, int]:
     if path.stat().st_size > MAX_ARCHIVE:
         fail("HP_ARCHIVE_TOO_LARGE", fixture)
     raw_archive = path.read_bytes()
-    if _zip64_structure_present(raw_archive):
-        fail("HP_ZIP64_ENTRY", fixture)
+    try:
+        _validate_zip_layout(raw_archive)
+    except HabitpackError as error:
+        fail(error.code, fixture)
     try:
         archive = zipfile.ZipFile(path)
     except (zipfile.BadZipFile, OSError):
