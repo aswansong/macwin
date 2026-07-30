@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "software_id",
+    "confirmation_stage"
+  ],
+  "properties": {
+    "software_id": {
+      "enum": [
+        "chrome",
+        "firefox",
+        "libreoffice"
+      ]
+    },
+    "confirmation_stage": {
+      "const": "mac_plan"
+    }
+  }
+}

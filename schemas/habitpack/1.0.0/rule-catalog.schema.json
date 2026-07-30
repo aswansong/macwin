@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "scope",
+    "rules"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "scope": {
+      "const": "fixture_only"
+    },
+    "rules": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rule_id",
+          "rule_version",
+          "module",
+          "parameters_schema"
+        ],
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "pattern": "^fixture\\."
+          },
+          "rule_version": {
+            "const": "1.0.0"
+          },
+          "module": {
+            "enum": [
+              "keyboard",
+              "pointer",
+              "software",
+              "developer",
+              "wifi"
+            ]
+          },
+          "parameters_schema": {
+            "enum": [
+              "keyboard-params.schema.json",
+              "pointer-params.schema.json",
+              "software-params.schema.json",
+              "developer-params.schema.json",
+              "wifi-params.schema.json"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

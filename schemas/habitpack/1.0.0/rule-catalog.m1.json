@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_version": "1.0.0",
+  "scope": "fixture_only",
+  "rules": [
+    {
+      "rule_id": "fixture.keyboard.ctrl_editing",
+      "rule_version": "1.0.0",
+      "module": "keyboard",
+      "parameters_schema": "keyboard-params.schema.json"
+    },
+    {
+      "rule_id": "fixture.keyboard.external_windows",
+      "rule_version": "1.0.0",
+      "module": "keyboard",
+      "parameters_schema": "keyboard-params.schema.json"
+    },
+    {
+      "rule_id": "fixture.pointer.scroll",
+      "rule_version": "1.0.0",
+      "module": "pointer",
+      "parameters_schema": "pointer-params.schema.json"
+    },
+    {
+      "rule_id": "fixture.software.browser",
+      "rule_version": "1.0.0",
+      "module": "software",
+      "parameters_schema": "software-params.schema.json"
+    },
+    {
+      "rule_id": "fixture.developer.lightweight",
+      "rule_version": "1.0.0",
+      "module": "developer",
+      "parameters_schema": "developer-params.schema.json"
+    },
+    {
+      "rule_id": "fixture.wifi.personal",
+      "rule_version": "1.0.0",
+      "module": "wifi",
+      "parameters_schema": "wifi-params.schema.json"
+    }
+  ]
+}

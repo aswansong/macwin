@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://macwin.example/schemas/habitpack/1.0.0/module-envelope.schema.json",
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "label"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "fixture_detected",
+            "fixture_proposed"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      }
+    },
+    "candidateBase": {
+      "type": "object",
+      "required": [
+        "candidate_id",
+        "rule_id",
+        "rule_version",
+        "source",
+        "status",
+        "exclusion_reason",
+        "parameters"
+      ],
+      "properties": {
+        "candidate_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,79}$"
+        },
+        "rule_id": {
+          "type": "string",
+          "pattern": "^fixture\\.[a-z0-9._-]+$"
+        },
+        "rule_version": {
+        "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "status": {
+          "enum": [
+            "detected",
+            "proposed_on_mac",
+            "excluded"
+          ]
+        },
+        "exclusion_reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 240
+        },
+        "parameters": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

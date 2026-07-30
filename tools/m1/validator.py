@@ -1,0 +1,302 @@
+from __future__ import annotations
+
+import hashlib
+import io
+import json
+import re
+import stat
+import struct
+import unicodedata
+import zipfile
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from typing import Any
+
+from jsonschema import Draft202012Validator, FormatChecker
+
+SCHEMA_VERSION = "1.0.0"
+MAX_ARCHIVE = 8 * 1024 * 1024
+MAX_TOTAL = 16 * 1024 * 1024
+MAX_ENTRIES = 128
+MAX_MANIFEST = 64 * 1024
+MAX_JSON = 1024 * 1024
+MAX_SECRET = 64 * 1024
+MAX_PATH = 240
+MAX_RATIO = 100
+MODULES = ("keyboard", "pointer", "software", "developer", "wifi")
+JSON_MEDIA = "application/json"
+SECRET_MEDIA = "application/vnd.macwin.fixture-wifi-secret"
+EXEC_EXTENSIONS = {".exe", ".dll", ".msi", ".ps1", ".bat", ".cmd", ".sh", ".com", ".app", ".dylib"}
+NESTED_EXTENSIONS = {".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz", ".habitpack"}
+
+
+@dataclass
+class HabitpackError(Exception):
+    code: str
+    detail: str
+
+    def __str__(self) -> str:
+        return f"ERROR [{self.code}] {self.detail}"
+
+
+def fail(code: str, detail: str) -> None:
+    raise HabitpackError(code, detail)
+
+
+def strict_json(data: bytes, path: str) -> Any:
+    def pairs(items: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in items:
+            if key in result:
+                fail("HP_JSON_DUPLICATE_KEY", path)
+            result[key] = value
+        return result
+
+    try:
+        return json.loads(data.decode("utf-8"), object_pairs_hook=pairs)
+    except HabitpackError:
+        raise
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        fail("HP_JSON_INVALID", path)
+
+
+def _schema_root() -> Path:
+    return Path(__file__).resolve().parents[2] / "schemas" / "habitpack" / SCHEMA_VERSION
+
+
+def _load_schemas() -> tuple[dict[str, Any], dict[str, Any]]:
+    root = _schema_root()
+    schemas = {p.name: strict_json(p.read_bytes(), str(p)) for p in root.glob("*.json")}
+    catalog = schemas.pop("rule-catalog.m1.json")
+    return schemas, catalog
+
+
+def _schema_validate(instance: Any, name: str, schemas: dict[str, Any]) -> None:
+    from referencing import Registry, Resource
+
+    registry = Registry()
+    for filename, schema in schemas.items():
+        uri = schema.get("$id", f"https://macwin.example/schemas/habitpack/{SCHEMA_VERSION}/{filename}")
+        registry = registry.with_resource(uri, Resource.from_contents(schema))
+    validator = Draft202012Validator(schemas[name], registry=registry, format_checker=FormatChecker())
+    error = next(iter(validator.iter_errors(instance)), None)
+    if error:
+        location = "/".join(str(x) for x in error.absolute_path) or "$"
+        fail("HP_SCHEMA", f"{name}:{location}")
+
+
+def _path_code(name: str) -> str | None:
+    if name.startswith("/"):
+        return "HP_PATH_ABSOLUTE_POSIX"
+    if PureWindowsPath(name).is_absolute() or re.match(r"^[A-Za-z]:", name) or name.startswith("\\\\"):
+        return "HP_PATH_ABSOLUTE_WINDOWS"
+    if "\\" in name or any(part == ".." for part in PurePosixPath(name).parts):
+        return "HP_PATH_TRAVERSAL"
+    if len(name.encode("utf-8")) > MAX_PATH:
+        return "HP_PATH_TOO_LONG"
+    return None
+
+
+def _extra_has_zip64(extra: bytes) -> bool:
+    pos = 0
+    while pos + 4 <= len(extra):
+        header, size = struct.unpack_from("<HH", extra, pos)
+        if header == 0x0001:
+            return True
+        pos += 4 + size
+    return False
+
+
+def _entry_type(info: zipfile.ZipInfo) -> str:
+    mode = info.external_attr >> 16
+    kind = stat.S_IFMT(mode)
+    if info.is_dir() or info.filename.endswith("/"):
+        return "directory"
+    if kind == stat.S_IFLNK:
+        return "symlink"
+    if kind not in (0, stat.S_IFREG):
+        return "special"
+    return "file"
+
+
+def _magic_code(data: bytes) -> str | None:
+    if data.startswith(b"MZ"):
+        return "HP_EXECUTABLE_MZ"
+    if data.startswith(b"\x7fELF"):
+        return "HP_EXECUTABLE_ELF"
+    if data[:4] in {b"\xfe\xed\xfa\xce", b"\xce\xfa\xed\xfe", b"\xfe\xed\xfa\xcf", b"\xcf\xfa\xed\xfe", b"\xca\xfe\xba\xbe"}:
+        return "HP_EXECUTABLE_MACHO"
+    if data.startswith(b"#!"):
+        return "HP_EXECUTABLE_SHEBANG"
+    if data.startswith((b"PK\x03\x04", b"7z\xbc\xaf\x27\x1c", b"Rar!")):
+        return "HP_NESTED_ARCHIVE"
+    return None
+
+
+def _allowed_path(path: str) -> bool:
+    return path in {"selections.json", *(f"modules/{m}.json" for m in MODULES)} or bool(re.fullmatch(r"secrets/wifi/[a-z0-9][a-z0-9_-]{0,63}\.bin", path))
+
+
+def validate_habitpack(path: Path, fixture: str = "package") -> dict[str, int]:
+    if path.stat().st_size > MAX_ARCHIVE:
+        fail("HP_ARCHIVE_TOO_LARGE", fixture)
+    raw_archive = path.read_bytes()
+    zip64_tail = raw_archive[-4096:]
+    if b"PK\x06\x06" in zip64_tail or b"PK\x06\x07" in zip64_tail:
+        fail("HP_ZIP64_ENTRY", fixture)
+    try:
+        archive = zipfile.ZipFile(path)
+    except (zipfile.BadZipFile, OSError):
+        fail("HP_ZIP_INVALID", fixture)
+    with archive:
+        infos = archive.infolist()
+        if len(infos) > MAX_ENTRIES:
+            fail("HP_TOO_MANY_ENTRIES", fixture)
+        names: set[str] = set()
+        normalized: dict[str, str] = {}
+        total = 0
+        for info in infos:
+            name = info.filename
+            if name in names:
+                fail("HP_ZIP_DUPLICATE_ENTRY", f"{fixture}:{name}")
+            names.add(name)
+            code = _path_code(name)
+            if code:
+                fail(code, f"{fixture}:{name}")
+            norm = unicodedata.normalize("NFC", name).casefold()
+            if norm in normalized and normalized[norm] != name:
+                kind = "HP_PATH_NFC_COLLISION" if unicodedata.normalize("NFC", normalized[norm]) == unicodedata.normalize("NFC", name) else "HP_PATH_CASEFOLD_COLLISION"
+                fail(kind, f"{fixture}:{name}")
+            normalized[norm] = name
+            kind = _entry_type(info)
+            if kind == "directory":
+                fail("HP_DIRECTORY_ENTRY", f"{fixture}:{name}")
+            if kind == "symlink":
+                fail("HP_SYMLINK_ENTRY", f"{fixture}:{name}")
+            if kind == "special":
+                fail("HP_SPECIAL_ENTRY", f"{fixture}:{name}")
+            if info.flag_bits & 1:
+                fail("HP_ENCRYPTED_ENTRY", f"{fixture}:{name}")
+            if _extra_has_zip64(info.extra) or info.file_size > 0xFFFFFFFF or info.compress_size > 0xFFFFFFFF:
+                fail("HP_ZIP64_ENTRY", f"{fixture}:{name}")
+            suffix = PurePosixPath(name).suffix.lower()
+            if suffix in EXEC_EXTENSIONS:
+                fail("HP_EXECUTABLE_EXTENSION", f"{fixture}:{name}")
+            if suffix in NESTED_EXTENSIONS:
+                fail("HP_NESTED_ARCHIVE", f"{fixture}:{name}")
+            limit = MAX_MANIFEST if name == "manifest.json" else MAX_SECRET if name.startswith("secrets/") else MAX_JSON
+            if info.file_size > limit:
+                code = "HP_MANIFEST_TOO_LARGE" if name == "manifest.json" else "HP_SECRET_TOO_LARGE" if name.startswith("secrets/") else "HP_JSON_TOO_LARGE"
+                fail(code, f"{fixture}:{name}")
+            if info.compress_size and info.file_size / info.compress_size > MAX_RATIO:
+                fail("HP_COMPRESSION_RATIO", f"{fixture}:{name}")
+            total += info.file_size
+        if total > MAX_TOTAL:
+            fail("HP_TOTAL_TOO_LARGE", fixture)
+        if names != set(normalized.values()):
+            fail("HP_PATH_COLLISION", fixture)
+        if "manifest.json" not in names:
+            fail("HP_MANIFEST_MISSING", fixture)
+
+        payloads: dict[str, bytes] = {}
+        for info in infos:
+            try:
+                data = archive.read(info)
+            except (RuntimeError, zipfile.BadZipFile):
+                fail("HP_ZIP_READ", f"{fixture}:{info.filename}")
+            magic = _magic_code(data[:16])
+            if magic:
+                fail(magic, f"{fixture}:{info.filename}")
+            payloads[info.filename] = data
+
+    manifest = strict_json(payloads["manifest.json"], "manifest.json")
+    version = manifest.get("schema_version") if isinstance(manifest, dict) else None
+    if not isinstance(version, str) or not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        fail("HP_VERSION_MALFORMED", fixture)
+    if version != SCHEMA_VERSION:
+        part = next((p for p, a, b in zip(("MAJOR", "MINOR", "PATCH"), version.split("."), SCHEMA_VERSION.split(".")) if a != b), "PATCH")
+        fail(f"HP_VERSION_UNSUPPORTED_{part}", fixture)
+    schemas, catalog = _load_schemas()
+    _schema_validate(manifest, "manifest.schema.json", schemas)
+    declared = manifest["files"]
+    declared_paths = [item["path"] for item in declared]
+    if len(declared_paths) != len(set(declared_paths)):
+        fail("HP_MANIFEST_DUPLICATE_PATH", fixture)
+    actual = names - {"manifest.json"}
+    missing = set(declared_paths) - actual
+    undeclared = actual - set(declared_paths)
+    if missing:
+        fail("HP_DECLARED_FILE_MISSING", f"{fixture}:{sorted(missing)[0]}")
+    if undeclared:
+        fail("HP_UNDECLARED_FILE", f"{fixture}:{sorted(undeclared)[0]}")
+    for item in declared:
+        name = item["path"]
+        if not _allowed_path(name):
+            fail("HP_PATH_NOT_ALLOWED", f"{fixture}:{name}")
+        expected_media = SECRET_MEDIA if name.startswith("secrets/") else JSON_MEDIA
+        if item["media_type"] != expected_media:
+            fail("HP_MEDIA_TYPE", f"{fixture}:{name}")
+        data = payloads[name]
+        if item["size"] != len(data):
+            fail("HP_SIZE_MISMATCH", f"{fixture}:{name}")
+        if item["sha256"] != hashlib.sha256(data).hexdigest():
+            fail("HP_HASH_MISMATCH", f"{fixture}:{name}")
+
+    if "selections.json" not in payloads:
+        fail("HP_SELECTIONS_MISSING", fixture)
+    json_docs: dict[str, Any] = {}
+    forbidden = re.compile(r'"(?:command|shell|powershell|script)"\s*:')
+    for name, data in payloads.items():
+        if name.endswith(".json"):
+            if forbidden.search(data.decode("utf-8", "ignore")):
+                fail("HP_FORBIDDEN_FIELD", f"{fixture}:{name}")
+            json_docs[name] = strict_json(data, name)
+    _schema_validate(json_docs["selections.json"], "selections.schema.json", schemas)
+
+    catalog_map = {(r["rule_id"], r["rule_version"]): r for r in catalog["rules"]}
+    candidates: dict[str, tuple[str, dict[str, Any]]] = {}
+    wifi_refs: list[str] = []
+    for module in MODULES:
+        name = f"modules/{module}.json"
+        if name not in json_docs:
+            continue
+        doc = json_docs[name]
+        _schema_validate(doc, f"{module}.schema.json", schemas)
+        for candidate in doc["candidates"]:
+            cid = candidate["candidate_id"]
+            if cid in candidates:
+                fail("HP_CANDIDATE_DUPLICATE", f"{fixture}:{cid}")
+            candidates[cid] = (module, candidate)
+            rule = catalog_map.get((candidate["rule_id"], candidate["rule_version"]))
+            if not rule:
+                known_id = any(r["rule_id"] == candidate["rule_id"] for r in catalog["rules"])
+                fail("HP_RULE_VERSION_UNKNOWN" if known_id else "HP_RULE_UNKNOWN", f"{fixture}:{candidate['rule_id']}")
+            if rule["module"] != module:
+                fail("HP_RULE_MODULE", f"{fixture}:{candidate['rule_id']}")
+            _schema_validate(candidate["parameters"], rule["parameters_schema"], schemas)
+            if module == "wifi":
+                params = candidate["parameters"]
+                status, ref = params["credential_status"], params.get("credential_ref")
+                if status == "available" and not ref:
+                    fail("HP_SECRET_REF_REQUIRED", f"{fixture}:{cid}")
+                if status != "available" and ref:
+                    fail("HP_SECRET_REF_FORBIDDEN", f"{fixture}:{cid}")
+                if ref:
+                    wifi_refs.append(ref)
+
+    for selected in json_docs["selections.json"]["selected_candidate_ids"]:
+        if selected not in candidates:
+            fail("HP_SELECTION_UNKNOWN", f"{fixture}:{selected}")
+    if len(wifi_refs) != len(set(wifi_refs)):
+        fail("HP_SECRET_SHARED", fixture)
+    secret_paths = {n for n in payloads if n.startswith("secrets/")}
+    missing_refs = set(wifi_refs) - secret_paths
+    orphan = secret_paths - set(wifi_refs)
+    if missing_refs:
+        fail("HP_SECRET_MISSING", f"{fixture}:{sorted(missing_refs)[0]}")
+    if orphan:
+        fail("HP_SECRET_ORPHAN", f"{fixture}:{sorted(orphan)[0]}")
+    has_secrets = bool(secret_paths)
+    if manifest["contains_secrets"] != has_secrets:
+        fail("HP_CONTAINS_SECRETS_FALSE" if has_secrets else "HP_CONTAINS_SECRETS_TRUE", fixture)
+    return {"entries": len(payloads), "candidates": len(candidates), "secrets": len(secret_paths)}

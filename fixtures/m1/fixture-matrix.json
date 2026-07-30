@@ -1,0 +1,328 @@
+{
+  "valid": [
+    {
+      "name": "minimal-keyboard",
+      "profile": "keyboard"
+    },
+    {
+      "name": "all-modules-no-secret",
+      "profile": "all"
+    },
+    {
+      "name": "software-proposed-on-mac",
+      "profile": "software"
+    },
+    {
+      "name": "wifi-name-only",
+      "profile": "wifi_name"
+    },
+    {
+      "name": "wifi-credential-unavailable",
+      "profile": "wifi_unavailable"
+    },
+    {
+      "name": "wifi-fictional-secret",
+      "profile": "wifi_secret"
+    },
+    {
+      "name": "guide-only",
+      "profile": "guide"
+    }
+  ],
+  "invalid": [
+    {
+      "name": "path-traversal",
+      "base": "minimal-keyboard",
+      "mutation": "path_traversal",
+      "expected_error": "HP_PATH_TRAVERSAL"
+    },
+    {
+      "name": "posix-absolute",
+      "base": "minimal-keyboard",
+      "mutation": "posix_absolute",
+      "expected_error": "HP_PATH_ABSOLUTE_POSIX"
+    },
+    {
+      "name": "windows-absolute",
+      "base": "minimal-keyboard",
+      "mutation": "windows_absolute",
+      "expected_error": "HP_PATH_ABSOLUTE_WINDOWS"
+    },
+    {
+      "name": "undeclared-file",
+      "base": "minimal-keyboard",
+      "mutation": "undeclared",
+      "expected_error": "HP_UNDECLARED_FILE"
+    },
+    {
+      "name": "declared-missing",
+      "base": "minimal-keyboard",
+      "mutation": "missing",
+      "expected_error": "HP_DECLARED_FILE_MISSING"
+    },
+    {
+      "name": "casefold-collision",
+      "base": "minimal-keyboard",
+      "mutation": "casefold",
+      "expected_error": "HP_PATH_CASEFOLD_COLLISION"
+    },
+    {
+      "name": "nfc-collision",
+      "base": "minimal-keyboard",
+      "mutation": "nfc",
+      "expected_error": "HP_PATH_NFC_COLLISION"
+    },
+    {
+      "name": "duplicate-entry",
+      "base": "minimal-keyboard",
+      "mutation": "duplicate",
+      "expected_error": "HP_ZIP_DUPLICATE_ENTRY"
+    },
+    {
+      "name": "archive-over-limit",
+      "base": "minimal-keyboard",
+      "mutation": "archive_over",
+      "expected_error": "HP_ARCHIVE_TOO_LARGE"
+    },
+    {
+      "name": "entry-json-over-limit",
+      "base": "minimal-keyboard",
+      "mutation": "json_over",
+      "expected_error": "HP_JSON_TOO_LARGE"
+    },
+    {
+      "name": "manifest-over-limit",
+      "base": "minimal-keyboard",
+      "mutation": "manifest_over",
+      "expected_error": "HP_MANIFEST_TOO_LARGE"
+    },
+    {
+      "name": "secret-over-limit",
+      "base": "minimal-keyboard",
+      "mutation": "secret_over",
+      "expected_error": "HP_SECRET_TOO_LARGE"
+    },
+    {
+      "name": "total-over-limit",
+      "base": "minimal-keyboard",
+      "mutation": "total_over",
+      "expected_error": "HP_TOTAL_TOO_LARGE"
+    },
+    {
+      "name": "compression-ratio",
+      "base": "minimal-keyboard",
+      "mutation": "ratio",
+      "expected_error": "HP_COMPRESSION_RATIO"
+    },
+    {
+      "name": "path-over-limit",
+      "base": "minimal-keyboard",
+      "mutation": "path_over",
+      "expected_error": "HP_PATH_TOO_LONG"
+    },
+    {
+      "name": "entry-count",
+      "base": "minimal-keyboard",
+      "mutation": "entry_count",
+      "expected_error": "HP_TOO_MANY_ENTRIES"
+    },
+    {
+      "name": "hash-wrong",
+      "base": "minimal-keyboard",
+      "mutation": "hash",
+      "expected_error": "HP_HASH_MISMATCH"
+    },
+    {
+      "name": "size-wrong",
+      "base": "minimal-keyboard",
+      "mutation": "size",
+      "expected_error": "HP_SIZE_MISMATCH"
+    },
+    {
+      "name": "unknown-rule",
+      "base": "minimal-keyboard",
+      "mutation": "unknown_rule",
+      "expected_error": "HP_RULE_UNKNOWN"
+    },
+    {
+      "name": "unknown-rule-version",
+      "base": "minimal-keyboard",
+      "mutation": "unknown_rule_version",
+      "expected_error": "HP_RULE_VERSION_UNKNOWN"
+    },
+    {
+      "name": "unknown-selection",
+      "base": "minimal-keyboard",
+      "mutation": "unknown_selection",
+      "expected_error": "HP_SELECTION_UNKNOWN"
+    },
+    {
+      "name": "duplicate-candidate",
+      "base": "minimal-keyboard",
+      "mutation": "duplicate_candidate",
+      "expected_error": "HP_CANDIDATE_DUPLICATE"
+    },
+    {
+      "name": "secret-missing",
+      "base": "minimal-keyboard",
+      "mutation": "secret_missing",
+      "expected_error": "HP_SECRET_MISSING"
+    },
+    {
+      "name": "secret-wrong-directory",
+      "base": "minimal-keyboard",
+      "mutation": "secret_wrong_dir",
+      "expected_error": "HP_PATH_NOT_ALLOWED"
+    },
+    {
+      "name": "secret-wrong-media",
+      "base": "minimal-keyboard",
+      "mutation": "secret_wrong_media",
+      "expected_error": "HP_MEDIA_TYPE"
+    },
+    {
+      "name": "secret-orphan",
+      "base": "minimal-keyboard",
+      "mutation": "secret_orphan",
+      "expected_error": "HP_SECRET_ORPHAN"
+    },
+    {
+      "name": "secret-shared",
+      "base": "minimal-keyboard",
+      "mutation": "secret_shared",
+      "expected_error": "HP_SECRET_SHARED"
+    },
+    {
+      "name": "contains-secrets-false",
+      "base": "minimal-keyboard",
+      "mutation": "contains_false",
+      "expected_error": "HP_CONTAINS_SECRETS_FALSE"
+    },
+    {
+      "name": "contains-secrets-true",
+      "base": "minimal-keyboard",
+      "mutation": "contains_true",
+      "expected_error": "HP_CONTAINS_SECRETS_TRUE"
+    },
+    {
+      "name": "exec-extension",
+      "base": "minimal-keyboard",
+      "mutation": "exec_ext",
+      "expected_error": "HP_EXECUTABLE_EXTENSION"
+    },
+    {
+      "name": "exec-mz",
+      "base": "minimal-keyboard",
+      "mutation": "mz",
+      "expected_error": "HP_EXECUTABLE_MZ"
+    },
+    {
+      "name": "exec-elf",
+      "base": "minimal-keyboard",
+      "mutation": "elf",
+      "expected_error": "HP_EXECUTABLE_ELF"
+    },
+    {
+      "name": "exec-macho",
+      "base": "minimal-keyboard",
+      "mutation": "macho",
+      "expected_error": "HP_EXECUTABLE_MACHO"
+    },
+    {
+      "name": "exec-shebang",
+      "base": "minimal-keyboard",
+      "mutation": "shebang",
+      "expected_error": "HP_EXECUTABLE_SHEBANG"
+    },
+    {
+      "name": "command-field",
+      "base": "minimal-keyboard",
+      "mutation": "command",
+      "expected_error": "HP_FORBIDDEN_FIELD"
+    },
+    {
+      "name": "shell-field",
+      "base": "minimal-keyboard",
+      "mutation": "shell",
+      "expected_error": "HP_FORBIDDEN_FIELD"
+    },
+    {
+      "name": "extra-property",
+      "base": "minimal-keyboard",
+      "mutation": "extra_prop",
+      "expected_error": "HP_SCHEMA"
+    },
+    {
+      "name": "duplicate-json-key",
+      "base": "minimal-keyboard",
+      "mutation": "duplicate_key",
+      "expected_error": "HP_JSON_DUPLICATE_KEY"
+    },
+    {
+      "name": "invalid-json",
+      "base": "minimal-keyboard",
+      "mutation": "invalid_json",
+      "expected_error": "HP_JSON_INVALID"
+    },
+    {
+      "name": "unsupported-major",
+      "base": "minimal-keyboard",
+      "mutation": "major",
+      "expected_error": "HP_VERSION_UNSUPPORTED_MAJOR"
+    },
+    {
+      "name": "unsupported-minor",
+      "base": "minimal-keyboard",
+      "mutation": "minor",
+      "expected_error": "HP_VERSION_UNSUPPORTED_MINOR"
+    },
+    {
+      "name": "unsupported-patch",
+      "base": "minimal-keyboard",
+      "mutation": "patch",
+      "expected_error": "HP_VERSION_UNSUPPORTED_PATCH"
+    },
+    {
+      "name": "malformed-version",
+      "base": "minimal-keyboard",
+      "mutation": "malformed",
+      "expected_error": "HP_VERSION_MALFORMED"
+    },
+    {
+      "name": "directory-entry",
+      "base": "minimal-keyboard",
+      "mutation": "directory",
+      "expected_error": "HP_DIRECTORY_ENTRY"
+    },
+    {
+      "name": "symlink-entry",
+      "base": "minimal-keyboard",
+      "mutation": "symlink",
+      "expected_error": "HP_SYMLINK_ENTRY"
+    },
+    {
+      "name": "special-entry",
+      "base": "minimal-keyboard",
+      "mutation": "special",
+      "expected_error": "HP_SPECIAL_ENTRY"
+    },
+    {
+      "name": "nested-archive",
+      "base": "minimal-keyboard",
+      "mutation": "nested",
+      "expected_error": "HP_NESTED_ARCHIVE"
+    },
+    {
+      "name": "encrypted-entry",
+      "base": "minimal-keyboard",
+      "mutation": "encrypted",
+      "expected_error": "HP_ENCRYPTED_ENTRY"
+    },
+    {
+      "name": "zip64-entry",
+      "base": "minimal-keyboard",
+      "mutation": "zip64",
+      "expected_error": "HP_ZIP64_ENTRY"
+    }
+  ]
+}

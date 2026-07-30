@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tool_id",
+    "install_homebrew"
+  ],
+  "properties": {
+    "tool_id": {
+      "enum": [
+        "git",
+        "vscode",
+        "python",
+        "node"
+      ]
+    },
+    "install_homebrew": {
+      "const": false
+    }
+  }
+}

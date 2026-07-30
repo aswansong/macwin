@@ -30,6 +30,8 @@ MacWin 是一个面向 Windows 迁移用户的本地桌面工具。它计划读�
 
 交互原型已冻结在独立分支 `prototype/ui-flow-v2-hardening` 的提交 `37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75`，只使用虚构数据且不会合入 `main`。当前正在闭合 `.habitpack` 格式规范；M2、生产应用、真实平台适配和安装包均未获授权。[D-028]
 
+M1 格式资产使用精确的 `1.0.0` 验证档案。开发者可运行 `./scripts/validate-m1` 校验 schema、临时生成的虚构夹具、仓库 JSON、文档引用和依赖图；首次运行需要联网安装锁定的开发验证依赖。这不是产品运行命令或公开兼容性承诺。
+
 ## 名称
 
 MacWin 的灵感来自 “I have a Mac, I have a Win … MacWin!”。幽默只用于品牌传播；涉及权限、密码、恢复和错误的界面必须保持严肃、明确。

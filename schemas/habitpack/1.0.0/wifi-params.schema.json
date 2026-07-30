@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "network_label",
+    "security",
+    "credential_status"
+  ],
+  "properties": {
+    "network_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "security": {
+      "enum": [
+        "wpa-personal",
+        "wpa2-personal",
+        "wpa3-personal"
+      ]
+    },
+    "credential_status": {
+      "enum": [
+        "not_selected",
+        "unavailable",
+        "available"
+      ]
+    },
+    "credential_ref": {
+      "type": "string",
+      "pattern": "^secrets/wifi/[a-z0-9][a-z0-9_-]{0,63}\\.bin$"
+    }
+  }
+}

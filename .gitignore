@@ -15,6 +15,7 @@ diagnostics/
 
 # Migration packages may contain Wi-Fi passwords
 *.habitpack
+.m1-validation-venv/
 
 # Local backups must never be committed
 backups/

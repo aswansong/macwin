@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://macwin.example/schemas/habitpack/1.0.0/manifest.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "schema_version",
+    "created_at",
+    "created_by",
+    "source",
+    "target",
+    "contains_secrets",
+    "files"
+  ],
+  "properties": {
+    "format": {
+      "const": "macwin-habitpack"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "created_by": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "app_version",
+        "ruleset_version"
+      ],
+      "properties": {
+        "app_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "ruleset_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "os_family",
+        "os_release",
+        "architecture"
+      ],
+      "properties": {
+        "os_family": {
+          "const": "windows"
+        },
+        "os_release": {
+          "enum": [
+            "10",
+            "11"
+          ]
+        },
+        "architecture": {
+          "const": "x86_64"
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "os_family",
+        "architecture"
+      ],
+      "properties": {
+        "os_family": {
+          "const": "macos"
+        },
+        "architecture": {
+          "const": "arm64"
+        }
+      }
+    },
+    "contains_secrets": {
+      "type": "boolean"
+    },
+    "files": {
+      "type": "array",
+      "maxItems": 127,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "media_type",
+          "size",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "media_type": {
+            "enum": [
+              "application/json",
+              "application/vnd.macwin.fixture-wifi-secret"
+            ]
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1048576
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  }
+}

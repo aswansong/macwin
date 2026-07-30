@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://macwin.example/schemas/habitpack/1.0.0/selections.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "guide_requested",
+    "selected_candidate_ids"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "guide_requested": {
+      "type": "boolean"
+    },
+    "selected_candidate_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 320,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9._-]{0,79}$"
+      }
+    }
+  }
+}

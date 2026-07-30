@@ -69,11 +69,10 @@ MacWin 帮助 Windows 10/11 x64 用户把使用习惯迁移到运行 macOS 15/26
 在提交前至少运行：
 
 ```bash
-python3 -m json.tool docs/execution/feature-list.json >/dev/null
-git diff --check
+./scripts/validate-m1
 ```
 
-还应确认所有 `D-xxx`、`E-xxx` 和 P0 功能引用在对应文档中存在。当前没有应用代码，因此不要声称已运行产品测试。
+该命令会执行严格 JSON、schema、虚构夹具、链接、引用、P0 依赖与空白检查。首次运行会联网安装锁定的开发验证依赖；它不是产品依赖。当前没有应用代码，因此不要声称已运行产品测试。
 
 ## Code review rules
 

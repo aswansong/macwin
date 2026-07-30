@@ -1,14 +1,29 @@
-# `.habitpack` 格式规格（草案）
+# `.habitpack` M1 格式规格
 
-状态：产品级格式规范，尚未实现；字段和版本在首个技术样例前仍可兼容性调整。容器、安全边界和数据最小化原则已经决定。[D-009、D-019、D-027]
+状态：M1 格式验证档案；不是公开兼容性承诺、生产解析器或真实 Wi‑Fi 能力。[D-009、D-019、D-027]
 
-## 1. 目标与非目标
+## 1. M1 验证档案
 
-格式用于把已确认的 Windows 习惯描述交给 Mac 端生成计划。它不是备份格式、脚本包、应用安装器、个人文件容器或通用注册表/plist 传输工具。[D-002、D-009、D-027]
+M1 只接受精确的 `schema_version: "1.0.0"`。其他 major、minor、patch 和非 `major.minor.patch` 字符串全部拒绝。这个严格档案用于消除当前样例的歧义，不决定未来兼容窗口；OD-011 仍未解决。
 
-第一版使用 ZIP 容器和 `.habitpack` 扩展名，不加密。ZIP 可读性只为调试和互操作，不代表导入方可以信任内容。[D-009]
+固定上限如下：
 
-## 2. 目录结构与允许入口
+| 对象 | M1 上限 |
+|---|---:|
+| 压缩包 | 8 MiB |
+| 总解压字节 | 16 MiB |
+| ZIP 条目 | 128 |
+| `manifest.json` | 64 KiB |
+| 其他 JSON | 1 MiB/文件 |
+| Wi‑Fi 秘密 | 64 KiB/文件 |
+| UTF-8 路径 | 240 字节 |
+| 单条目压缩比 | 100:1 |
+| 每模块候选 | 64 |
+| Wi‑Fi 候选 | 64 |
+
+这些值只属于 M1 验证档案，不是发布后的永久承诺。
+
+## 2. 唯一允许的文件
 
 ```text
 example.habitpack
@@ -20,175 +35,71 @@ example.habitpack
 │   ├── software.json
 │   ├── developer.json
 │   └── wifi.json
-├── raw/
-│   └── <rule-id>/<declared-fragment>.json
-└── secrets/                         # 仅 contains_secrets=true 时允许
+└── secrets/
     └── wifi/
-        └── <local-opaque-id>.bin
+        └── <opaque-id>.bin
 ```
 
-约束：
+除 `manifest.json` 与 `selections.json` 外，模块文件按需出现；秘密文件只在 Wi‑Fi 候选明确引用时出现。除此之外的文件和目录全部拒绝：
 
-- `manifest.json` 是唯一文件索引和完整性清单；第一版不存在第二份 `integrity.json`。
-- `manifest.json` 不在自己的 `files` 数组中，避免自引用哈希；除此之外，每个普通文件必须在 `files` 中恰好声明一次，`files` 中也不得声明不存在的文件。
-- ZIP 只允许普通文件条目，不写入或接受单独的目录条目。允许的顶层名称只有 `manifest.json`、`selections.json`、`modules/`、`raw/` 和条件性的 `secrets/`。
-- `selections.json` 和实际存在的模块文件必须声明；`raw/` 仅在规则需要时出现；`secrets/` 仅在 `contains_secrets=true` 且存在被 Wi‑Fi 模块引用的凭据时出现。
-- 所有路径使用有效 UTF-8、正斜杠和相对路径；路径必须先完成 Unicode NFC、分隔符、大小写碰撞和平台保留名称检查，再参与唯一性比较。
-- 禁止绝对路径、`..`、符号链接、硬链接、设备文件、嵌套压缩包和重复规范化路径。
-- 包内不得出现 `.exe`、`.dll`、`.msi`、`.ps1`、`.bat`、`.cmd`、`.sh`、Mach-O、脚本解释器入口或任意可执行内容。
-- `raw/` 只能包含白名单规则声明需要的最小 JSON/文本片段；具体允许的媒体类型由 schema 固定，不接受任意文件。[D-009、D-027]
-- `secrets/wifi/` 只允许由 Wi‑Fi 模块 `credential_ref` 精确引用的凭据文件；孤立秘密、跨目录引用和多个网络共享同一凭据引用均拒绝。
+- 不存在 `raw/`，也不接受通用 `system.json`；
+- 不允许新增尚未决定的数据类别；
+- 不允许目录条目、符号链接、硬链接、设备/特殊文件、嵌套压缩包、ZIP64 或加密 ZIP；
+- 不允许 POSIX/Windows 绝对路径、反斜杠、`..`、重复条目、大小写折叠碰撞或 Unicode NFC 碰撞；
+- 不允许可执行扩展、MZ、ELF、Mach-O、shebang、脚本、`command` 或 `shell` 字段。[D-027]
 
-## 3. `manifest.json`
+## 3. 单一事实源
 
-首版候选字段（示例只省略模块内容，不省略文件索引规则）：
+`manifest.files` 是除 manifest 自身外唯一的文件、媒体类型、解压后字节数和 SHA-256 索引；manifest 不再包含 `modules` 数组。ZIP 中每个非 manifest 文件必须被恰好声明一次，每个声明也必须对应一个实际条目。
 
-```json
-{
-  "format": "macwin-habitpack",
-  "schema_version": "1.0.0",
-  "created_at": "2026-07-30T12:00:00Z",
-  "created_by": {
-    "app_version": "0.0.0-alpha",
-    "ruleset_version": "2026.07.0"
-  },
-  "source": {
-    "os_family": "windows",
-    "os_release": "11",
-    "architecture": "x86_64"
-  },
-  "target": {
-    "os_family": "macos",
-    "architecture": "arm64"
-  },
-  "contains_secrets": false,
-  "modules": ["keyboard", "pointer"],
-  "files": [
-    {
-      "path": "selections.json",
-      "media_type": "application/json",
-      "size": 80,
-      "sha256": "<64 lowercase hex characters>"
-    },
-    {
-      "path": "modules/keyboard.json",
-      "media_type": "application/json",
-      "size": 100,
-      "sha256": "<64 lowercase hex characters>"
-    }
-  ]
-}
+`selections.json` 是 Windows 选择的唯一事实源：
+
+- `selected_candidate_ids` 只引用模块文件中存在的候选；
+- `candidate_id` 在整个包中全局唯一；
+- 模块只表达候选及检测事实，不含 `selected`；
+- 是否生成个性化指南只由 `guide_requested` 表达；
+- 常用软件候选可标为 `proposed_on_mac`，最终只在 Mac 强制计划中确认一次。[D-028]
+
+后端候选仍保留规则 ID、规则版本、来源、状态和排除原因；首层 UI 是否展示这些字段由 UI 规格决定。
+
+## 4. Schema 与跨文件校验
+
+逐文件 Draft 2020-12 JSON Schema 位于 [`schemas/habitpack/1.0.0/`](../../../schemas/habitpack/1.0.0/)。所有结构对象关闭未知属性；重复 JSON 键在 schema 之前直接拒绝。
+
+Schema 负责单文件形状和允许值。Python 3.11+ 开发校验器负责 schema 无法单独保证的容器与跨文件关系：路径、ZIP 元数据、资源上限、媒体类型、声明/实际文件、原始字节大小和哈希、全局候选唯一性、选择引用、规则目录及秘密一一对应。
+
+`rule-catalog.m1.json` 只包含 `fixture.` 前缀的虚构规则。未知规则、版本或参数都会拒绝；它不是 OD-003 所需的生产白名单，也不能驱动系统动作。
+
+## 5. Wi‑Fi 虚构秘密
+
+Wi‑Fi 候选的 `credential_status` 只有：
+
+- `not_selected`：禁止 `credential_ref`；
+- `unavailable`：禁止 `credential_ref`；
+- `available`：必须有且只有一个 `credential_ref`。
+
+引用必须落在 `secrets/wifi/<opaque-id>.bin`，每个秘密只能被一个候选引用；缺失、孤立、共享、错误目录或错误媒体类型全部拒绝。`manifest.contains_secrets` 必须与实际秘密文件存在性一致。
+
+M1 只验证虚构不透明字节、引用、大小和哈希，不定义编码、解码器或平台接口。OD-005 继续阻断任何真实 Wi‑Fi 凭据生产实现。[D-019、OD-005]
+
+## 6. 完整性而非真实性
+
+`manifest.files[].sha256` 只发现传输损坏和内容不一致。攻击者可以同时替换 manifest 与内容，所以 SHA-256 不证明来源、发布者或规则可信。OD-006 仍阻断生产更新、离线规则包与来源真实性方案。
+
+校验器在读取或解压内容前先检查 ZIP 中央目录元数据、路径、类型、加密/ZIP64、条目数、大小和压缩比；随后有界读取，检查可执行魔数，再进行严格 JSON、schema、媒体、声明、哈希、规则、选择与秘密关系校验。任何一步失败都不把内容交给执行层。
+
+稳定错误格式为 `ERROR [HP_ERROR_CODE] fixture:path`。秘密内容永远不进入错误或日志。
+
+## 7. 虚构夹具与统一命令
+
+[`fixtures/m1/fixture-matrix.json`](../../../fixtures/m1/fixture-matrix.json) 保存 7 个有效包来源描述和覆盖容器、JSON、版本、规则、选择、秘密及可执行内容的无效变体。构建器只在临时目录生成实际 `.habitpack`，并通过同一个校验入口读取；仓库不保存迁移包。
+
+运行：
+
+```bash
+./scripts/validate-m1
 ```
 
-说明：
+首次运行会创建被忽略的开发验证虚拟环境，并按 `requirements.lock` 安装固定版本的 `jsonschema` 及其直接/传递依赖。该依赖只服务仓库验证，不是产品运行时依赖。统一命令还会检查 schema 自身、所有夹具、单元测试、严格 JSON、Markdown 相对链接与片段、D/OD/E 引用、P0 验收 ID 和依赖图、当前里程碑一致性以及等价的 `git diff --check`。
 
-- 示例值不表示版本号已经发布。
-- `contains_secrets` 只要存在任何 Wi‑Fi 密码就必须为 `true`；为 `false` 不能替代内容扫描。
-- 不需要且默认不允许设备序列号、Windows 产品密钥、Microsoft/Apple 账号、完整用户名或完整本地绝对路径。[D-009、D-019]
-- 时间只用于向用户识别包，不作为信任判断。
-- `modules` 必须与实际存在的 `modules/<module-id>.json` 一一对应；模块文件、`selections.json` 和 `contains_secrets` 对同一选择给出冲突结果时，整个包必须拒绝，不能猜测哪一份优先。
-- `files[].size` 和 `files[].sha256` 针对 ZIP 解压后的原始文件字节计算；不得针对压缩流、文本规范化结果或重新序列化后的 JSON 计算。
-- `manifest.json` 必须在固定的小尺寸上限内单独读取并完成严格 JSON 解析，解析 manifest 不代表其余条目已经可信。
-
-## 4. 模块数据
-
-模块文件必须以规则 ID 表达意图，不得直接携带目标端命令。例如：
-
-```json
-{
-  "module": "keyboard",
-  "rules": [
-    {
-      "rule_id": "keyboard.ctrl_copy_compat",
-      "rule_version": 1,
-      "selected": true,
-      "source_evidence": {
-        "detected": true,
-        "kind": "known_shortcut_profile"
-      },
-      "parameters": {
-        "scope": "standard_apps",
-        "exclude_real_ctrl_contexts": true
-      }
-    }
-  ]
-}
-```
-
-导入器根据自己内置且受信任的 `rule_id + rule_version` 查找实现。未知规则只能显示为不支持，不得解释为命令、路径或系统键。[D-027]
-
-## 5. Wi‑Fi 数据
-
-Wi‑Fi 模块只允许用户逐项选中的个人 WPA/WPA2/WPA3 网络。企业 802.1X、证书、受管网络和未知安全类型不得进入包。[D-019]
-
-候选表达：
-
-```json
-{
-  "module": "wifi",
-  "networks": [
-    {
-      "network_id": "local-opaque-id",
-      "ssid": "<network name>",
-      "security": "wpa2-personal",
-      "credential_ref": "secrets/wifi/local-opaque-id.bin"
-    }
-  ]
-}
-```
-
-`credential_ref` 必须与 `manifest.files` 中一个且仅一个 `secrets/wifi/` 条目完全相等；该条目的 media type 固定为 `application/vnd.macwin.wifi-credential`。秘密文件的最终字节编码仍受 OD-005 技术验证阻塞；在 OD-005 关闭前，schema 和夹具只能使用明确标记的虚构字节，生产适配器不得消费该内容。实现必须保证：
-
-- 密码不进入 manifest、计划、报告、日志、错误和快照；
-- 读取后只传给受信任的目标系统接口，不进入通用模板或 Shell 参数；
-- 临时明文缓冲区和文件按平台可实现的最强方式及时释放/删除；
-- 包级 `contains_secrets` 与实际内容一致；
-- 导入完成后提醒用户删除包，但不替用户删除其唯一副本。[D-019、OD-005]
-
-## 6. 完整性与真实性
-
-第一版由 `manifest.files` 提供唯一的逐文件 SHA-256 完整性清单，用于发现损坏、缺失或未声明内容。`manifest.json` 本身没有自引用哈希；攻击者可以同时替换 manifest 和内容，因此这些哈希不能证明发布者身份，也不能让包内规则变得可信。安全性仍来自严格 schema、固定规则 ID 和受限平台适配器。应用与离线规则包的真实性签名由 OD-006 决定。
-
-固定校验顺序：
-
-1. 在不解压其他条目的情况下检查 ZIP 元数据、条目数量、路径和压缩上限；
-2. 有界读取并严格解析唯一的根级 `manifest.json`；
-3. 建立规范化路径集合，确认每个非 manifest 普通文件与 `manifest.files` 一一对应；
-4. 流式读取每个文件，按解压后原始字节同时检查大小和 SHA-256；
-5. 校验 media type、模块 schema、引用、规则 ID、版本、依赖与允许值；
-6. 全部通过后才生成迁移计划，任何失败都不得把部分解压内容交给执行层。
-
-导入时必须拒绝：
-
-- 除唯一根级 `manifest.json` 外，manifest 未声明的文件，或 manifest 声明但 ZIP 中不存在的文件；
-- 大小或哈希不匹配；
-- schema 主版本不支持；
-- 重复文件、大小写碰撞或 Unicode 规范化碰撞；
-- 超过实现固定上限的总大小、文件数、路径长度、单文件大小或压缩比；
-- 非法 JSON、重复键或超出数值范围的字段；
-- 内容类型与路径/声明不符；
-- 任何可执行内容或未知原始片段。[D-027]
-
-具体数值上限属于执行 agent 可提出的技术细节，但必须通过安全测试并记录；改变能接收的数据类别仍需负责人拍板。
-
-## 7. 兼容性
-
-- `schema_version` 使用语义化的 `major.minor.patch`。
-- 不支持的 major：阻断导入并提示使用兼容版本。
-- 新增可忽略字段可提升 minor；现有字段含义不得静默改变。
-- 修正文案或不改变解析的约束可提升 patch。
-- 每个规则另有整数 `rule_version`；应用只能执行已知组合。
-- 降级读取不得丢掉安全语义，例如把 `contains_secrets` 当成未知可忽略字段。[D-027]
-
-最终向后/向前兼容窗口由 OD-011 决定；当前不承诺具体跨度。
-
-## 8. 隐私导出检查
-
-Windows 端生成后必须用与 Mac 端独立的校验路径重新读取包，并验证：
-
-- 没有非白名单文件和字段；
-- 未选择 Wi‑Fi 密码时，不存在 credential 内容且 `contains_secrets=false`；
-- 用户名、绝对路径、设备序列号和账号标识不在禁止字段或原始片段中；
-- 所有选项与最终确认页一致。[D-009、D-019]
-
-任何检查失败都删除未完成输出并展示不含秘密的错误，不得生成“勉强可用”的包。[D-026]
+格式资产只证明 schema、容器和虚构夹具的验证行为，不证明 Windows 导出、Mac 导入、真实秘密处理或任何系统修改能力。
