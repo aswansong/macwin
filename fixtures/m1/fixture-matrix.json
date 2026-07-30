@@ -478,6 +478,90 @@
       "base": "minimal-keyboard",
       "mutation": "method_mismatch",
       "expected_error": "HP_ZIP_LAYOUT"
+    },
+    {
+      "name": "zip-local-version-only",
+      "base": "minimal-keyboard",
+      "mutation": "local_version",
+      "expected_error": "HP_ZIP_LAYOUT"
+    },
+    {
+      "name": "zip-central-version-only",
+      "base": "minimal-keyboard",
+      "mutation": "central_version",
+      "expected_error": "HP_ZIP_LAYOUT"
+    },
+    {
+      "name": "zip-both-invalid-version",
+      "base": "minimal-keyboard",
+      "mutation": "both_version",
+      "expected_error": "HP_ZIP_VERSION"
+    },
+    {
+      "name": "zip-made-by-host",
+      "base": "minimal-keyboard",
+      "mutation": "made_by",
+      "expected_error": "HP_ZIP_VERSION"
+    },
+    {
+      "name": "zip-internal-attributes",
+      "base": "minimal-keyboard",
+      "mutation": "internal_attr",
+      "expected_error": "HP_ZIP_ATTRIBUTES"
+    },
+    {
+      "name": "zip-external-attributes-high",
+      "base": "minimal-keyboard",
+      "mutation": "external_attr_high",
+      "expected_error": "HP_ZIP_ATTRIBUTES"
+    },
+    {
+      "name": "zip-external-attributes-low",
+      "base": "minimal-keyboard",
+      "mutation": "external_attr_low",
+      "expected_error": "HP_ZIP_ATTRIBUTES"
+    },
+    {
+      "name": "zip-local-timestamp-only",
+      "base": "minimal-keyboard",
+      "mutation": "local_timestamp",
+      "expected_error": "HP_ZIP_LAYOUT"
+    },
+    {
+      "name": "zip-central-timestamp-only",
+      "base": "minimal-keyboard",
+      "mutation": "central_timestamp",
+      "expected_error": "HP_ZIP_LAYOUT"
+    },
+    {
+      "name": "zip-both-timestamp",
+      "base": "minimal-keyboard",
+      "mutation": "both_timestamp",
+      "expected_error": "HP_ZIP_TIMESTAMP"
+    },
+    {
+      "name": "zip-central-reverse-order",
+      "base": "minimal-keyboard",
+      "mutation": "central_reverse",
+      "expected_error": "HP_ZIP_ORDER"
+    },
+    {
+      "name": "zip-local-reverse-central-canonical",
+      "base": "minimal-keyboard",
+      "mutation": "local_only_reverse",
+      "expected_error": "HP_ZIP_ORDER"
+    },
+    {
+      "name": "zip-local-central-reverse-order",
+      "base": "minimal-keyboard",
+      "mutation": "local_reverse",
+      "expected_error": "HP_ZIP_ORDER"
+    },
+    {
+      "name": "zip-manifest-last",
+      "base": "minimal-keyboard",
+      "mutation": "manifest_last",
+      "expected_error": "HP_ZIP_ORDER"
     }
   ]
 }

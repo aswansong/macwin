@@ -50,6 +50,9 @@ example.habitpack
 - local header 与中央条目的 `extra_length` 都必须为 0；任何 extra 都拒绝，结构化 ZIP64 extra 仍优先按 ZIP64 拒绝；
 - general-purpose flags 必须精确为 0；加密与 data descriptor 保留更具体的安全错误，其余保留位或未知位按 `HP_ZIP_FLAGS` 拒绝；
 - 压缩方法只允许 Stored（0）与 Deflate（8）；BZIP2、LZMA 和未知方法按 `HP_ZIP_COMPRESSION` 拒绝；
+- Stored 的 `version_needed` 固定为 10，Deflate 固定为 20；两侧必须一致。`version_made_by` 固定为 `0x0314`（Unix host、2.0）；
+- DOS time/date 固定为 `0x0000/0x0021`（1980-01-01 00:00:00）；`internal_attr=0`，`external_attr=(Unix regular file | 0600) << 16` 且低 16 位为 0；
+- local entries 固定以 `manifest.json` 为第一项，其余按 UTF-8 路径字节升序；中央目录必须使用完全相同的顺序并指向对应 local header；
 - 上述无 extra、flags 0 和两种压缩方法都是 M1 构建器验证档案，不是未来公开兼容承诺；
 - 不允许 POSIX/Windows 绝对路径、反斜杠、`..`、重复条目、大小写折叠碰撞或 Unicode NFC 碰撞；
 - 不允许可执行扩展、MZ、ELF、Mach-O、shebang、脚本、`command` 或 `shell` 字段。[D-027]
@@ -93,6 +96,8 @@ M1 只验证虚构不透明字节、引用、大小和哈希，不定义编码�
 ## 6. 完整性而非真实性
 
 `manifest.files[].sha256` 只发现传输损坏和内容不一致。攻击者可以同时替换 manifest 与内容，所以 SHA-256 不证明来源、发布者或规则可信。OD-006 仍阻断生产更新、离线规则包与来源真实性方案。
+
+SHA-256、size 和 schema 都针对解压后的原始文件字节；Deflate 可使用不同压缩级别，压缩流与整个 ZIP 不要求字节级完全一致。只有上述 header、布局和顺序字段需要规范化。
 
 校验器在读取或解压内容前从文件末尾的固定 EOCD 验证单卷字段、中央目录范围、每个中央条目和 local header/压缩数据的连续边界，并按 ZIP64 locator 与 extra 的结构位置拒绝 ZIP64。它不在不透明内容中裸搜 ZIP 签名字节，因此合法秘密即使包含 EOCD、ZIP64 EOCD 或 locator 签名片段也不会被误判。随后再检查路径、类型、加密、条目数、大小、压缩比和可执行魔数，并进行严格 JSON、schema、媒体、声明、哈希、规则、选择与秘密关系校验。任何一步失败都不把内容交给执行层。
 

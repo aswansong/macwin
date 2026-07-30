@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import shutil
+import stat
+import struct
 import tempfile
 import unittest
 import zipfile
@@ -85,6 +87,38 @@ class M1ValidatorTests(unittest.TestCase):
                         self.assertTrue(archive.infolist())
                         self.assertEqual({method}, {item.compress_type for item in archive.infolist()})
                     validate_habitpack(path, name)
+
+    def test_canonical_headers_and_utf8_byte_order(self) -> None:
+        descriptor = next(x for x in MATRIX["valid"] if x["name"] == "all-modules-no-secret")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "canonical.habitpack"
+            build_fixture(descriptor, path)
+            raw = path.read_bytes()
+            with zipfile.ZipFile(path) as archive:
+                infos = archive.infolist()
+                names = [item.filename for item in infos]
+                self.assertEqual(["manifest.json", *sorted(names[1:], key=lambda name: name.encode("utf-8"))], names)
+                for info in infos:
+                    self.assertEqual(3, info.create_system)
+                    self.assertEqual(20, info.create_version)
+                    self.assertEqual(20, info.extract_version)
+                    self.assertEqual((1980, 1, 1, 0, 0, 0), info.date_time)
+                    self.assertEqual(0, info.internal_attr)
+                    self.assertEqual((stat.S_IFREG | 0o600) << 16, info.external_attr)
+                    self.assertEqual(0, info.flag_bits)
+                    self.assertEqual(b"", info.extra)
+                    local_version, local_flags, local_method, local_time, local_date = struct.unpack_from("<5H", raw, info.header_offset + 4)
+                    self.assertEqual((20, 0, zipfile.ZIP_DEFLATED, 0, 0x21), (local_version, local_flags, local_method, local_time, local_date))
+            validate_habitpack(path, "canonical-headers")
+
+    def test_different_deflate_levels_remain_valid(self) -> None:
+        entries, manifest = package_source("keyboard")
+        with tempfile.TemporaryDirectory() as directory:
+            for level in (1, 9):
+                with self.subTest(level):
+                    path = Path(directory) / f"level-{level}.habitpack"
+                    _write_zip(path, entries, _json(manifest), None, {"compresslevel": level})
+                    validate_habitpack(path, f"deflate-level-{level}")
 
     def test_numeric_rule_version_fails_module_schema(self) -> None:
         schemas, _ = _load_schemas()

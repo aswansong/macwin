@@ -141,7 +141,7 @@ def _mutate(m: str, e: dict[str, bytes], mf: dict[str, Any], meta: dict[str, Any
     elif m == "duplicate_key": e[keyboard]=b'{"schema_version":"1.0.0","schema_version":"1.0.0"}'
     elif m == "invalid_json": e[keyboard]=b"{"
     elif m in {"major","minor","patch","malformed"}: mf["schema_version"]={"major":"2.0.0","minor":"1.1.0","patch":"1.0.1","malformed":"one"}[m]
-    elif m in {"directory","symlink","special","encrypted","zip64","sfx_prefix","trailing_data","archive_comment","comment_mismatch","multidisk","central_multidisk","central_offset","central_size","local_gap","double_eocd","fake_tail_eocd","data_descriptor","local_extra","central_extra","matching_extra","zero_extra","zip64_extra","flag_low","flag_high","flag_mismatch","bzip2","lzma","method_unknown","method_mismatch"}: meta[m]=True
+    elif m in {"directory","symlink","special","encrypted","zip64","sfx_prefix","trailing_data","archive_comment","comment_mismatch","multidisk","central_multidisk","central_offset","central_size","local_gap","double_eocd","fake_tail_eocd","data_descriptor","local_extra","central_extra","matching_extra","zero_extra","zip64_extra","flag_low","flag_high","flag_mismatch","bzip2","lzma","method_unknown","method_mismatch","local_version","central_version","both_version","made_by","internal_attr","external_attr_high","external_attr_low","local_timestamp","central_timestamp","both_timestamp","central_reverse","local_only_reverse","local_reverse","manifest_last"}: meta[m]=True
 
 
 def _insert_local_extra(data: bytearray, extra: bytes) -> bytearray:
@@ -182,17 +182,31 @@ def _insert_central_extra(data: bytearray, extra: bytes) -> bytearray:
     return bytearray(data)
 
 
+def _canonical_info(name: str, compression: int) -> zipfile.ZipInfo:
+    info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+    info.create_system = 3
+    info.create_version = 20
+    info.extract_version = 10 if compression == zipfile.ZIP_STORED else 20
+    info.internal_attr = 0
+    info.external_attr = (stat.S_IFREG | 0o600) << 16
+    info.flag_bits = 0
+    info.compress_type = compression
+    return info
+
+
 def _write_zip(path: Path, entries: dict[str, bytes], manifest: bytes, mutation: str|None, meta: dict[str, Any]) -> None:
     if meta.get("bzip2"): compression = zipfile.ZIP_BZIP2
     elif meta.get("lzma"): compression = zipfile.ZIP_LZMA
     else: compression = zipfile.ZIP_STORED if mutation in {"archive_over"} or meta.get("force_stored") else zipfile.ZIP_DEFLATED
-    with zipfile.ZipFile(path,"w",compression=compression,allowZip64=True) as z:
+    with zipfile.ZipFile(path,"w",compression=compression,compresslevel=meta.get("compresslevel"),allowZip64=True) as z:
         if meta.get("directory"): z.writestr("bad/",b""); return
         if meta.get("symlink") or meta.get("special"):
             i=zipfile.ZipInfo("bad"); i.create_system=3; i.external_attr=((stat.S_IFLNK if meta.get("symlink") else stat.S_IFIFO)|0o644)<<16; z.writestr(i,b"target"); return
-        info=zipfile.ZipInfo("manifest.json"); info.compress_type=compression
-        z.writestr(info,manifest)
-        for name,data in entries.items(): z.writestr(name,data)
+        records = [("manifest.json", manifest), *sorted(entries.items(), key=lambda item: item[0].encode("utf-8"))]
+        if meta.get("local_reverse"): records.reverse()
+        elif meta.get("manifest_last"): records = [*records[1:], records[0]]
+        for name, data in records:
+            z.writestr(_canonical_info(name, compression), data)
         if meta.get("duplicate"):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", UserWarning)
@@ -251,6 +265,46 @@ def _write_zip(path: Path, entries: dict[str, bytes], manifest: bytes, mutation:
             elif meta.get("method_unknown"):
                 struct.pack_into("<H", data, 8, 99); struct.pack_into("<H", data, cd_offset + 10, 99)
             elif meta.get("method_mismatch"): struct.pack_into("<H", data, cd_offset + 10, 99)
+        path.write_bytes(data)
+    if any(meta.get(name) for name in ("local_version","central_version","both_version","made_by","internal_attr","external_attr_high","external_attr_low","local_timestamp","central_timestamp","both_timestamp","central_reverse","local_only_reverse")):
+        data = bytearray(path.read_bytes())
+        eocd = data.rfind(b"PK\x05\x06"); cd_offset = struct.unpack_from("<L", data, eocd + 16)[0]
+        if meta.get("local_version") or meta.get("both_version"): struct.pack_into("<H", data, 4, 45)
+        if meta.get("central_version") or meta.get("both_version"): struct.pack_into("<H", data, cd_offset + 6, 45)
+        if meta.get("made_by"): struct.pack_into("<H", data, cd_offset + 4, 0x0014)
+        if meta.get("internal_attr"): struct.pack_into("<H", data, cd_offset + 36, 0x0042)
+        if meta.get("external_attr_high"): struct.pack_into("<L", data, cd_offset + 38, (stat.S_IFREG | 0o644) << 16)
+        if meta.get("external_attr_low"): struct.pack_into("<L", data, cd_offset + 38, ((stat.S_IFREG | 0o600) << 16) | 0xBEEF)
+        if meta.get("local_timestamp") or meta.get("both_timestamp"):
+            struct.pack_into("<HH", data, 10, 0x1000, 0x0022)
+        if meta.get("central_timestamp") or meta.get("both_timestamp"):
+            struct.pack_into("<HH", data, cd_offset + 12, 0x1000, 0x0022)
+        if meta.get("central_reverse"):
+            records: list[bytes] = []; position = cd_offset
+            while position < eocd:
+                name_length, extra_length, comment_length = struct.unpack_from("<HHH", data, position + 28)
+                end = position + 46 + name_length + extra_length + comment_length
+                records.append(bytes(data[position:end])); position = end
+            data[cd_offset:eocd] = b"".join(reversed(records))
+        if meta.get("local_only_reverse"):
+            central: list[tuple[int, bytes, int]] = []; position = cd_offset
+            while position < eocd:
+                name_length, extra_length, comment_length = struct.unpack_from("<HHH", data, position + 28)
+                name = bytes(data[position + 46:position + 46 + name_length])
+                central.append((position, name, struct.unpack_from("<L", data, position + 42)[0]))
+                position += 46 + name_length + extra_length + comment_length
+            ordered = sorted(central, key=lambda item: item[2])
+            blobs: dict[bytes, bytes] = {}
+            for index, (_, name, offset) in enumerate(ordered):
+                end = ordered[index + 1][2] if index + 1 < len(ordered) else cd_offset
+                blobs[name] = bytes(data[offset:end])
+            new_order = [name for _, name, _ in reversed(ordered)]
+            cursor = 0; offsets: dict[bytes, int] = {}
+            for name in new_order:
+                offsets[name] = cursor; cursor += len(blobs[name])
+            data[:cd_offset] = b"".join(blobs[name] for name in new_order)
+            for position, name, _ in central:
+                struct.pack_into("<L", data, position + 42, offsets[name])
         path.write_bytes(data)
     if meta.get("encrypted"):
         data=bytearray(path.read_bytes())

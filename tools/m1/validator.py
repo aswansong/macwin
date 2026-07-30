@@ -23,6 +23,10 @@ MAX_JSON = 1024 * 1024
 MAX_SECRET = 64 * 1024
 MAX_PATH = 240
 MAX_RATIO = 100
+CANONICAL_MADE_BY = 0x0314
+CANONICAL_DOS_TIME = 0
+CANONICAL_DOS_DATE = 0x0021
+CANONICAL_EXTERNAL_ATTR = (stat.S_IFREG | 0o600) << 16
 MODULES = ("keyboard", "pointer", "software", "developer", "wifi")
 JSON_MEDIA = "application/json"
 SECRET_MEDIA = "application/vnd.macwin.fixture-wifi-secret"
@@ -160,7 +164,7 @@ def _validate_zip_layout(data: bytes) -> str | None:
         if position + 46 > eocd_offset or data[position : position + 4] != b"PK\x01\x02":
             fail("HP_ZIP_LAYOUT", "archive")
         fields = struct.unpack_from("<4s6H3L5H2L", data, position)
-        (_, _, _, flags, method, _, _, crc, compressed_size, file_size, name_length, extra_length, entry_comment_length, disk_start, _, _, local_offset) = fields
+        (_, made_by, version_needed, flags, method, dos_time, dos_date, crc, compressed_size, file_size, name_length, extra_length, entry_comment_length, disk_start, internal_attr, external_attr, local_offset) = fields
         end = position + 46 + name_length + extra_length + entry_comment_length
         if end > eocd_offset or entry_comment_length:
             fail("HP_ZIP_LAYOUT", "archive")
@@ -174,25 +178,34 @@ def _validate_zip_layout(data: bytes) -> str | None:
             fail("HP_ZIP64_ENTRY", "archive")
         if extra_length:
             fail("HP_ZIP_EXTRA", "archive")
-        central_entries.append({"flags": flags, "method": method, "crc": crc, "compressed_size": compressed_size, "file_size": file_size, "name": data[position + 46 : position + 46 + name_length], "local_offset": local_offset})
+        central_entries.append({"made_by": made_by, "version_needed": version_needed, "flags": flags, "method": method, "dos_time": dos_time, "dos_date": dos_date, "crc": crc, "compressed_size": compressed_size, "file_size": file_size, "name": data[position + 46 : position + 46 + name_length], "internal_attr": internal_attr, "external_attr": external_attr, "local_offset": local_offset})
         position = end
     if position != eocd_offset or len(central_entries) != total_entries:
         fail("HP_ZIP_LAYOUT", "archive")
+    central_names = [entry["name"] for entry in central_entries]
+    expected_names = [b"manifest.json", *sorted((name for name in central_names if name != b"manifest.json"))]
+    if central_names != expected_names or central_names.count(b"manifest.json") != 1:
+        profile_error = profile_error or "HP_ZIP_ORDER"
 
     expected_local_offset = 0
+    local_names: list[bytes] = []
     for entry in sorted(central_entries, key=lambda item: item["local_offset"]):
         local_offset = entry["local_offset"]
         if local_offset != expected_local_offset or local_offset + 30 > cd_offset or data[local_offset : local_offset + 4] != b"PK\x03\x04":
             fail("HP_ZIP_LAYOUT", "archive")
         local = struct.unpack_from("<4s5H3L2H", data, local_offset)
-        _, _, flags, method, _, _, crc, compressed_size, file_size, name_length, extra_length = local
+        _, version_needed, flags, method, dos_time, dos_date, crc, compressed_size, file_size, name_length, extra_length = local
         name_start = local_offset + 30
         extra_start = name_start + name_length
         data_start = extra_start + extra_length
         data_end = data_start + compressed_size
-        if data_end > cd_offset or data[name_start:extra_start] != entry["name"]:
+        local_name = data[name_start:extra_start]
+        local_names.append(local_name)
+        if data_end > cd_offset or local_name != entry["name"]:
             fail("HP_ZIP_LAYOUT", "archive")
         if (flags, method, crc, compressed_size, file_size) != (entry["flags"], entry["method"], entry["crc"], entry["compressed_size"], entry["file_size"]):
+            fail("HP_ZIP_LAYOUT", "archive")
+        if version_needed != entry["version_needed"] or (dos_time, dos_date) != (entry["dos_time"], entry["dos_date"]):
             fail("HP_ZIP_LAYOUT", "archive")
         local_extra = data[extra_start:data_start]
         if _extra_has_zip64(local_extra):
@@ -207,9 +220,19 @@ def _validate_zip_layout(data: bytes) -> str | None:
             profile_error = profile_error or "HP_ZIP_COMPRESSION"
         elif flags != 0:
             profile_error = profile_error or "HP_ZIP_FLAGS"
+        else:
+            expected_version = 10 if method == zipfile.ZIP_STORED else 20
+            if version_needed != expected_version or entry["made_by"] != CANONICAL_MADE_BY:
+                profile_error = profile_error or "HP_ZIP_VERSION"
+            elif (dos_time, dos_date) != (CANONICAL_DOS_TIME, CANONICAL_DOS_DATE):
+                profile_error = profile_error or "HP_ZIP_TIMESTAMP"
+            elif entry["internal_attr"] != 0 or entry["external_attr"] != CANONICAL_EXTERNAL_ATTR:
+                profile_error = profile_error or "HP_ZIP_ATTRIBUTES"
         expected_local_offset = data_end
     if expected_local_offset != cd_offset:
         fail("HP_ZIP_LAYOUT", "archive")
+    if local_names != expected_names:
+        profile_error = profile_error or "HP_ZIP_ORDER"
     return profile_error
 
 
