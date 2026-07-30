@@ -47,6 +47,10 @@ example.habitpack
 - 不允许目录条目、符号链接、硬链接、设备/特殊文件、嵌套压缩包、ZIP64 或加密 ZIP；
 - ZIP 必须是严格单卷、零 archive comment、无 SFX/任意前缀、无 EOCD 尾随数据、无条目间隙或其他未声明区域；首个 local header 位于偏移 0，连续的 local entries 后紧接中央目录和最终 22 字节 EOCD；
 - M1 构建器不使用 data descriptor，对应 flag 一律拒绝；这是 M1 验证档案限制，不是未来公开 ZIP 兼容承诺；
+- local header 与中央条目的 `extra_length` 都必须为 0；任何 extra 都拒绝，结构化 ZIP64 extra 仍优先按 ZIP64 拒绝；
+- general-purpose flags 必须精确为 0；加密与 data descriptor 保留更具体的安全错误，其余保留位或未知位按 `HP_ZIP_FLAGS` 拒绝；
+- 压缩方法只允许 Stored（0）与 Deflate（8）；BZIP2、LZMA 和未知方法按 `HP_ZIP_COMPRESSION` 拒绝；
+- 上述无 extra、flags 0 和两种压缩方法都是 M1 构建器验证档案，不是未来公开兼容承诺；
 - 不允许 POSIX/Windows 绝对路径、反斜杠、`..`、重复条目、大小写折叠碰撞或 Unicode NFC 碰撞；
 - 不允许可执行扩展、MZ、ELF、Mach-O、shebang、脚本、`command` 或 `shell` 字段。[D-027]
 

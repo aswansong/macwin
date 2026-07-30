@@ -406,6 +406,78 @@
       "base": "minimal-keyboard",
       "mutation": "data_descriptor",
       "expected_error": "HP_ZIP_LAYOUT"
+    },
+    {
+      "name": "zip-local-extra-only",
+      "base": "minimal-keyboard",
+      "mutation": "local_extra",
+      "expected_error": "HP_ZIP_EXTRA"
+    },
+    {
+      "name": "zip-central-extra-only",
+      "base": "minimal-keyboard",
+      "mutation": "central_extra",
+      "expected_error": "HP_ZIP_EXTRA"
+    },
+    {
+      "name": "zip-matching-extra",
+      "base": "minimal-keyboard",
+      "mutation": "matching_extra",
+      "expected_error": "HP_ZIP_EXTRA"
+    },
+    {
+      "name": "zip-zero-length-extra-field",
+      "base": "minimal-keyboard",
+      "mutation": "zero_extra",
+      "expected_error": "HP_ZIP_EXTRA"
+    },
+    {
+      "name": "zip64-extra-field",
+      "base": "minimal-keyboard",
+      "mutation": "zip64_extra",
+      "expected_error": "HP_ZIP64_ENTRY"
+    },
+    {
+      "name": "zip-reserved-flag-low",
+      "base": "minimal-keyboard",
+      "mutation": "flag_low",
+      "expected_error": "HP_ZIP_FLAGS"
+    },
+    {
+      "name": "zip-reserved-flag-high",
+      "base": "minimal-keyboard",
+      "mutation": "flag_high",
+      "expected_error": "HP_ZIP_FLAGS"
+    },
+    {
+      "name": "zip-flag-mismatch",
+      "base": "minimal-keyboard",
+      "mutation": "flag_mismatch",
+      "expected_error": "HP_ZIP_LAYOUT"
+    },
+    {
+      "name": "zip-bzip2",
+      "base": "minimal-keyboard",
+      "mutation": "bzip2",
+      "expected_error": "HP_ZIP_COMPRESSION"
+    },
+    {
+      "name": "zip-lzma",
+      "base": "minimal-keyboard",
+      "mutation": "lzma",
+      "expected_error": "HP_ZIP_COMPRESSION"
+    },
+    {
+      "name": "zip-unknown-compression",
+      "base": "minimal-keyboard",
+      "mutation": "method_unknown",
+      "expected_error": "HP_ZIP_COMPRESSION"
+    },
+    {
+      "name": "zip-compression-mismatch",
+      "base": "minimal-keyboard",
+      "mutation": "method_mismatch",
+      "expected_error": "HP_ZIP_LAYOUT"
     }
   ]
 }

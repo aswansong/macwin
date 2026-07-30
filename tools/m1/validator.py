@@ -134,8 +134,9 @@ def _classify_missing_final_eocd(data: bytes) -> None:
     fail("HP_ZIP_LAYOUT", "archive")
 
 
-def _validate_zip_layout(data: bytes) -> None:
+def _validate_zip_layout(data: bytes) -> str | None:
     """Validate the deliberately narrow, contiguous, single-volume M1 ZIP profile."""
+    profile_error: str | None = None
     if len(data) < 22 or data[-22:-18] != b"PK\x05\x06":
         _classify_missing_final_eocd(data)
     eocd_offset = len(data) - 22
@@ -168,8 +169,11 @@ def _validate_zip_layout(data: bytes) -> None:
         if disk_start != 0:
             fail("HP_ZIP_MULTIDISK", "archive")
         extra_start = position + 46 + name_length
-        if _extra_has_zip64(data[extra_start : extra_start + extra_length]):
+        central_extra = data[extra_start : extra_start + extra_length]
+        if _extra_has_zip64(central_extra):
             fail("HP_ZIP64_ENTRY", "archive")
+        if extra_length:
+            fail("HP_ZIP_EXTRA", "archive")
         central_entries.append({"flags": flags, "method": method, "crc": crc, "compressed_size": compressed_size, "file_size": file_size, "name": data[position + 46 : position + 46 + name_length], "local_offset": local_offset})
         position = end
     if position != eocd_offset or len(central_entries) != total_entries:
@@ -182,8 +186,6 @@ def _validate_zip_layout(data: bytes) -> None:
             fail("HP_ZIP_LAYOUT", "archive")
         local = struct.unpack_from("<4s5H3L2H", data, local_offset)
         _, _, flags, method, _, _, crc, compressed_size, file_size, name_length, extra_length = local
-        if flags & 0x08:
-            fail("HP_ZIP_LAYOUT", "archive")
         name_start = local_offset + 30
         extra_start = name_start + name_length
         data_start = extra_start + extra_length
@@ -192,11 +194,23 @@ def _validate_zip_layout(data: bytes) -> None:
             fail("HP_ZIP_LAYOUT", "archive")
         if (flags, method, crc, compressed_size, file_size) != (entry["flags"], entry["method"], entry["crc"], entry["compressed_size"], entry["file_size"]):
             fail("HP_ZIP_LAYOUT", "archive")
-        if _extra_has_zip64(data[extra_start:data_start]):
+        local_extra = data[extra_start:data_start]
+        if _extra_has_zip64(local_extra):
             fail("HP_ZIP64_ENTRY", "archive")
+        if extra_length:
+            fail("HP_ZIP_EXTRA", "archive")
+        if flags & 0x01:
+            profile_error = profile_error or "HP_ENCRYPTED_ENTRY"
+        elif flags & 0x08:
+            profile_error = profile_error or "HP_ZIP_LAYOUT"
+        elif method not in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED}:
+            profile_error = profile_error or "HP_ZIP_COMPRESSION"
+        elif flags != 0:
+            profile_error = profile_error or "HP_ZIP_FLAGS"
         expected_local_offset = data_end
     if expected_local_offset != cd_offset:
         fail("HP_ZIP_LAYOUT", "archive")
+    return profile_error
 
 
 def _entry_type(info: zipfile.ZipInfo) -> str:
@@ -234,7 +248,7 @@ def validate_habitpack(path: Path, fixture: str = "package") -> dict[str, int]:
         fail("HP_ARCHIVE_TOO_LARGE", fixture)
     raw_archive = path.read_bytes()
     try:
-        _validate_zip_layout(raw_archive)
+        zip_profile_error = _validate_zip_layout(raw_archive)
     except HabitpackError as error:
         fail(error.code, fixture)
     try:
@@ -288,6 +302,8 @@ def validate_habitpack(path: Path, fixture: str = "package") -> dict[str, int]:
             fail("HP_TOTAL_TOO_LARGE", fixture)
         if names != set(normalized.values()):
             fail("HP_PATH_COLLISION", fixture)
+        if zip_profile_error:
+            fail(zip_profile_error, fixture)
         if "manifest.json" not in names:
             fail("HP_MANIFEST_MISSING", fixture)
 

@@ -56,7 +56,7 @@ def package_source(profile: str) -> tuple[dict[str, bytes], dict[str, Any]]:
         entries[f"modules/{module}.json"] = _json({"schema_version": "1.0.0", "module": module, "candidates": candidates})
         selected.extend(c["candidate_id"] for c in candidates)
     if profile == "wifi_secret": entries["secrets/wifi/fixture-one.bin"] = b"FICTIONAL-WIFI-OPAQUE-BYTES-v1"
-    if profile == "wifi_secret_zip_signatures": entries["secrets/wifi/fixture-one.bin"] = b"OPAQUE-PK\x05\x06-EOCD-PK\x06\x06-ZIP64-PK\x06\x07-LOCATOR-END"
+    if profile == "wifi_secret_zip_signatures": entries["secrets/wifi/fixture-one.bin"] = b"OPAQUE-PK\x05\x06-EOCD-PK\x06\x06-ZIP64-PK\x06\x07-LOCATOR-EXTRA-\xfe\xca\x00\x00-FLAGS-\x04\x00\x00\x80-METHODS-0-8-12-14-99-END"
     entries["selections.json"] = _json({"schema_version": "1.0.0", "guide_requested": guide, "selected_candidate_ids": selected})
     manifest = _manifest(entries, profile in {"wifi_secret", "wifi_secret_zip_signatures"})
     return entries, manifest
@@ -141,11 +141,51 @@ def _mutate(m: str, e: dict[str, bytes], mf: dict[str, Any], meta: dict[str, Any
     elif m == "duplicate_key": e[keyboard]=b'{"schema_version":"1.0.0","schema_version":"1.0.0"}'
     elif m == "invalid_json": e[keyboard]=b"{"
     elif m in {"major","minor","patch","malformed"}: mf["schema_version"]={"major":"2.0.0","minor":"1.1.0","patch":"1.0.1","malformed":"one"}[m]
-    elif m in {"directory","symlink","special","encrypted","zip64","sfx_prefix","trailing_data","archive_comment","comment_mismatch","multidisk","central_multidisk","central_offset","central_size","local_gap","double_eocd","fake_tail_eocd","data_descriptor"}: meta[m]=True
+    elif m in {"directory","symlink","special","encrypted","zip64","sfx_prefix","trailing_data","archive_comment","comment_mismatch","multidisk","central_multidisk","central_offset","central_size","local_gap","double_eocd","fake_tail_eocd","data_descriptor","local_extra","central_extra","matching_extra","zero_extra","zip64_extra","flag_low","flag_high","flag_mismatch","bzip2","lzma","method_unknown","method_mismatch"}: meta[m]=True
+
+
+def _insert_local_extra(data: bytearray, extra: bytes) -> bytearray:
+    eocd = data.rfind(b"PK\x05\x06")
+    cd_offset = struct.unpack_from("<L", data, eocd + 16)[0]
+    position = cd_offset
+    local_offsets: list[int] = []
+    while position < eocd:
+        name_length, extra_length, comment_length = struct.unpack_from("<HHH", data, position + 28)
+        local_offsets.append(struct.unpack_from("<L", data, position + 42)[0])
+        position += 46 + name_length + extra_length + comment_length
+    local_offset = max(local_offsets)
+    name_length, old_extra_length = struct.unpack_from("<HH", data, local_offset + 26)
+    insertion = local_offset + 30 + name_length + old_extra_length
+    data = data[:insertion] + extra + data[insertion:]
+    struct.pack_into("<H", data, local_offset + 28, old_extra_length + len(extra))
+    eocd += len(extra)
+    struct.pack_into("<L", data, eocd + 16, cd_offset + len(extra))
+    return bytearray(data)
+
+
+def _insert_central_extra(data: bytearray, extra: bytes) -> bytearray:
+    eocd = data.rfind(b"PK\x05\x06")
+    cd_offset = struct.unpack_from("<L", data, eocd + 16)[0]
+    position = cd_offset
+    records: list[int] = []
+    while position < eocd:
+        records.append(position)
+        name_length, extra_length, comment_length = struct.unpack_from("<HHH", data, position + 28)
+        position += 46 + name_length + extra_length + comment_length
+    central = records[-1]
+    name_length, old_extra_length = struct.unpack_from("<HH", data, central + 28)
+    insertion = central + 46 + name_length + old_extra_length
+    data = data[:insertion] + extra + data[insertion:]
+    struct.pack_into("<H", data, central + 30, old_extra_length + len(extra))
+    eocd += len(extra)
+    struct.pack_into("<L", data, eocd + 12, struct.unpack_from("<L", data, eocd + 12)[0] + len(extra))
+    return bytearray(data)
 
 
 def _write_zip(path: Path, entries: dict[str, bytes], manifest: bytes, mutation: str|None, meta: dict[str, Any]) -> None:
-    compression = zipfile.ZIP_STORED if mutation in {"archive_over"} or meta.get("force_stored") else zipfile.ZIP_DEFLATED
+    if meta.get("bzip2"): compression = zipfile.ZIP_BZIP2
+    elif meta.get("lzma"): compression = zipfile.ZIP_LZMA
+    else: compression = zipfile.ZIP_STORED if mutation in {"archive_over"} or meta.get("force_stored") else zipfile.ZIP_DEFLATED
     with zipfile.ZipFile(path,"w",compression=compression,allowZip64=True) as z:
         if meta.get("directory"): z.writestr("bad/",b""); return
         if meta.get("symlink") or meta.get("special"):
@@ -191,6 +231,26 @@ def _write_zip(path: Path, entries: dict[str, bytes], manifest: bytes, mutation:
             struct.pack_into("<H", data, 6, struct.unpack_from("<H", data, 6)[0] | 0x08)
             cd_offset = struct.unpack_from("<L", data, eocd + 16)[0]
             struct.pack_into("<H", data, cd_offset + 8, struct.unpack_from("<H", data, cd_offset + 8)[0] | 0x08)
+        path.write_bytes(data)
+    if any(meta.get(name) for name in ("local_extra","central_extra","matching_extra","zero_extra","zip64_extra","flag_low","flag_high","flag_mismatch","method_unknown","method_mismatch")):
+        data = bytearray(path.read_bytes())
+        generic_extra = struct.pack("<HH", 0xCAFE, 0)
+        if meta.get("local_extra"): data = _insert_local_extra(data, generic_extra)
+        elif meta.get("central_extra"): data = _insert_central_extra(data, generic_extra)
+        elif meta.get("matching_extra") or meta.get("zero_extra"):
+            data = _insert_local_extra(data, generic_extra); data = _insert_central_extra(data, generic_extra)
+        elif meta.get("zip64_extra"):
+            data = _insert_local_extra(data, struct.pack("<HH", 0x0001, 0)); data = _insert_central_extra(data, struct.pack("<HH", 0x0001, 0))
+        else:
+            eocd = data.rfind(b"PK\x05\x06"); cd_offset = struct.unpack_from("<L", data, eocd + 16)[0]
+            if meta.get("flag_low"):
+                struct.pack_into("<H", data, 6, 0x0004); struct.pack_into("<H", data, cd_offset + 8, 0x0004)
+            elif meta.get("flag_high"):
+                struct.pack_into("<H", data, 6, 0x8000); struct.pack_into("<H", data, cd_offset + 8, 0x8000)
+            elif meta.get("flag_mismatch"): struct.pack_into("<H", data, cd_offset + 8, 0x0010)
+            elif meta.get("method_unknown"):
+                struct.pack_into("<H", data, 8, 99); struct.pack_into("<H", data, cd_offset + 10, 99)
+            elif meta.get("method_mismatch"): struct.pack_into("<H", data, cd_offset + 10, 99)
         path.write_bytes(data)
     if meta.get("encrypted"):
         data=bytearray(path.read_bytes())

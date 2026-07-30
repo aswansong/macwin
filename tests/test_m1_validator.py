@@ -69,6 +69,23 @@ class M1ValidatorTests(unittest.TestCase):
                 self.assertIn(b"PK\x06\x07", payload)
             validate_habitpack(path, "zip-signature-payload")
 
+    def test_stored_and_deflate_are_the_only_valid_fixture_methods(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            expected = {
+                "minimal-keyboard": zipfile.ZIP_DEFLATED,
+                "wifi-secret-with-zip-signatures": zipfile.ZIP_STORED,
+            }
+            for name, method in expected.items():
+                with self.subTest(name):
+                    descriptor = next(x for x in MATRIX["valid"] if x["name"] == name)
+                    path = root / f"{name}.habitpack"
+                    build_fixture(descriptor, path)
+                    with zipfile.ZipFile(path) as archive:
+                        self.assertTrue(archive.infolist())
+                        self.assertEqual({method}, {item.compress_type for item in archive.infolist()})
+                    validate_habitpack(path, name)
+
     def test_numeric_rule_version_fails_module_schema(self) -> None:
         schemas, _ = _load_schemas()
         candidate = json.loads(package_source("keyboard")[0]["modules/keyboard.json"])
