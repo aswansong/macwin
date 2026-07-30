@@ -60,6 +60,8 @@ example.habitpack
 - 是否生成个性化指南只由 `guide_requested` 表达；
 - 常用软件候选可标为 `proposed_on_mac`，最终只在 Mac 强制计划中确认一次。[D-028]
 
+扫描可以发现未选择的 Wi‑Fi 网络候选，但只有出现在 `selected_candidate_ids` 中的候选才能携带 `credential_ref` 或对应秘密文件。未选择候选必须保持 `not_selected`/`unavailable` 且不含秘密引用；校验器以 `HP_SECRET_UNSELECTED` 拒绝任何绕过选择边界的凭据。
+
 后端候选仍保留规则 ID、规则版本、来源、状态和排除原因；首层 UI 是否展示这些字段由 UI 规格决定。
 
 ## 4. Schema 与跨文件校验
@@ -78,7 +80,7 @@ Wi‑Fi 候选的 `credential_status` 只有：
 - `unavailable`：禁止 `credential_ref`；
 - `available`：必须有且只有一个 `credential_ref`。
 
-引用必须落在 `secrets/wifi/<opaque-id>.bin`，每个秘密只能被一个候选引用；缺失、孤立、共享、错误目录或错误媒体类型全部拒绝。`manifest.contains_secrets` 必须与实际秘密文件存在性一致。
+引用必须落在 `secrets/wifi/<opaque-id>.bin`，引用候选必须已由用户选择，每个秘密只能被一个候选引用；未选携密、缺失、孤立、共享、错误目录或错误媒体类型全部拒绝。`manifest.contains_secrets` 必须与实际秘密文件存在性一致。
 
 M1 只验证虚构不透明字节、引用、大小和哈希，不定义编码、解码器或平台接口。OD-005 继续阻断任何真实 Wi‑Fi 凭据生产实现。[D-019、OD-005]
 
@@ -86,7 +88,7 @@ M1 只验证虚构不透明字节、引用、大小和哈希，不定义编码�
 
 `manifest.files[].sha256` 只发现传输损坏和内容不一致。攻击者可以同时替换 manifest 与内容，所以 SHA-256 不证明来源、发布者或规则可信。OD-006 仍阻断生产更新、离线规则包与来源真实性方案。
 
-校验器在读取或解压内容前先检查 ZIP 中央目录元数据、路径、类型、加密/ZIP64、条目数、大小和压缩比；随后有界读取，检查可执行魔数，再进行严格 JSON、schema、媒体、声明、哈希、规则、选择与秘密关系校验。任何一步失败都不把内容交给执行层。
+校验器在读取或解压内容前按 EOCD/ZIP64 locator、中央目录和本地条目 extra 的结构位置检查 ZIP64，再检查路径、类型、加密、条目数、大小和压缩比；不会在不透明内容中裸搜 ZIP 签名字节，因此合法秘密即使包含 `PK` 签名片段也不会被误判。随后有界读取，检查可执行魔数，再进行严格 JSON、schema、媒体、声明、哈希、规则、选择与秘密关系校验。任何一步失败都不把内容交给执行层。
 
 稳定错误格式为 `ERROR [HP_ERROR_CODE] fixture:path`。秘密内容永远不进入错误或日志。
 

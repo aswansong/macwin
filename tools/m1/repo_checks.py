@@ -94,9 +94,9 @@ def markdown_checks() -> int:
     return count
 
 
-def traceability_checks() -> dict[str, int]:
-    decisions = (ROOT / "docs/product/decisions.md").read_text()
-    evidence = (ROOT / "docs/product/evidence.md").read_text()
+def traceability_checks(root: Path = ROOT) -> dict[str, int]:
+    decisions = (root / "docs/product/decisions.md").read_text()
+    evidence = (root / "docs/product/evidence.md").read_text()
     d_defs = re.findall(r"^### (D-\d{3})：", decisions, re.M)
     od_defs = re.findall(r"^### (OD-\d{3})：", decisions, re.M)
     e_defs = re.findall(r"^### (E-\d{3})：", evidence, re.M)
@@ -104,15 +104,18 @@ def traceability_checks() -> dict[str, int]:
         check(len(values) == len(set(values)), f"duplicate {label} definitions")
     known = set(d_defs + od_defs + e_defs)
     referenced: set[str] = set()
-    for path in (ROOT / "docs").rglob("*"):
-        if path.suffix not in {".md", ".json"}: continue
+    managed = [path for path in (root / "docs").rglob("*") if path.suffix in {".md", ".json"}]
+    managed.extend(path for path in (root / "README.md", root / "AGENTS.md", root / "SECURITY.md") if path.exists())
+    for path in managed:
+        if any(part.startswith(".") or part in {"node_modules", "dist", "__pycache__"} for part in path.relative_to(root).parts):
+            continue
         referenced.update(re.findall(r"(?<![A-Z-])(?:OD|D|E)-\d{3}(?!\d)", path.read_text()))
     check(referenced <= known, f"unknown references: {sorted(referenced-known)}")
     return {"D": len(d_defs), "OD": len(od_defs), "E": len(e_defs)}
 
 
-def feature_checks() -> int:
-    data = strict_json((ROOT / "docs/execution/feature-list.json").read_bytes(), "feature-list.json")
+def feature_checks(root: Path = ROOT) -> int:
+    data = strict_json((root / "docs/execution/feature-list.json").read_bytes(), "feature-list.json")
     features = data["features"]
     ids = [x["id"] for x in features]
     check(len(ids) == len(set(ids)), "duplicate feature IDs")
@@ -144,13 +147,17 @@ def feature_checks() -> int:
     check(data["production_implementation_authorized"] is False, "production implementation must remain unauthorized")
     check(data["system_changes_authorized"] is False, "system changes must remain unauthorized")
     check(all(feature["status"] == "specified" for feature in features), "M1 evidence must not advance real P0 status")
-    milestone_status = data.get("milestone_status")
-    if milestone_status is not None:
-        check(milestone_status == "completed_waiting_for_next_authorization", "unexpected milestone status")
-        evidence = data.get("milestone_evidence", {})
-        check(evidence.get("prototype", {}).get("scope") == "fictional_browser_interaction_only", "prototype evidence scope mismatch")
-        check(evidence.get("format", {}).get("scope") == "schema_container_and_fictional_fixture_validation_only", "format evidence scope mismatch")
-        check(evidence.get("format", {}).get("command") == "./scripts/validate-m1", "format evidence command mismatch")
+    check("milestone_status" in data, "milestone_status is required")
+    check(data["milestone_status"] == "completed_waiting_for_next_authorization", "unexpected milestone status")
+    check("milestone_evidence" in data and isinstance(data["milestone_evidence"], dict), "milestone_evidence is required")
+    evidence = data["milestone_evidence"]
+    check(isinstance(evidence.get("prototype"), dict), "prototype milestone evidence is required")
+    check(re.fullmatch(r"[0-9a-f]{40}", evidence["prototype"].get("commit", "")) is not None, "prototype evidence commit mismatch")
+    check(evidence["prototype"].get("scope") == "fictional_browser_interaction_only", "prototype evidence scope mismatch")
+    check(isinstance(evidence.get("format"), dict), "format milestone evidence is required")
+    check(evidence["format"].get("schema_version") == "1.0.0", "format evidence schema version mismatch")
+    check(evidence["format"].get("scope") == "schema_container_and_fictional_fixture_validation_only", "format evidence scope mismatch")
+    check(evidence["format"].get("command") == "./scripts/validate-m1", "format evidence command mismatch")
     return len(features)
 
 

@@ -44,7 +44,8 @@
           "pattern": "^fixture\\.[a-z0-9._-]+$"
         },
         "rule_version": {
-        "pattern": "^\\d+\\.\\d+\\.\\d+$"
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
         },
         "source": {
           "$ref": "#/$defs/source"

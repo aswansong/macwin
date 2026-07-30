@@ -25,6 +25,11 @@
       "profile": "wifi_secret"
     },
     {
+      "name": "wifi-secret-with-zip-signatures",
+      "profile": "wifi_secret_zip_signatures",
+      "stored": true
+    },
+    {
       "name": "guide-only",
       "profile": "guide"
     }
@@ -191,6 +196,12 @@
       "base": "minimal-keyboard",
       "mutation": "secret_shared",
       "expected_error": "HP_SECRET_SHARED"
+    },
+    {
+      "name": "secret-unselected",
+      "base": "wifi-fictional-secret",
+      "mutation": "secret_unselected",
+      "expected_error": "HP_SECRET_UNSELECTED"
     },
     {
       "name": "contains-secrets-false",

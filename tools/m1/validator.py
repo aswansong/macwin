@@ -107,6 +107,45 @@ def _extra_has_zip64(extra: bytes) -> bool:
     return False
 
 
+def _local_extra(data: bytes, info: zipfile.ZipInfo) -> bytes:
+    offset = info.header_offset
+    if offset < 0 or offset + 30 > len(data) or data[offset : offset + 4] != b"PK\x03\x04":
+        fail("HP_ZIP_INVALID", info.filename)
+    filename_length, extra_length = struct.unpack_from("<HH", data, offset + 26)
+    start = offset + 30 + filename_length
+    end = start + extra_length
+    if end > len(data):
+        fail("HP_ZIP_INVALID", info.filename)
+    return data[start:end]
+
+
+def _zip64_structure_present(data: bytes) -> bool:
+    """Inspect EOCD fields and the locator position; payload bytes are irrelevant."""
+    signature = b"PK\x05\x06"
+    start = max(0, len(data) - (22 + 65535))
+    eocd_offset = -1
+    position = len(data)
+    while True:
+        position = data.rfind(signature, start, position)
+        if position < 0:
+            break
+        if position + 22 <= len(data):
+            comment_length = struct.unpack_from("<H", data, position + 20)[0]
+            if position + 22 + comment_length == len(data):
+                eocd_offset = position
+                break
+        position -= 1
+    if eocd_offset < 0:
+        return False
+    _, disk, cd_disk, disk_entries, total_entries, cd_size, cd_offset, _ = struct.unpack_from("<4s4H2LH", data, eocd_offset)
+    if disk == 0xFFFF or cd_disk == 0xFFFF or disk_entries == 0xFFFF or total_entries == 0xFFFF or cd_size == 0xFFFFFFFF or cd_offset == 0xFFFFFFFF:
+        return True
+    locator_offset = eocd_offset - 20
+    if locator_offset >= 0 and data[locator_offset : locator_offset + 4] == b"PK\x06\x07":
+        return True
+    return False
+
+
 def _entry_type(info: zipfile.ZipInfo) -> str:
     mode = info.external_attr >> 16
     kind = stat.S_IFMT(mode)
@@ -141,8 +180,7 @@ def validate_habitpack(path: Path, fixture: str = "package") -> dict[str, int]:
     if path.stat().st_size > MAX_ARCHIVE:
         fail("HP_ARCHIVE_TOO_LARGE", fixture)
     raw_archive = path.read_bytes()
-    zip64_tail = raw_archive[-4096:]
-    if b"PK\x06\x06" in zip64_tail or b"PK\x06\x07" in zip64_tail:
+    if _zip64_structure_present(raw_archive):
         fail("HP_ZIP64_ENTRY", fixture)
     try:
         archive = zipfile.ZipFile(path)
@@ -177,7 +215,7 @@ def validate_habitpack(path: Path, fixture: str = "package") -> dict[str, int]:
                 fail("HP_SPECIAL_ENTRY", f"{fixture}:{name}")
             if info.flag_bits & 1:
                 fail("HP_ENCRYPTED_ENTRY", f"{fixture}:{name}")
-            if _extra_has_zip64(info.extra) or info.file_size > 0xFFFFFFFF or info.compress_size > 0xFFFFFFFF:
+            if _extra_has_zip64(info.extra) or _extra_has_zip64(_local_extra(raw_archive, info)) or info.file_size > 0xFFFFFFFF or info.compress_size > 0xFFFFFFFF:
                 fail("HP_ZIP64_ENTRY", f"{fixture}:{name}")
             suffix = PurePosixPath(name).suffix.lower()
             if suffix in EXEC_EXTENSIONS:
@@ -255,7 +293,7 @@ def validate_habitpack(path: Path, fixture: str = "package") -> dict[str, int]:
 
     catalog_map = {(r["rule_id"], r["rule_version"]): r for r in catalog["rules"]}
     candidates: dict[str, tuple[str, dict[str, Any]]] = {}
-    wifi_refs: list[str] = []
+    wifi_refs: list[tuple[str, str]] = []
     for module in MODULES:
         name = f"modules/{module}.json"
         if name not in json_docs:
@@ -282,16 +320,21 @@ def validate_habitpack(path: Path, fixture: str = "package") -> dict[str, int]:
                 if status != "available" and ref:
                     fail("HP_SECRET_REF_FORBIDDEN", f"{fixture}:{cid}")
                 if ref:
-                    wifi_refs.append(ref)
+                    wifi_refs.append((cid, ref))
 
-    for selected in json_docs["selections.json"]["selected_candidate_ids"]:
+    selected_ids = set(json_docs["selections.json"]["selected_candidate_ids"])
+    for selected in selected_ids:
         if selected not in candidates:
             fail("HP_SELECTION_UNKNOWN", f"{fixture}:{selected}")
-    if len(wifi_refs) != len(set(wifi_refs)):
+    for candidate_id, _ in wifi_refs:
+        if candidate_id not in selected_ids:
+            fail("HP_SECRET_UNSELECTED", f"{fixture}:{candidate_id}")
+    ref_paths = [ref for _, ref in wifi_refs]
+    if len(ref_paths) != len(set(ref_paths)):
         fail("HP_SECRET_SHARED", fixture)
     secret_paths = {n for n in payloads if n.startswith("secrets/")}
-    missing_refs = set(wifi_refs) - secret_paths
-    orphan = secret_paths - set(wifi_refs)
+    missing_refs = set(ref_paths) - secret_paths
+    orphan = secret_paths - set(ref_paths)
     if missing_refs:
         fail("HP_SECRET_MISSING", f"{fixture}:{sorted(missing_refs)[0]}")
     if orphan:

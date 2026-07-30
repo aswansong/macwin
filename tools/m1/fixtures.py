@@ -43,10 +43,10 @@ def package_source(profile: str) -> tuple[dict[str, bytes], dict[str, Any]]:
         for name in ("keyboard", "pointer", "software", "developer", "wifi"): modules[name] = [_candidate(name)]
     elif profile == "software":
         candidate = _candidate("software"); candidate["status"] = "proposed_on_mac"; candidate["source"]["kind"] = "fixture_proposed"; modules["software"] = [candidate]
-    elif profile in {"wifi_name", "wifi_unavailable", "wifi_secret"}:
+    elif profile in {"wifi_name", "wifi_unavailable", "wifi_secret", "wifi_secret_zip_signatures"}:
         candidate = _candidate("wifi")
         if profile == "wifi_unavailable": candidate["parameters"]["credential_status"] = "unavailable"
-        if profile == "wifi_secret":
+        if profile in {"wifi_secret", "wifi_secret_zip_signatures"}:
             candidate["parameters"].update({"credential_status": "available", "credential_ref": "secrets/wifi/fixture-one.bin"})
         modules["wifi"] = [candidate]
     elif profile == "guide": guide = True
@@ -56,8 +56,9 @@ def package_source(profile: str) -> tuple[dict[str, bytes], dict[str, Any]]:
         entries[f"modules/{module}.json"] = _json({"schema_version": "1.0.0", "module": module, "candidates": candidates})
         selected.extend(c["candidate_id"] for c in candidates)
     if profile == "wifi_secret": entries["secrets/wifi/fixture-one.bin"] = b"FICTIONAL-WIFI-OPAQUE-BYTES-v1"
+    if profile == "wifi_secret_zip_signatures": entries["secrets/wifi/fixture-one.bin"] = b"OPAQUE-PK\x06\x06-MIDDLE-PK\x06\x07-END"
     entries["selections.json"] = _json({"schema_version": "1.0.0", "guide_requested": guide, "selected_candidate_ids": selected})
-    manifest = _manifest(entries, bool(profile == "wifi_secret"))
+    manifest = _manifest(entries, profile in {"wifi_secret", "wifi_secret_zip_signatures"})
     return entries, manifest
 
 
@@ -87,6 +88,7 @@ def build_fixture(descriptor: dict[str, Any], destination: Path) -> None:
     entries, manifest = package_source(profile)
     mutation = descriptor.get("mutation")
     meta: dict[str, Any] = {}
+    if descriptor.get("stored"): meta["force_stored"] = True
     if mutation: _mutate(mutation, entries, manifest, meta)
     if mutation not in {"hash", "size", "missing", "undeclared", "secret_wrong_media", "manifest_over", "malformed", "major", "minor", "patch"}:
         _refresh(manifest, entries)
@@ -128,7 +130,9 @@ def _mutate(m: str, e: dict[str, bytes], mf: dict[str, Any], meta: dict[str, Any
         elif m=="secret_wrong_media": next(x for x in mf["files"] if x["path"].startswith("secrets/"))["media_type"]=JSON_MEDIA
         elif m=="secret_orphan": e["secrets/wifi/orphan.bin"]=b"FICTIONAL"
         elif m=="secret_shared":
-            d=json.loads(e["modules/wifi.json"]); c2=deepcopy(c); c2["candidate_id"]="wifi.2"; d["candidates"].append(c2); e["modules/wifi.json"]=_json(d)
+            d=json.loads(e["modules/wifi.json"]); c2=deepcopy(c); c2["candidate_id"]="wifi.2"; d["candidates"].append(c2); e["modules/wifi.json"]=_json(d); e["selections.json"]=_json({"schema_version":"1.0.0","guide_requested":False,"selected_candidate_ids":["wifi.1","wifi.2"]})
+        elif m=="secret_unselected":
+            e["selections.json"]=_json({"schema_version":"1.0.0","guide_requested":False,"selected_candidate_ids":[]})
         elif m=="contains_false": mf["contains_secrets"]=False
         elif m=="contains_true": mf["contains_secrets"]=True; c["parameters"].pop("credential_ref"); c["parameters"]["credential_status"]="not_selected"; e["modules/wifi.json"]=_json({"schema_version":"1.0.0","module":"wifi","candidates":[c]})
     elif m in {"mz","elf","macho","shebang"}: e[keyboard]={"mz":b"MZxx","elf":b"\x7fELFxx","macho":b"\xfe\xed\xfa\xcfx","shebang":b"#!/bin/sh"}[m]
@@ -141,19 +145,27 @@ def _mutate(m: str, e: dict[str, bytes], mf: dict[str, Any], meta: dict[str, Any
 
 
 def _write_zip(path: Path, entries: dict[str, bytes], manifest: bytes, mutation: str|None, meta: dict[str, Any]) -> None:
-    compression = zipfile.ZIP_STORED if mutation in {"archive_over"} else zipfile.ZIP_DEFLATED
+    compression = zipfile.ZIP_STORED if mutation in {"archive_over"} or meta.get("force_stored") else zipfile.ZIP_DEFLATED
     with zipfile.ZipFile(path,"w",compression=compression,allowZip64=True) as z:
         if meta.get("directory"): z.writestr("bad/",b""); return
         if meta.get("symlink") or meta.get("special"):
             i=zipfile.ZipInfo("bad"); i.create_system=3; i.external_attr=((stat.S_IFLNK if meta.get("symlink") else stat.S_IFIFO)|0o644)<<16; z.writestr(i,b"target"); return
         info=zipfile.ZipInfo("manifest.json"); info.compress_type=compression
-        if meta.get("zip64"): info.extra=struct.pack("<HHQ",1,8,len(manifest))
         z.writestr(info,manifest)
         for name,data in entries.items(): z.writestr(name,data)
         if meta.get("duplicate"):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", UserWarning)
                 z.writestr(meta["duplicate"], entries[meta["duplicate"]])
+    if meta.get("zip64"):
+        data = path.read_bytes()
+        eocd = data.rfind(b"PK\x05\x06")
+        signature, disk, cd_disk, disk_entries, total_entries, cd_size, cd_offset, comment_length = struct.unpack_from("<4s4H2LH", data, eocd)
+        assert signature == b"PK\x05\x06" and comment_length == 0
+        zip64_eocd = struct.pack("<4sQ2H2L4Q", b"PK\x06\x06", 44, 45, 45, disk, cd_disk, disk_entries, total_entries, cd_size, cd_offset)
+        locator = struct.pack("<4sLQL", b"PK\x06\x07", 0, eocd, 1)
+        sentinel_eocd = struct.pack("<4s4H2LH", b"PK\x05\x06", 0, 0, 0xFFFF, 0xFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0)
+        path.write_bytes(data[:eocd] + zip64_eocd + locator + sentinel_eocd)
     if meta.get("encrypted"):
         data=bytearray(path.read_bytes())
         for sig,off in ((b"PK\x03\x04",6),(b"PK\x01\x02",8)):
