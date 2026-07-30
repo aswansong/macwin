@@ -3,10 +3,22 @@
   "product": "MacWin",
   "direction": "windows_to_macos",
   "current_milestone": "M1-clickable-prototype-and-format",
+  "milestone_status": "completed_waiting_for_next_authorization",
   "prototype_authorized": true,
   "production_implementation_authorized": false,
   "system_changes_authorized": false,
-  "last_updated": "2026-07-30",
+  "last_updated": "2026-07-31",
+  "milestone_evidence": {
+    "prototype": {
+      "commit": "37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75",
+      "scope": "fictional_browser_interaction_only"
+    },
+    "format": {
+      "schema_version": "1.0.0",
+      "scope": "schema_container_and_fictional_fixture_validation_only",
+      "command": "./scripts/validate-m1"
+    }
+  },
   "status_definitions": {
     "specified": "行为、边界和验收已记录，但没有实现证据。",
     "prototyped": "只在不修改真实系统的原型中验证过流程。",

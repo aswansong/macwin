@@ -6,8 +6,8 @@ MacWin 帮助 Windows 10/11 x64 用户把使用习惯迁移到运行 macOS 15/26
 
 ## Current phase
 
-- M0 文档基线已经完成；M1 第二版交互原型已冻结并由 D-028 接受，当前只继续收口 `.habitpack` 格式规范。
-- `main` 允许继续完善产品文档、`.habitpack` schema、虚构夹具和不接触真实系统的格式校验；当前不创建生产 Tauri 应用骨架、系统扫描器、特权组件、配置执行器或安装包。
+- M0 文档基线和 M1“完整可点击原型＋迁移格式规范”均已完成；当前状态为 `completed_waiting_for_next_authorization`，默认停止。
+- 未获新授权前，`main` 不进入 M2、生产开发、真实设备测试、Alpha 或 Release，也不创建生产 Tauri 应用骨架、系统扫描器、特权组件、配置执行器或安装包。
 - 冻结交互原型位于独立的 `prototype/ui-flow-v2-hardening` 分支与提交 `37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75`，只使用虚构数据；原型代码不得合入 `main` 或被当作正式实现。[D-028]
 - 从 M1 进入技术预研、生产开发、Alpha 或公开发布仍需 `docs/execution/active-plan.md` 明确进入对应阶段并由负责人授权。
 
