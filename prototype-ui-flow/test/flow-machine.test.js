@@ -10,10 +10,19 @@ import {
   habitActions,
   includesWifiPassword,
   linearMouseDecision,
+  linearMouseExecutionMode,
   effectiveActionResult,
   effectiveResult,
   summary,
 } from '../src/flow-machine.js';
+import {
+  linearMouseCompletionIntro,
+  linearMousePermissionCopy,
+  renderLinearMousePermission,
+  renderPointerOutcome,
+  renderPointerReport,
+  renderPointerGuide,
+} from '../src/linear-mouse-view.js';
 
 const toPlan = (scenario = 'normal') => {
   let state = initialState(scenario);
@@ -33,7 +42,7 @@ test('welcome offers a direct Mac import route', () => {
 });
 
 test('safe defaults preselect common choices but not sensitive or costly choices', () => {
-  const { selected, linearMouseConfirmed } = initialState();
+  const { selected, linearMouseDecision: decision } = initialState();
   assert.equal(selected.keyboard, true);
   assert.equal(selected.external, true);
   assert.equal(selected.pointer, true);
@@ -42,7 +51,7 @@ test('safe defaults preselect common choices but not sensitive or costly choices
   assert.equal(selected.wifi, false);
   assert.equal(selected.developer, false);
   assert.equal(selected.homebrew, false);
-  assert.equal(linearMouseConfirmed, false);
+  assert.equal(decision, 'unconfirmed');
 });
 
 test('cannot execute before forced plan confirmation', () => {
@@ -88,7 +97,7 @@ test('normal flow leaves only pointer pending until LinearMouse is independently
   assert.equal(summary(defaultRun.results), 'actions');
 
   const confirmedRun = runPlan(toPlan(), { confirmLinearMouse: true });
-  assert.equal(confirmedRun.linearMouseConfirmed, true);
+  assert.equal(confirmedRun.linearMouseDecision, 'confirmed');
   assert.equal(confirmedRun.results.habits, 'applied_verified');
   assert.deepEqual(new Set(Object.values(confirmedRun.actionResults)), new Set(['applied_verified']));
   assert.equal(summary(confirmedRun.results), 'all');
@@ -103,7 +112,22 @@ test('LinearMouse distinguishes never confirmed, confirmed, and subsequently dec
   state = toPlan('toolDeclined');
   assert.equal(linearMouseDecision(state), 'unconfirmed');
   state = transition(state, 'LINEAR_MOUSE_TOGGLE');
+  assert.equal(linearMouseDecision(state), 'confirmed');
+  state = transition(state, 'CONFIRM');
+  assert.equal(linearMouseExecutionMode(state), 'decline_after_confirm');
+  state = transition(state, 'EXECUTE');
   assert.equal(linearMouseDecision(state), 'declined');
+  assert.equal(state.actionReasons.pointerScroll, 'linear_mouse_declined_after_confirm');
+});
+
+test('tool-declined scenario cannot claim a refusal without prior confirmation', () => {
+  let state = toPlan('toolDeclined');
+  state = transition(state, 'CONFIRM');
+  assert.equal(linearMouseExecutionMode(state), 'unconfirmed');
+  assert.equal(linearMousePermissionCopy(state).button, '按未确认继续模拟应用');
+  state = transition(state, 'EXECUTE');
+  assert.equal(linearMouseDecision(state), 'unconfirmed');
+  assert.equal(state.actionReasons.pointerScroll, 'linear_mouse_unconfirmed');
 });
 
 test('plan groups selected results into user-facing modules', () => {
@@ -206,6 +230,8 @@ test('failure and third-party refusal never report all success', () => {
 
 test('third-party refusal cannot be turned into success through generic retry', () => {
   const state = runPlan(toPlan('toolDeclined'), { confirmLinearMouse: true });
+  assert.equal(state.linearMouseDecision, 'declined');
+  assert.equal(state.actionReasons.pointerScroll, 'linear_mouse_declined_after_confirm');
   const retried = transition(state, 'RETRY');
   assert.equal(retried.results.habits, 'partially_completed');
   assert.equal(retried.actionResults.pointerScroll, 'manual_action_required');
@@ -232,9 +258,10 @@ test('returning to import clears stale plan-only choices and outcomes', () => {
   assert.equal(state.selected.homebrew, false);
   assert.deepEqual(state.planRemoved, []);
   assert.equal(state.planConfirmed, false);
-  assert.equal(state.linearMouseConfirmed, false);
+  assert.equal(state.linearMouseDecision, 'unconfirmed');
   assert.deepEqual(state.results, {});
   assert.deepEqual(state.actionResults, {});
+  assert.deepEqual(state.actionReasons, {});
 });
 
 test('single habits recovery entry restores only applied actions', () => {
@@ -246,6 +273,8 @@ test('single habits recovery entry restores only applied actions', () => {
   assert.deepEqual(state.restored, ['habits']);
   assert.deepEqual(new Set(state.restoredActions), new Set(['builtInCtrl', 'externalCtrl']));
   assert.equal(effectiveActionResult(state, 'pointerScroll'), 'manual_action_required');
+  assert.equal(state.actionReasons.pointerScroll, 'linear_mouse_unconfirmed');
+  assert.match(renderPointerOutcome(state), /未确认/);
   assert.equal(effectiveResult(state, 'habits'), 'partially_restored');
   state = transition(state, 'RESTORE_ALL');
   assert.deepEqual(state.restored, ['habits', 'system', 'wifi']);
@@ -271,7 +300,7 @@ test('changing selections invalidates prior plan and results', () => {
   assert.deepEqual(state.actionResults, {});
   assert.deepEqual(state.restored, []);
   assert.deepEqual(state.restoredActions, []);
-  assert.equal(state.linearMouseConfirmed, false);
+  assert.equal(state.linearMouseDecision, 'unconfirmed');
 });
 
 test('changing third-party confirmation invalidates stale plan, results, and recovery', () => {
@@ -280,10 +309,11 @@ test('changing third-party confirmation invalidates stale plan, results, and rec
   state = transition(state, 'RESTORE', 'habits');
   state.screen = 'plan';
   state = transition(state, 'LINEAR_MOUSE_TOGGLE');
-  assert.equal(state.linearMouseConfirmed, false);
+  assert.equal(state.linearMouseDecision, 'unconfirmed');
   assert.equal(state.planConfirmed, false);
   assert.deepEqual(state.results, {});
   assert.deepEqual(state.actionResults, {});
+  assert.deepEqual(state.actionReasons, {});
   assert.deepEqual(state.restored, []);
   assert.deepEqual(state.restoredActions, []);
 });
@@ -292,6 +322,7 @@ test('prototype source has no external request or native command bridge', async 
   const source = (await Promise.all([
     '../src/main.js',
     '../src/flow-machine.js',
+    '../src/linear-mouse-view.js',
     '../src/style.css',
     '../../index.html',
   ].map((path) => readFile(new URL(path, import.meta.url), 'utf8')))).join('\n');
@@ -329,4 +360,51 @@ test('plan contains explicit LinearMouse disclosure and action-level downstream 
     '本原型不下载、不安装、不请求真实权限',
     '动作结果',
   ]) assert.equal(source.includes(required), true, `missing required disclosure: ${required}`);
+});
+
+test('rendered LinearMouse surfaces keep unconfirmed, confirmed, and declined copy mutually exclusive', () => {
+  let unconfirmed = toPlan('toolDeclined');
+  unconfirmed = transition(unconfirmed, 'CONFIRM');
+  const unconfirmedPermission = `${renderLinearMousePermission(unconfirmed)}<button>${linearMousePermissionCopy(unconfirmed).button}</button>`;
+  assert.match(unconfirmedPermission, /LinearMouse 候选 · 未确认/);
+  assert.match(unconfirmedPermission, /按未确认继续模拟应用/);
+  assert.doesNotMatch(unconfirmedPermission, /已确认后拒绝|模拟已确认后拒绝/);
+
+  let confirmed = toPlan('normal');
+  confirmed = transition(confirmed, 'LINEAR_MOUSE_TOGGLE');
+  confirmed = transition(confirmed, 'CONFIRM');
+  const confirmedPermission = `${renderLinearMousePermission(confirmed)}<button>${linearMousePermissionCopy(confirmed).button}</button>`;
+  assert.match(confirmedPermission, /LinearMouse 候选 · 已单独确认/);
+  assert.match(confirmedPermission, /开始模拟应用/);
+  assert.doesNotMatch(confirmedPermission, /未确认|已确认后拒绝/);
+
+  let declined = toPlan('toolDeclined');
+  declined = transition(declined, 'LINEAR_MOUSE_TOGGLE');
+  declined = transition(declined, 'CONFIRM');
+  const pendingDeclinePermission = `${renderLinearMousePermission(declined)}<button>${linearMousePermissionCopy(declined).button}</button>`;
+  assert.match(pendingDeclinePermission, /本步将模拟确认后拒绝/);
+  assert.match(pendingDeclinePermission, /模拟已确认后拒绝并继续/);
+  declined = transition(declined, 'EXECUTE');
+
+  const completion = renderPointerOutcome(declined);
+  const report = renderPointerReport(declined);
+  const guide = renderPointerGuide(declined);
+  for (const rendered of [completion, report, guide]) {
+    assert.match(rendered, /已确认后拒绝/);
+    assert.doesNotMatch(rendered, /未确认或被拒绝|没有单独确认/);
+  }
+  assert.match(report, /候选工具没有应用/);
+  assert.match(guide, /随后在执行前拒绝/);
+  assert.match(linearMouseCompletionIntro(declined), /已确认后拒绝/);
+});
+
+test('rendered unconfirmed completion, report, and guide never claim a refusal', () => {
+  const state = runPlan(toPlan('toolDeclined'));
+  assert.equal(state.linearMouseDecision, 'unconfirmed');
+  for (const rendered of [renderPointerOutcome(state), renderPointerReport(state), renderPointerGuide(state)]) {
+    assert.match(rendered, /未确认/);
+    assert.doesNotMatch(rendered, /已确认后拒绝|随后.*拒绝/);
+  }
+  assert.match(linearMouseCompletionIntro(state), /未确认/);
+  assert.doesNotMatch(linearMouseCompletionIntro(state), /拒绝/);
 });

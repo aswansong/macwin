@@ -16,7 +16,7 @@ export const initialState = (scenario = 'normal') => ({
   screen: 'welcome',
   scenario,
   planConfirmed: false,
-  linearMouseConfirmed: false,
+  linearMouseDecision: 'unconfirmed',
   exported: false,
   importError: false,
   selected: {
@@ -35,6 +35,7 @@ export const initialState = (scenario = 'normal') => ({
   expanded: [],
   results: {},
   actionResults: {},
+  actionReasons: {},
   restored: [],
   restoredActions: [],
   retried: false,
@@ -190,17 +191,22 @@ export const actionResultFor = (id, state) => {
   if (['builtInCtrl', 'externalCtrl'].includes(id) && state.scenario === 'permissionDenied') {
     return 'skipped_permission';
   }
-  if (id === 'pointerScroll' && (
-    !state.linearMouseConfirmed || state.scenario === 'toolDeclined'
-  )) return 'manual_action_required';
+  if (id === 'pointerScroll' && state.linearMouseDecision !== 'confirmed') {
+    return 'manual_action_required';
+  }
   return 'applied_verified';
 };
 
 export const linearMouseDecision = (state) => {
   if (!state.selected.pointer) return 'not_applicable';
-  if (!state.linearMouseConfirmed) return 'unconfirmed';
-  return state.scenario === 'toolDeclined' ? 'declined' : 'confirmed';
+  return state.linearMouseDecision;
 };
+
+export const linearMouseExecutionMode = (state) => (
+  state.scenario === 'toolDeclined' && state.linearMouseDecision === 'confirmed'
+    ? 'decline_after_confirm'
+    : state.linearMouseDecision
+);
 
 const aggregateHabitResults = (values) => {
   if (!values.length) return undefined;
@@ -254,10 +260,21 @@ export const summary = (results) => {
 
 export const execute = (state) => {
   if (state.screen !== 'permission' || !state.planConfirmed || modules(state).length === 0) return state;
-  const actionResults = modules(state).some((item) => item.id === 'habits')
-    ? Object.fromEntries(habitActions(state).map((action) => [action.id, actionResultFor(action.id, state)]))
+  const linearMouseDecision = linearMouseExecutionMode(state) === 'decline_after_confirm'
+    ? 'declined'
+    : state.linearMouseDecision;
+  const executionState = { ...state, linearMouseDecision };
+  const actionResults = modules(executionState).some((item) => item.id === 'habits')
+    ? Object.fromEntries(habitActions(executionState).map((action) => [action.id, actionResultFor(action.id, executionState)]))
     : {};
-  const next = { ...state, actionResults };
+  const actionReasons = actionResults.pointerScroll === 'manual_action_required'
+    ? {
+        pointerScroll: linearMouseDecision === 'declined'
+          ? 'linear_mouse_declined_after_confirm'
+          : 'linear_mouse_unconfirmed',
+      }
+    : {};
+  const next = { ...executionState, actionResults, actionReasons };
   return {
     ...next,
     screen: 'complete',
@@ -274,11 +291,12 @@ const moveToImport = (state) => ({
   screen: 'import',
   importError: false,
   planConfirmed: false,
-  linearMouseConfirmed: false,
+  linearMouseDecision: 'unconfirmed',
   planRemoved: [],
   expanded: [],
   results: {},
   actionResults: {},
+  actionReasons: {},
   restored: [],
   restoredActions: [],
   retried: false,
@@ -291,7 +309,7 @@ export function transition(state, event, payload) {
   if (event === 'TOGGLE' && state.screen === 'questions' && payload in state.selected) {
     const selected = { ...state.selected, [payload]: !state.selected[payload] };
     if (payload === 'developer' && !selected.developer) selected.homebrew = false;
-    return { ...state, selected, planRemoved: [], planConfirmed: false, linearMouseConfirmed: false, results: {}, actionResults: {}, restored: [], restoredActions: [] };
+    return { ...state, selected, planRemoved: [], planConfirmed: false, linearMouseDecision: 'unconfirmed', results: {}, actionResults: {}, actionReasons: {}, restored: [], restoredActions: [] };
   }
   if (event === 'GO_EXPORT' && state.screen === 'questions') {
     return { ...state, screen: 'export', exported: false };
@@ -307,7 +325,7 @@ export function transition(state, event, payload) {
     const planRemoved = state.planRemoved.includes(payload)
       ? state.planRemoved.filter((id) => id !== payload)
       : [...state.planRemoved, payload];
-    return { ...state, planRemoved, planConfirmed: false, linearMouseConfirmed: false, results: {}, actionResults: {}, restored: [], restoredActions: [] };
+    return { ...state, planRemoved, planConfirmed: false, linearMouseDecision: 'unconfirmed', results: {}, actionResults: {}, actionReasons: {}, restored: [], restoredActions: [] };
   }
   if (event === 'HOMEBREW_TOGGLE' && state.screen === 'plan' && state.selected.developer) {
     return {
@@ -316,6 +334,7 @@ export function transition(state, event, payload) {
       planConfirmed: false,
       results: {},
       actionResults: {},
+      actionReasons: {},
       restored: [],
       restoredActions: [],
     };
@@ -323,10 +342,11 @@ export function transition(state, event, payload) {
   if (event === 'LINEAR_MOUSE_TOGGLE' && state.screen === 'plan') {
     return {
       ...state,
-      linearMouseConfirmed: !state.linearMouseConfirmed,
+      linearMouseDecision: state.linearMouseDecision === 'confirmed' ? 'unconfirmed' : 'confirmed',
       planConfirmed: false,
       results: {},
       actionResults: {},
+      actionReasons: {},
       restored: [],
       restoredActions: [],
     };

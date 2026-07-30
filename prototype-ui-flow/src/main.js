@@ -10,12 +10,20 @@ import {
   modules,
   habitActions,
   includesWifiPassword,
-  linearMouseDecision,
   effectiveActionResult,
   effectiveResult,
   summary,
   transition,
 } from './flow-machine.js';
+import {
+  linearMouseCompletionIntro,
+  linearMousePermissionCopy,
+  pointerGuideSection,
+  pointerOutcomeCopy,
+  renderLinearMousePermission,
+  renderPointerOutcome,
+  renderPointerReport,
+} from './linear-mouse-view.js';
 
 const app = document.querySelector('#app');
 const query = new URLSearchParams(location.search);
@@ -311,7 +319,7 @@ function planPage() {
   const hasPointer = items.some((item) => item.id === 'habits') && state.selected.pointer;
   const hasHomebrew = items.some((item) => item.id === 'developer') && state.selected.homebrew;
   const thirdPartyCount = Number(hasPointer) + Number(hasHomebrew);
-  const thirdPartyConfirmed = Number(hasPointer && state.linearMouseConfirmed) + Number(hasHomebrew);
+  const thirdPartyConfirmed = Number(hasPointer && state.linearMouseDecision === 'confirmed') + Number(hasHomebrew);
   const containsSecret = includesWifiPassword(state) && items.some((item) => item.id === 'wifi');
   return page(
     '确认 Mac 会做什么',
@@ -331,12 +339,12 @@ function planPage() {
       </dl>
       <p class="prototype-boundary"><b>候选事实，尚未批准。</b>本原型不下载、不安装、不请求真实权限，也不执行任何系统操作。</p>
       <label class="tool-consent-check">
-        <input type="checkbox" data-event="LINEAR_MOUSE_TOGGLE" ${state.linearMouseConfirmed ? 'checked' : ''}/>
+        <input type="checkbox" data-event="LINEAR_MOUSE_TOGGLE" ${state.linearMouseDecision === 'confirmed' ? 'checked' : ''}/>
         <span><b>我单独确认在本次演示计划中使用 LinearMouse 候选</b><small>保持未选也能继续；只有鼠标与触控板滚动进入“稍后处理”，两个 Ctrl 动作继续。</small></span>
       </label>
     </section>` : ''}
     <aside class="confirm-strip">
-      <span><b>${items.length} 个模块 · ${thirdPartyCount} 个第三方工具（已确认 ${thirdPartyConfirmed} 个）· ${permissionCount} 项 Mac 权限</b><small>${containsSecret ? '含敏感信息的迁移包；密码不会显示或进入快照。' : '不含 Wi‑Fi 密码。'} ${hasPointer && !state.linearMouseConfirmed ? 'LinearMouse 未确认，指针动作将稍后处理。' : ''} 未选模块不会进入报告或指南。</small></span>
+      <span><b>${items.length} 个模块 · ${thirdPartyCount} 个第三方工具（已确认 ${thirdPartyConfirmed} 个）· ${permissionCount} 项 Mac 权限</b><small>${containsSecret ? '含敏感信息的迁移包；密码不会显示或进入快照。' : '不含 Wi‑Fi 密码。'} ${hasPointer && state.linearMouseDecision !== 'confirmed' ? 'LinearMouse 未确认，指针动作将稍后处理。' : ''} 未选模块不会进入报告或指南。</small></span>
       ${button(`确认 ${items.length} 个模块并继续`, 'CONFIRM', '', 'primary', items.length === 0)}
     </aside>`,
     button('返回导入', 'IMPORT', '', 'secondary'),
@@ -349,25 +357,19 @@ function permissionPage() {
   const hasPointer = hasHabits && state.selected.pointer;
   const hasKeyboard = hasHabits && (state.selected.keyboard || state.selected.external);
   const hasDeveloper = items.some((item) => item.id === 'developer');
-  const toolDeclined = state.scenario === 'toolDeclined';
   const permissionDenied = state.scenario === 'permissionDenied';
-  const toolDecision = linearMouseDecision(state);
-  const toolDecisionCopy = {
-    confirmed: ['已单独确认', '仅模拟使用候选工具，仍不会下载、安装或请求真实权限。'],
-    declined: ['已拒绝', '已在这一步模拟拒绝候选工具；只有指针动作留待处理，Ctrl 子动作继续。'],
-    unconfirmed: ['未确认', '不会安装；只有指针动作留待处理，Ctrl 子动作继续。'],
-  }[toolDecision];
+  const toolPermission = linearMousePermissionCopy(state);
   return page(
     '准备应用已确认的计划',
     '迁移前快照已模拟创建并验证。拒绝权限或第三方工具只影响对应模块。',
     `<div class="snapshot-ok" role="status"><b>✓ 迁移前快照已验证</b><span>只覆盖已确认、可恢复的设置；不含 Wi‑Fi 密码。</span></div>
     <div class="permission-list">
       ${hasKeyboard ? `<section><span>${tag('permission')}</span><div><b>辅助功能权限</b><p>两个 Ctrl 子动作需要；拒绝后只跳过依赖权限的 Ctrl 动作，指针按自己的第三方确认状态处理。</p></div></section>` : ''}
-      ${hasPointer ? `<section><span>${tag('thirdParty')}</span><div><b>LinearMouse 候选 · ${toolDecisionCopy[0]}</b><p>${toolDecisionCopy[1]}</p></div></section>` : ''}
+      ${hasPointer ? `<section><span>${tag('thirdParty')}</span>${renderLinearMousePermission(state)}</section>` : ''}
       ${hasDeveloper && state.selected.homebrew ? `<section><span>${tag('thirdParty')}${tag('irreversible')}</span><div><b>Homebrew</b><p>第三方命令行软件包管理器；拒绝后开发工具改为稍后处理。</p></div></section>` : ''}
     </div>`,
     button(
-      toolDeclined ? '模拟拒绝第三方工具并继续' : permissionDenied ? '模拟拒绝 Mac 权限并继续' : '开始模拟应用',
+      permissionDenied ? '模拟拒绝 Mac 权限并继续' : hasPointer ? toolPermission.button : '开始模拟应用',
       'EXECUTE',
     ),
   );
@@ -378,7 +380,10 @@ function resultList() {
     const code = effectiveResult(state, item.id) || 'unknown_requires_review';
     const actions = item.id === 'habits' ? `<ul class="action-results">${habitActions(state).map((action) => {
       const actionCode = effectiveActionResult(state, action.id) || 'unknown_requires_review';
-      return `<li><span>${action.title}<small>${action.change}</small></span><strong class="status ${actionCode}">${statusLabel(action, actionCode)}</strong></li>`;
+      const outcome = action.id === 'pointerScroll' && actionCode === 'manual_action_required'
+        ? renderPointerOutcome(state)
+        : `<strong class="status ${actionCode}">${statusLabel(action, actionCode)}</strong>`;
+      return `<li><span>${action.title}<small>${action.change}</small></span>${outcome}</li>`;
     }).join('')}</ul>` : '';
     return `<section class="result-module"><div><span><b>${item.title}</b><small>${item.change}</small></span><strong class="status ${code}">${statusLabel(item, code)}</strong></div>${actions}</section>`;
   }).join('')}</div>`;
@@ -386,6 +391,7 @@ function resultList() {
 
 function completionPage() {
   const resultSummary = summary(state.results);
+  const pointerIntro = linearMouseCompletionIntro(state);
   const title = resultSummary === 'all'
     ? m.conclusionAll
     : resultSummary === 'actions'
@@ -400,7 +406,7 @@ function completionPage() {
       ? '失败被隔离，其他模块保留结果；可恢复模块仍可回到迁移前状态。'
       : hasRetry
         ? '本地模块已完成；待处理项可在条件恢复后重试。'
-        : '拒绝只影响对应模块，其他已确认模块保留结果。';
+      : pointerIntro || '未完成项只影响对应模块，其他已确认模块保留结果。';
   return page(
     title,
     intro,
@@ -418,7 +424,9 @@ function reportPage() {
         const code = effectiveResult(state, item.id) || 'unknown_requires_review';
         const actionRows = item.id === 'habits' ? `<div class="report-actions"><b>动作结果</b><ul>${habitActions(state).map((action) => {
           const actionCode = effectiveActionResult(state, action.id) || 'unknown_requires_review';
-          return `<li><span>${action.title}</span><strong class="status ${actionCode}">${statusLabel(action, actionCode)}</strong></li>`;
+          return action.id === 'pointerScroll' && actionCode === 'manual_action_required'
+            ? `<li>${renderPointerReport(state)}</li>`
+            : `<li><span>${action.title}</span><strong class="status ${actionCode}">${statusLabel(action, actionCode)}</strong></li>`;
         }).join('')}</ul></div>` : '';
         return `<section>
           <header><b>${item.title}</b><span class="status ${code}">${statusLabel(item, code)}</span></header>
@@ -452,7 +460,7 @@ function guideSections() {
     } else if (pointerResult === 'rolled_back_verified') {
       sections.push(['指针滚动已恢复', '已应用的指针动作回到迁移前状态。']);
     } else if (pointerResult === 'manual_action_required') {
-      sections.push(['指针滚动稍后处理', 'LinearMouse 候选未确认或被拒绝；Ctrl 动作结果不受影响。']);
+      sections.push(pointerGuideSection(state));
     }
   }
 
@@ -537,8 +545,17 @@ function recoveryPage() {
       const actionDetails = item.id === 'habits' ? `<ul class="restore-actions">${habitActions(state).map((action) => {
         const code = effectiveActionResult(state, action.id) || 'unknown_requires_review';
         const wasApplied = state.actionResults[action.id] === 'applied_verified';
-        const copy = code === 'rolled_back_verified' ? '已恢复' : wasApplied ? '可恢复' : statusLabel(action, code);
-        return `<li><span>${action.title}</span><strong class="status ${code}">${copy}</strong></li>`;
+        const pointerCopy = action.id === 'pointerScroll' && code === 'manual_action_required'
+          ? pointerOutcomeCopy(state)
+          : null;
+        const copy = code === 'rolled_back_verified'
+          ? '已恢复'
+          : wasApplied
+            ? '可恢复'
+            : pointerCopy
+              ? pointerCopy.label
+              : statusLabel(action, code);
+        return `<li><span>${action.title}${pointerCopy ? `<small>原因：${pointerCopy.reason}</small>` : ''}</span><strong class="status ${code}">${copy}</strong></li>`;
       }).join('')}</ul>` : '';
       return `<section class="restore-module"><div><span><b>${item.title}</b><small>${canRestore ? (done ? (item.id === 'habits' ? '只恢复了已应用且可恢复的动作' : '已模拟恢复并验证') : item.restore) : '本次没有可自动恢复的设置'}</small></span>${canRestore ? button(done ? '已恢复' : m.restore, 'RESTORE', item.id, 'secondary', done) : ''}</div>${actionDetails}</section>`;
     }).join('')}</div>`,
@@ -555,7 +572,7 @@ function prototypeControls() {
         <label>${m.planMode}<select data-event="MODE"><option value="collapsed">${m.collapsed}</option><option value="expanded" ${state.planMode === 'expanded' ? 'selected' : ''}>${m.expanded}</option></select></label>
         ${button(`${state.reduced ? '✓ ' : ''}${m.reduced}`, 'REDUCED', '', 'toolbutton')}
         ${button(m.reset, 'RESET', '', 'toolbutton')}
-        <details class="state"><summary>${m.state}</summary><code>${JSON.stringify({ screen: state.screen, scenario: state.scenario, selected: state.selected, linearMouseConfirmed: state.linearMouseConfirmed, planRemoved: state.planRemoved, planConfirmed: state.planConfirmed, results: state.results, actionResults: state.actionResults, restored: state.restored, restoredActions: state.restoredActions }, null, 2)}</code></details>
+        <details class="state"><summary>${m.state}</summary><code>${JSON.stringify({ screen: state.screen, scenario: state.scenario, selected: state.selected, linearMouseDecision: state.linearMouseDecision, planRemoved: state.planRemoved, planConfirmed: state.planConfirmed, results: state.results, actionResults: state.actionResults, actionReasons: state.actionReasons, restored: state.restored, restoredActions: state.restoredActions }, null, 2)}</code></details>
       </div>
     </details>`;
 }

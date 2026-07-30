@@ -765,6 +765,19 @@ small {
   font-size: .8125rem;
 }
 
+.action-outcome {
+  display: grid;
+  max-width: 300px;
+  justify-items: end;
+  text-align: right;
+}
+
+.action-outcome small,
+.report-actions li > span small {
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
 .applied_verified {
   color: #21675a;
 }
