@@ -4,7 +4,7 @@ MacWin 计划处理系统偏好，并可在用户明确选择时迁移 Wi‑Fi �
 
 ## 报告安全问题
 
-请优先使用 GitHub 仓库的 **Security → Report a vulnerability** 私密报告入口。不要在公开 Issue 中粘贴：
+请使用 GitHub 仓库已经启用的 **Security → Report a vulnerability** 私密报告入口。不要在公开 Issue 中粘贴：
 
 - `.habitpack` 文件；
 - Wi‑Fi 名称或密码；
@@ -12,7 +12,7 @@ MacWin 计划处理系统偏好，并可在用户明确选择时迁移 Wi‑Fi �
 - 未脱敏的用户名、设备标识或本地路径；
 - 能直接利用漏洞的敏感细节。
 
-如果私密安全报告尚未启用，请只提交不含敏感细节的公开 Issue，说明需要安全联系方式。
+如果 GitHub 临时无法显示私密入口，请只提交不含敏感细节的公开 Issue，说明需要私密安全联系方式；在获得私密渠道前不要发送漏洞细节。
 
 ## 当前状态
 

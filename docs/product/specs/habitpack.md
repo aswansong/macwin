@@ -8,7 +8,7 @@
 
 第一版使用 ZIP 容器和 `.habitpack` 扩展名，不加密。ZIP 可读性只为调试和互操作，不代表导入方可以信任内容。[D-009]
 
-## 2. 建议的目录结构
+## 2. 目录结构与允许入口
 
 ```text
 example.habitpack
@@ -22,19 +22,26 @@ example.habitpack
 │   └── wifi.json
 ├── raw/
 │   └── <rule-id>/<declared-fragment>.json
-└── integrity.json
+└── secrets/                         # 仅 contains_secrets=true 时允许
+    └── wifi/
+        └── <local-opaque-id>.bin
 ```
 
 约束：
 
-- 所有路径使用 UTF-8、正斜杠和相对路径。
+- `manifest.json` 是唯一文件索引和完整性清单；第一版不存在第二份 `integrity.json`。
+- `manifest.json` 不在自己的 `files` 数组中，避免自引用哈希；除此之外，每个普通文件必须在 `files` 中恰好声明一次，`files` 中也不得声明不存在的文件。
+- ZIP 只允许普通文件条目，不写入或接受单独的目录条目。允许的顶层名称只有 `manifest.json`、`selections.json`、`modules/`、`raw/` 和条件性的 `secrets/`。
+- `selections.json` 和实际存在的模块文件必须声明；`raw/` 仅在规则需要时出现；`secrets/` 仅在 `contains_secrets=true` 且存在被 Wi‑Fi 模块引用的凭据时出现。
+- 所有路径使用有效 UTF-8、正斜杠和相对路径；路径必须先完成 Unicode NFC、分隔符、大小写碰撞和平台保留名称检查，再参与唯一性比较。
 - 禁止绝对路径、`..`、符号链接、硬链接、设备文件、嵌套压缩包和重复规范化路径。
 - 包内不得出现 `.exe`、`.dll`、`.msi`、`.ps1`、`.bat`、`.cmd`、`.sh`、Mach-O、脚本解释器入口或任意可执行内容。
 - `raw/` 只能包含白名单规则声明需要的最小 JSON/文本片段；具体允许的媒体类型由 schema 固定，不接受任意文件。[D-009、D-027]
+- `secrets/wifi/` 只允许由 Wi‑Fi 模块 `credential_ref` 精确引用的凭据文件；孤立秘密、跨目录引用和多个网络共享同一凭据引用均拒绝。
 
 ## 3. `manifest.json`
 
-首版候选字段：
+首版候选字段（示例只省略模块内容，不省略文件索引规则）：
 
 ```json
 {
@@ -58,6 +65,12 @@ example.habitpack
   "modules": ["keyboard", "pointer"],
   "files": [
     {
+      "path": "selections.json",
+      "media_type": "application/json",
+      "size": 80,
+      "sha256": "<64 lowercase hex characters>"
+    },
+    {
       "path": "modules/keyboard.json",
       "media_type": "application/json",
       "size": 100,
@@ -73,6 +86,9 @@ example.habitpack
 - `contains_secrets` 只要存在任何 Wi‑Fi 密码就必须为 `true`；为 `false` 不能替代内容扫描。
 - 不需要且默认不允许设备序列号、Windows 产品密钥、Microsoft/Apple 账号、完整用户名或完整本地绝对路径。[D-009、D-019]
 - 时间只用于向用户识别包，不作为信任判断。
+- `modules` 必须与实际存在的 `modules/<module-id>.json` 一一对应；模块文件、`selections.json` 和 `contains_secrets` 对同一选择给出冲突结果时，整个包必须拒绝，不能猜测哪一份优先。
+- `files[].size` 和 `files[].sha256` 针对 ZIP 解压后的原始文件字节计算；不得针对压缩流、文本规范化结果或重新序列化后的 JSON 计算。
+- `manifest.json` 必须在固定的小尺寸上限内单独读取并完成严格 JSON 解析，解析 manifest 不代表其余条目已经可信。
 
 ## 4. 模块数据
 
@@ -121,7 +137,7 @@ Wi‑Fi 模块只允许用户逐项选中的个人 WPA/WPA2/WPA3 网络。企业
 }
 ```
 
-这里的 `credential_ref` 仅说明引用方式，**秘密文件的最终编码仍未决定**，受 OD-005 技术验证阻塞。实现必须保证：
+`credential_ref` 必须与 `manifest.files` 中一个且仅一个 `secrets/wifi/` 条目完全相等；该条目的 media type 固定为 `application/vnd.macwin.wifi-credential`。秘密文件的最终字节编码仍受 OD-005 技术验证阻塞；在 OD-005 关闭前，schema 和夹具只能使用明确标记的虚构字节，生产适配器不得消费该内容。实现必须保证：
 
 - 密码不进入 manifest、计划、报告、日志、错误和快照；
 - 读取后只传给受信任的目标系统接口，不进入通用模板或 Shell 参数；
@@ -131,11 +147,20 @@ Wi‑Fi 模块只允许用户逐项选中的个人 WPA/WPA2/WPA3 网络。企业
 
 ## 6. 完整性与真实性
 
-第一版至少需要逐文件 SHA-256 完整性清单，用于发现损坏或未声明内容；哈希不能证明发布者身份。应用与离线规则包的真实性签名由 OD-006 决定。
+第一版由 `manifest.files` 提供唯一的逐文件 SHA-256 完整性清单，用于发现损坏、缺失或未声明内容。`manifest.json` 本身没有自引用哈希；攻击者可以同时替换 manifest 和内容，因此这些哈希不能证明发布者身份，也不能让包内规则变得可信。安全性仍来自严格 schema、固定规则 ID 和受限平台适配器。应用与离线规则包的真实性签名由 OD-006 决定。
+
+固定校验顺序：
+
+1. 在不解压其他条目的情况下检查 ZIP 元数据、条目数量、路径和压缩上限；
+2. 有界读取并严格解析唯一的根级 `manifest.json`；
+3. 建立规范化路径集合，确认每个非 manifest 普通文件与 `manifest.files` 一一对应；
+4. 流式读取每个文件，按解压后原始字节同时检查大小和 SHA-256；
+5. 校验 media type、模块 schema、引用、规则 ID、版本、依赖与允许值；
+6. 全部通过后才生成迁移计划，任何失败都不得把部分解压内容交给执行层。
 
 导入时必须拒绝：
 
-- manifest 未声明的文件；
+- 除唯一根级 `manifest.json` 外，manifest 未声明的文件，或 manifest 声明但 ZIP 中不存在的文件；
 - 大小或哈希不匹配；
 - schema 主版本不支持；
 - 重复文件、大小写碰撞或 Unicode 规范化碰撞；

@@ -2,8 +2,10 @@
   "schema_version": "1.0.0",
   "product": "MacWin",
   "direction": "windows_to_macos",
-  "current_milestone": "M0-documentation-baseline",
-  "implementation_authorized": false,
+  "current_milestone": "M1-clickable-prototype-and-format",
+  "prototype_authorized": true,
+  "production_implementation_authorized": false,
+  "system_changes_authorized": false,
   "last_updated": "2026-07-30",
   "status_definitions": {
     "specified": "行为、边界和验收已记录，但没有实现证据。",
