@@ -20,6 +20,8 @@ export const m = {
   failed: '失败，可恢复',
   unknown: '需要检查',
   rolledBack: '已恢复并验证',
+  partialComplete: '部分完成',
+  partialRestored: '已恢复已应用动作',
   scenario: '演示场景',
   planMode: '计划信息',
   collapsed: '精简',
@@ -42,6 +44,6 @@ export const m = {
   irreversible: '不可自动恢复',
   network: '需要网络',
   conclusionAll: '迁移完成',
-  conclusionActions: '主要设置已完成',
+  conclusionActions: '已完成，还有项目待处理',
   conclusionPartial: '有一项没有完成',
 };

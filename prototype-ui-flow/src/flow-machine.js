@@ -16,6 +16,7 @@ export const initialState = (scenario = 'normal') => ({
   screen: 'welcome',
   scenario,
   planConfirmed: false,
+  linearMouseConfirmed: false,
   exported: false,
   importError: false,
   selected: {
@@ -33,7 +34,9 @@ export const initialState = (scenario = 'normal') => ({
   reduced: false,
   expanded: [],
   results: {},
+  actionResults: {},
   restored: [],
+  restoredActions: [],
   retried: false,
 });
 
@@ -162,22 +165,82 @@ export const modules = (state) => (
   allModules(state).filter((item) => !state.planRemoved.includes(item.id))
 );
 
+export const habitActions = (state) => [
+  state.selected.keyboard && {
+    id: 'builtInCtrl',
+    title: '内置键盘 Ctrl',
+    change: '普通应用使用 Ctrl+C / V / Z，真实 Ctrl 例外保持不变',
+    recoverable: true,
+  },
+  state.selected.external && {
+    id: 'externalCtrl',
+    title: '外接 Windows 键盘 Ctrl',
+    change: '只对检测到的外接 Windows 键盘启用相同兼容',
+    recoverable: true,
+  },
+  state.selected.pointer && {
+    id: 'pointerScroll',
+    title: '鼠标与触控板滚动',
+    change: '鼠标使用 Windows 式方向，触控板保留自然滚动',
+    recoverable: true,
+  },
+].filter(Boolean);
+
+export const actionResultFor = (id, state) => {
+  if (['builtInCtrl', 'externalCtrl'].includes(id) && state.scenario === 'permissionDenied') {
+    return 'skipped_permission';
+  }
+  if (id === 'pointerScroll' && (
+    !state.linearMouseConfirmed || state.scenario === 'toolDeclined'
+  )) return 'manual_action_required';
+  return 'applied_verified';
+};
+
+export const linearMouseDecision = (state) => {
+  if (!state.selected.pointer) return 'not_applicable';
+  if (!state.linearMouseConfirmed) return 'unconfirmed';
+  return state.scenario === 'toolDeclined' ? 'declined' : 'confirmed';
+};
+
+const aggregateHabitResults = (values) => {
+  if (!values.length) return undefined;
+  if (values.every((value) => value === 'applied_verified')) return 'applied_verified';
+  if (values.every((value) => value === 'rolled_back_verified')) return 'rolled_back_verified';
+  if (values.every((value) => value === 'skipped_permission')) return 'skipped_permission';
+  if (values.every((value) => value === 'manual_action_required')) return 'manual_action_required';
+  if (values.some((value) => value === 'failed_recoverable' || value === 'unknown_requires_review')) {
+    return 'failed_recoverable';
+  }
+  if (values.some((value) => value === 'rolled_back_verified')) return 'partially_restored';
+  return 'partially_completed';
+};
+
+export const effectiveActionResult = (state, id) => (
+  state.restoredActions.includes(id) ? 'rolled_back_verified' : state.actionResults[id]
+);
+
+export const habitResult = (state, effective = false) => aggregateHabitResults(
+  habitActions(state).map((action) => (
+    effective ? effectiveActionResult(state, action.id) : state.actionResults[action.id]
+  )).filter(Boolean),
+);
+
 export const resultFor = (id, state) => {
   if (state.scenario === 'uacDenied' && id === 'wifi' && state.selected.wifi) {
     return 'skipped_permission';
   }
-  if (state.scenario === 'permissionDenied' && id === 'habits') return 'skipped_permission';
   if (state.scenario === 'offline' && ['software', 'developer'].includes(id)) {
     return state.retried ? 'applied_verified' : 'manual_action_required';
   }
   if (state.scenario === 'moduleFailure' && id === 'system') return 'failed_recoverable';
-  if (state.scenario === 'toolDeclined' && id === 'habits') return 'manual_action_required';
   if (state.scenario === 'manual' && id === 'software') return 'manual_action_required';
   return 'applied_verified';
 };
 
 export const effectiveResult = (state, id) => (
-  state.restored.includes(id) ? 'rolled_back_verified' : state.results[id]
+  id === 'habits'
+    ? habitResult(state, true)
+    : state.restored.includes(id) ? 'rolled_back_verified' : state.results[id]
 );
 
 export const summary = (results) => {
@@ -191,10 +254,17 @@ export const summary = (results) => {
 
 export const execute = (state) => {
   if (state.screen !== 'permission' || !state.planConfirmed || modules(state).length === 0) return state;
+  const actionResults = modules(state).some((item) => item.id === 'habits')
+    ? Object.fromEntries(habitActions(state).map((action) => [action.id, actionResultFor(action.id, state)]))
+    : {};
+  const next = { ...state, actionResults };
   return {
-    ...state,
+    ...next,
     screen: 'complete',
-    results: Object.fromEntries(modules(state).map((item) => [item.id, resultFor(item.id, state)])),
+    results: Object.fromEntries(modules(state).map((item) => [
+      item.id,
+      item.id === 'habits' ? habitResult(next) : resultFor(item.id, state),
+    ])),
   };
 };
 
@@ -204,10 +274,13 @@ const moveToImport = (state) => ({
   screen: 'import',
   importError: false,
   planConfirmed: false,
+  linearMouseConfirmed: false,
   planRemoved: [],
   expanded: [],
   results: {},
+  actionResults: {},
   restored: [],
+  restoredActions: [],
   retried: false,
 });
 
@@ -218,7 +291,7 @@ export function transition(state, event, payload) {
   if (event === 'TOGGLE' && state.screen === 'questions' && payload in state.selected) {
     const selected = { ...state.selected, [payload]: !state.selected[payload] };
     if (payload === 'developer' && !selected.developer) selected.homebrew = false;
-    return { ...state, selected, planRemoved: [], planConfirmed: false, results: {}, restored: [] };
+    return { ...state, selected, planRemoved: [], planConfirmed: false, linearMouseConfirmed: false, results: {}, actionResults: {}, restored: [], restoredActions: [] };
   }
   if (event === 'GO_EXPORT' && state.screen === 'questions') {
     return { ...state, screen: 'export', exported: false };
@@ -234,13 +307,28 @@ export function transition(state, event, payload) {
     const planRemoved = state.planRemoved.includes(payload)
       ? state.planRemoved.filter((id) => id !== payload)
       : [...state.planRemoved, payload];
-    return { ...state, planRemoved, planConfirmed: false };
+    return { ...state, planRemoved, planConfirmed: false, linearMouseConfirmed: false, results: {}, actionResults: {}, restored: [], restoredActions: [] };
   }
   if (event === 'HOMEBREW_TOGGLE' && state.screen === 'plan' && state.selected.developer) {
     return {
       ...state,
       selected: { ...state.selected, homebrew: !state.selected.homebrew },
       planConfirmed: false,
+      results: {},
+      actionResults: {},
+      restored: [],
+      restoredActions: [],
+    };
+  }
+  if (event === 'LINEAR_MOUSE_TOGGLE' && state.screen === 'plan') {
+    return {
+      ...state,
+      linearMouseConfirmed: !state.linearMouseConfirmed,
+      planConfirmed: false,
+      results: {},
+      actionResults: {},
+      restored: [],
+      restoredActions: [],
     };
   }
   if (event === 'CONFIRM' && state.screen === 'plan' && modules(state).length > 0) {
@@ -272,15 +360,35 @@ export function transition(state, event, payload) {
   }
   if (event === 'RESTORE' && state.screen === 'recovery') {
     const item = modules(state).find((module) => module.id === payload);
+    if (payload === 'habits') {
+      if (!item) return state;
+      const restorableActions = habitActions(state)
+        .filter((action) => action.recoverable && state.actionResults[action.id] === 'applied_verified')
+        .map((action) => action.id);
+      if (!restorableActions.length) return state;
+      return {
+        ...state,
+        restored: [...new Set([...state.restored, 'habits'])],
+        restoredActions: [...new Set([...state.restoredActions, ...restorableActions])],
+      };
+    }
     if (!item?.recoverable || !['applied_verified', 'failed_recoverable'].includes(state.results[payload])) return state;
     return { ...state, restored: [...new Set([...state.restored, payload])] };
   }
   if (event === 'RESTORE_ALL' && state.screen === 'recovery') {
+    const habitRestorableActions = modules(state).some((item) => item.id === 'habits')
+      ? habitActions(state)
+        .filter((action) => action.recoverable && state.actionResults[action.id] === 'applied_verified')
+        .map((action) => action.id)
+      : [];
     return {
       ...state,
       restored: modules(state)
-        .filter((item) => item.recoverable && ['applied_verified', 'failed_recoverable'].includes(state.results[item.id]))
+        .filter((item) => item.recoverable && (
+          item.id === 'habits' ? habitRestorableActions.length : ['applied_verified', 'failed_recoverable'].includes(state.results[item.id])
+        ))
         .map((item) => item.id),
+      restoredActions: [...new Set([...state.restoredActions, ...habitRestorableActions])],
     };
   }
   if (event === 'EXPAND' && state.screen === 'plan') {

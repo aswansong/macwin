@@ -8,7 +8,10 @@ import {
   initialState,
   allModules,
   modules,
+  habitActions,
   includesWifiPassword,
+  linearMouseDecision,
+  effectiveActionResult,
   effectiveResult,
   summary,
   transition,
@@ -27,6 +30,8 @@ const statusKey = {
   failed_recoverable: 'failed',
   unknown_requires_review: 'unknown',
   rolled_back_verified: 'rolledBack',
+  partially_completed: 'partialComplete',
+  partially_restored: 'partialRestored',
 };
 
 const statusLabel = (item, code) => (
@@ -303,14 +308,35 @@ function planPage() {
   const candidates = allModules(state);
   const items = modules(state);
   const permissionCount = items.some((item) => item.id === 'habits' && (state.selected.keyboard || state.selected.external)) ? 1 : 0;
-  const thirdPartyCount = items.filter((item) => item.tags.includes('thirdParty')).length;
+  const hasPointer = items.some((item) => item.id === 'habits') && state.selected.pointer;
+  const hasHomebrew = items.some((item) => item.id === 'developer') && state.selected.homebrew;
+  const thirdPartyCount = Number(hasPointer) + Number(hasHomebrew);
+  const thirdPartyConfirmed = Number(hasPointer && state.linearMouseConfirmed) + Number(hasHomebrew);
   const containsSecret = includesWifiPassword(state) && items.some((item) => item.id === 'wifi');
   return page(
     '确认 Mac 会做什么',
     '逐项保留或取消。确认后先创建迁移前快照，再模拟应用。',
     `<div class="modules">${candidates.map(moduleRow).join('')}</div>
+    ${hasPointer ? `<section class="tool-consent" aria-labelledby="linearmouse-title">
+      <header>
+        <span>${tag('thirdParty')}</span>
+        <div><b id="linearmouse-title">LinearMouse · 独立知情确认</b><small>指针习惯在 Windows 端被选中，不代表同意使用或安装此工具。</small></div>
+      </header>
+      <dl>
+        <dt>名称与用途</dt><dd>LinearMouse 候选；用于尝试让鼠标采用 Windows 式滚动、触控板保留自然滚动。</dd>
+        <dt>候选来源</dt><dd>LinearMouse 官方项目发布页；具体地址、版本、签名与许可证待 M2 / OD-007 验证。</dd>
+        <dt>所需权限</dt><dd>候选方案可能需要 macOS 辅助功能权限，实际最小权限待验证。</dd>
+        <dt>是否常驻</dt><dd>为持续区分两类设备，候选工具可能需要在登录后运行；启动方式与资源影响待验证。</dd>
+        <dt>停用或卸载</dt><dd>分离滚动方向将停止，系统回到当时的滚动设置；Ctrl 子动作不受影响。准确恢复行为待验证。</dd>
+      </dl>
+      <p class="prototype-boundary"><b>候选事实，尚未批准。</b>本原型不下载、不安装、不请求真实权限，也不执行任何系统操作。</p>
+      <label class="tool-consent-check">
+        <input type="checkbox" data-event="LINEAR_MOUSE_TOGGLE" ${state.linearMouseConfirmed ? 'checked' : ''}/>
+        <span><b>我单独确认在本次演示计划中使用 LinearMouse 候选</b><small>保持未选也能继续；只有鼠标与触控板滚动进入“稍后处理”，两个 Ctrl 动作继续。</small></span>
+      </label>
+    </section>` : ''}
     <aside class="confirm-strip">
-      <span><b>${items.length} 个模块 · ${thirdPartyCount} 个第三方项 · ${permissionCount} 项 Mac 权限</b><small>${containsSecret ? '含敏感信息的迁移包；密码不会显示或进入快照。' : '不含 Wi‑Fi 密码。'} 未选模块不会进入报告或指南。</small></span>
+      <span><b>${items.length} 个模块 · ${thirdPartyCount} 个第三方工具（已确认 ${thirdPartyConfirmed} 个）· ${permissionCount} 项 Mac 权限</b><small>${containsSecret ? '含敏感信息的迁移包；密码不会显示或进入快照。' : '不含 Wi‑Fi 密码。'} ${hasPointer && !state.linearMouseConfirmed ? 'LinearMouse 未确认，指针动作将稍后处理。' : ''} 未选模块不会进入报告或指南。</small></span>
       ${button(`确认 ${items.length} 个模块并继续`, 'CONFIRM', '', 'primary', items.length === 0)}
     </aside>`,
     button('返回导入', 'IMPORT', '', 'secondary'),
@@ -325,13 +351,19 @@ function permissionPage() {
   const hasDeveloper = items.some((item) => item.id === 'developer');
   const toolDeclined = state.scenario === 'toolDeclined';
   const permissionDenied = state.scenario === 'permissionDenied';
+  const toolDecision = linearMouseDecision(state);
+  const toolDecisionCopy = {
+    confirmed: ['已单独确认', '仅模拟使用候选工具，仍不会下载、安装或请求真实权限。'],
+    declined: ['已拒绝', '已在这一步模拟拒绝候选工具；只有指针动作留待处理，Ctrl 子动作继续。'],
+    unconfirmed: ['未确认', '不会安装；只有指针动作留待处理，Ctrl 子动作继续。'],
+  }[toolDecision];
   return page(
     '准备应用已确认的计划',
     '迁移前快照已模拟创建并验证。拒绝权限或第三方工具只影响对应模块。',
     `<div class="snapshot-ok" role="status"><b>✓ 迁移前快照已验证</b><span>只覆盖已确认、可恢复的设置；不含 Wi‑Fi 密码。</span></div>
     <div class="permission-list">
-      ${hasKeyboard ? `<section><span>${tag('permission')}</span><div><b>辅助功能权限</b><p>选择性 Ctrl 兼容需要；拒绝后跳过操作习惯，其他模块继续。</p></div></section>` : ''}
-      ${hasPointer ? `<section><span>${tag('thirdParty')}</span><div><b>LinearMouse 候选</b><p>用于分开鼠标和触控板滚动方向；拒绝后不安装，并把相关结果留待处理。</p></div></section>` : ''}
+      ${hasKeyboard ? `<section><span>${tag('permission')}</span><div><b>辅助功能权限</b><p>两个 Ctrl 子动作需要；拒绝后只跳过依赖权限的 Ctrl 动作，指针按自己的第三方确认状态处理。</p></div></section>` : ''}
+      ${hasPointer ? `<section><span>${tag('thirdParty')}</span><div><b>LinearMouse 候选 · ${toolDecisionCopy[0]}</b><p>${toolDecisionCopy[1]}</p></div></section>` : ''}
       ${hasDeveloper && state.selected.homebrew ? `<section><span>${tag('thirdParty')}${tag('irreversible')}</span><div><b>Homebrew</b><p>第三方命令行软件包管理器；拒绝后开发工具改为稍后处理。</p></div></section>` : ''}
     </div>`,
     button(
@@ -344,7 +376,11 @@ function permissionPage() {
 function resultList() {
   return `<div class="results">${modules(state).map((item) => {
     const code = effectiveResult(state, item.id) || 'unknown_requires_review';
-    return `<div><span><b>${item.title}</b><small>${item.change}</small></span><strong class="status ${code}">${statusLabel(item, code)}</strong></div>`;
+    const actions = item.id === 'habits' ? `<ul class="action-results">${habitActions(state).map((action) => {
+      const actionCode = effectiveActionResult(state, action.id) || 'unknown_requires_review';
+      return `<li><span>${action.title}<small>${action.change}</small></span><strong class="status ${actionCode}">${statusLabel(action, actionCode)}</strong></li>`;
+    }).join('')}</ul>` : '';
+    return `<section class="result-module"><div><span><b>${item.title}</b><small>${item.change}</small></span><strong class="status ${code}">${statusLabel(item, code)}</strong></div>${actions}</section>`;
   }).join('')}</div>`;
 }
 
@@ -380,9 +416,13 @@ function reportPage() {
     `<div class="report">
       ${modules(state).map((item) => {
         const code = effectiveResult(state, item.id) || 'unknown_requires_review';
+        const actionRows = item.id === 'habits' ? `<div class="report-actions"><b>动作结果</b><ul>${habitActions(state).map((action) => {
+          const actionCode = effectiveActionResult(state, action.id) || 'unknown_requires_review';
+          return `<li><span>${action.title}</span><strong class="status ${actionCode}">${statusLabel(action, actionCode)}</strong></li>`;
+        }).join('')}</ul></div>` : '';
         return `<section>
           <header><b>${item.title}</b><span class="status ${code}">${statusLabel(item, code)}</span></header>
-          <dl><dt>计划</dt><dd>${item.change}</dd><dt>原因与收益</dt><dd>${item.why}；${item.benefit}</dd><dt>验证</dt><dd>${item.verify}</dd><dt>恢复</dt><dd>${item.restore}</dd></dl>
+          ${actionRows}<dl><dt>计划</dt><dd>${item.change}</dd><dt>原因与收益</dt><dd>${item.why}；${item.benefit}</dd><dt>验证</dt><dd>${item.verify}</dd><dt>恢复</dt><dd>${item.restore}</dd></dl>
         </section>`;
       }).join('')}
       <p class="report-note">导出格式仍由 OD-010 决定，本原型不会生成文件。</p>
@@ -397,17 +437,22 @@ function guideSections() {
   const result = (id) => effectiveResult(state, id);
 
   if (byId.habits) {
-    if (result('habits') === 'rolled_back_verified') {
-      sections.push(['操作习惯已恢复', 'Ctrl 和指针设置已回到迁移前状态。']);
-    } else if (result('habits') === 'applied_verified') {
-      if (state.selected.keyboard || state.selected.external) {
-        sections.push(['普通应用继续用 Ctrl', '复制、粘贴和撤销可以继续用 Ctrl；终端、远程桌面和虚拟机仍使用真实 Ctrl。']);
-      }
-      if (state.selected.pointer) {
-        sections.push(['鼠标和触控板分开', '鼠标使用 Windows 式滚动方向，触控板保留自然滚动。']);
-      }
-    } else {
-      sections.push(['操作习惯尚未应用', '权限或第三方工具未允许；其他模块不受影响，可重新开始后再次确认。']);
+    const ctrlActions = habitActions(state).filter((action) => ['builtInCtrl', 'externalCtrl'].includes(action.id));
+    const ctrlResults = ctrlActions.map((action) => effectiveActionResult(state, action.id));
+    const pointerResult = state.selected.pointer ? effectiveActionResult(state, 'pointerScroll') : undefined;
+    if (ctrlResults.some((code) => code === 'applied_verified')) {
+      sections.push(['Ctrl 兼容已完成', '已验证的内置或外接键盘可在普通应用继续使用 Ctrl；终端、远程桌面和虚拟机仍使用真实 Ctrl。']);
+    } else if (ctrlResults.some((code) => code === 'rolled_back_verified')) {
+      sections.push(['Ctrl 兼容已恢复', '只恢复了本次已应用的键盘动作；跳过的动作没有被标成已恢复。']);
+    } else if (ctrlResults.length) {
+      sections.push(['Ctrl 兼容已跳过', '辅助功能权限未允许，相关键盘动作没有应用。']);
+    }
+    if (pointerResult === 'applied_verified') {
+      sections.push(['鼠标和触控板已分开', '鼠标使用 Windows 式滚动方向，触控板保留自然滚动。']);
+    } else if (pointerResult === 'rolled_back_verified') {
+      sections.push(['指针滚动已恢复', '已应用的指针动作回到迁移前状态。']);
+    } else if (pointerResult === 'manual_action_required') {
+      sections.push(['指针滚动稍后处理', 'LinearMouse 候选未确认或被拒绝；Ctrl 动作结果不受影响。']);
     }
   }
 
@@ -478,7 +523,9 @@ function homePage() {
 
 function recoveryPage() {
   const recoverable = modules(state).filter((item) => (
-    item.recoverable && ['applied_verified', 'failed_recoverable'].includes(state.results[item.id])
+    item.recoverable && (item.id === 'habits'
+      ? habitActions(state).some((action) => state.actionResults[action.id] === 'applied_verified')
+      : ['applied_verified', 'failed_recoverable'].includes(state.results[item.id]))
   ));
   const remaining = recoverable.filter((item) => !state.restored.includes(item.id));
   return page(
@@ -487,7 +534,13 @@ function recoveryPage() {
     `<div class="restore-list">${modules(state).map((item) => {
       const canRestore = recoverable.some((candidate) => candidate.id === item.id);
       const done = state.restored.includes(item.id);
-      return `<div><span><b>${item.title}</b><small>${canRestore ? (done ? '已模拟恢复并验证' : item.restore) : '本次没有可自动恢复的设置'}</small></span>${canRestore ? button(done ? '已恢复' : m.restore, 'RESTORE', item.id, 'secondary', done) : ''}</div>`;
+      const actionDetails = item.id === 'habits' ? `<ul class="restore-actions">${habitActions(state).map((action) => {
+        const code = effectiveActionResult(state, action.id) || 'unknown_requires_review';
+        const wasApplied = state.actionResults[action.id] === 'applied_verified';
+        const copy = code === 'rolled_back_verified' ? '已恢复' : wasApplied ? '可恢复' : statusLabel(action, code);
+        return `<li><span>${action.title}</span><strong class="status ${code}">${copy}</strong></li>`;
+      }).join('')}</ul>` : '';
+      return `<section class="restore-module"><div><span><b>${item.title}</b><small>${canRestore ? (done ? (item.id === 'habits' ? '只恢复了已应用且可恢复的动作' : '已模拟恢复并验证') : item.restore) : '本次没有可自动恢复的设置'}</small></span>${canRestore ? button(done ? '已恢复' : m.restore, 'RESTORE', item.id, 'secondary', done) : ''}</div>${actionDetails}</section>`;
     }).join('')}</div>`,
     `${button(remaining.length ? `全部恢复（${remaining.length} 项）` : '全部可恢复项已恢复', 'RESTORE_ALL', '', 'primary', remaining.length === 0)}${button(m.home, 'HOME', '', 'secondary')}`,
   );
@@ -502,7 +555,7 @@ function prototypeControls() {
         <label>${m.planMode}<select data-event="MODE"><option value="collapsed">${m.collapsed}</option><option value="expanded" ${state.planMode === 'expanded' ? 'selected' : ''}>${m.expanded}</option></select></label>
         ${button(`${state.reduced ? '✓ ' : ''}${m.reduced}`, 'REDUCED', '', 'toolbutton')}
         ${button(m.reset, 'RESET', '', 'toolbutton')}
-        <details class="state"><summary>${m.state}</summary><code>${JSON.stringify({ screen: state.screen, scenario: state.scenario, selected: state.selected, planRemoved: state.planRemoved, planConfirmed: state.planConfirmed, results: state.results, restored: state.restored }, null, 2)}</code></details>
+        <details class="state"><summary>${m.state}</summary><code>${JSON.stringify({ screen: state.screen, scenario: state.scenario, selected: state.selected, linearMouseConfirmed: state.linearMouseConfirmed, planRemoved: state.planRemoved, planConfirmed: state.planConfirmed, results: state.results, actionResults: state.actionResults, restored: state.restored, restoredActions: state.restoredActions }, null, 2)}</code></details>
       </div>
     </details>`;
 }
@@ -529,6 +582,8 @@ function render(focus = {}) {
     app.querySelector(`input[data-payload="${focus.payload}"]`)?.focus();
   } else if (focus.event === 'HOMEBREW_TOGGLE') {
     app.querySelector('input[data-event="HOMEBREW_TOGGLE"]')?.focus();
+  } else if (focus.event === 'LINEAR_MOUSE_TOGGLE') {
+    app.querySelector('input[data-event="LINEAR_MOUSE_TOGGLE"]')?.focus();
   } else if (focus.event === 'EXPAND') {
     app.querySelector(`button[data-event="EXPAND"][data-payload="${focus.payload}"]`)?.focus();
   } else if (focus.event === 'MODE' || focus.event === 'SCENARIO') {
