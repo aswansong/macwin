@@ -35,10 +35,42 @@ WAVE0_AUTHORIZATION = {
     "release": False,
 }
 
+FEATURE_LIST_KEYS = frozenset(
+    {
+        "schema_version",
+        "product",
+        "direction",
+        "current_milestone",
+        "milestone_status",
+        "prototype_authorized",
+        "production_implementation_authorized",
+        "system_changes_authorized",
+        "last_updated",
+        "wave0_authorization",
+        "milestone_evidence",
+        "status_definitions",
+        "features",
+    }
+)
+WAVE0_AUTHORIZATION_KEYS = frozenset(WAVE0_AUTHORIZATION)
+MILESTONE_EVIDENCE_KEYS = frozenset({"prototype", "format", "wave0"})
+MILESTONE_EVIDENCE_CHILD_KEYS = {
+    "prototype": frozenset({"commit", "scope"}),
+    "format": frozenset({"schema_version", "scope", "command"}),
+    "wave0": frozenset({"scope", "decision_ref", "evidence_ref"}),
+}
+
 
 def check(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
+
+
+def _check_closed_keys(actual: dict[str, object], expected: set[str] | frozenset[str], label: str) -> None:
+    unknown = sorted(set(actual) - expected)
+    missing = sorted(expected - set(actual))
+    check(not unknown, f"{label} has unknown keys: {unknown}")
+    check(not missing, f"{label} has missing keys: {missing}")
 
 
 def _ignored(path: Path, root: Path) -> bool:
@@ -141,6 +173,9 @@ def traceability_checks(root: Path = ROOT) -> dict[str, int]:
 
 def feature_checks(root: Path = ROOT) -> int:
     data = strict_json((root / "docs/execution/feature-list.json").read_bytes(), "feature-list.json")
+    check("milestone_status" in data, "milestone_status is required")
+    check("milestone_evidence" in data, "milestone_evidence is required")
+    _check_closed_keys(data, FEATURE_LIST_KEYS, "feature-list")
     features = data["features"]
     ids = [x["id"] for x in features]
     check(len(ids) == len(set(ids)), "duplicate feature IDs")
@@ -169,7 +204,6 @@ def feature_checks(root: Path = ROOT) -> int:
         visiting.remove(node); done.add(node)
     for node in graph: visit(node)
     check(data["current_milestone"] == "M2-wave0-research-only", "current milestone mismatch")
-    check("milestone_status" in data, "milestone_status is required")
     check(data["milestone_status"] == "research_only_wave0_active", "unexpected milestone status")
     check(data.get("last_updated") == "2026-08-01", "last_updated mismatch")
     check(data.get("prototype_authorized") is True, "prototype authorization history must remain true")
@@ -182,16 +216,20 @@ def feature_checks(root: Path = ROOT) -> int:
         check(field in authorization, f"wave0 authorization field is required: {field}")
         check(type(authorization[field]) is bool, f"wave0 authorization field must be boolean: {field}")
         check(authorization[field] is expected, f"wave0 authorization mismatch: {field}")
-    check("milestone_evidence" in data and isinstance(data["milestone_evidence"], dict), "milestone_evidence is required")
+    _check_closed_keys(authorization, WAVE0_AUTHORIZATION_KEYS, "wave0 authorization")
+    check(isinstance(data["milestone_evidence"], dict), "milestone_evidence is required")
     evidence = data["milestone_evidence"]
     check(isinstance(evidence.get("prototype"), dict), "prototype milestone evidence is required")
+    check(isinstance(evidence.get("format"), dict), "format milestone evidence is required")
+    check(isinstance(evidence.get("wave0"), dict), "wave0 milestone evidence is required")
+    _check_closed_keys(evidence, MILESTONE_EVIDENCE_KEYS, "milestone evidence")
+    for name, expected_keys in MILESTONE_EVIDENCE_CHILD_KEYS.items():
+        _check_closed_keys(evidence[name], expected_keys, f"milestone evidence {name}")
     check(re.fullmatch(r"[0-9a-f]{40}", evidence["prototype"].get("commit", "")) is not None, "prototype evidence commit mismatch")
     check(evidence["prototype"].get("scope") == "fictional_browser_interaction_only", "prototype evidence scope mismatch")
-    check(isinstance(evidence.get("format"), dict), "format milestone evidence is required")
     check(evidence["format"].get("schema_version") == "1.0.0", "format evidence schema version mismatch")
     check(evidence["format"].get("scope") == "schema_container_and_fictional_fixture_validation_only", "format evidence scope mismatch")
     check(evidence["format"].get("command") == "./scripts/validate-m1", "format evidence command mismatch")
-    check(isinstance(evidence.get("wave0"), dict), "wave0 milestone evidence is required")
     check(evidence["wave0"].get("scope") == "research_only_no_production_or_system_changes", "wave0 evidence scope mismatch")
     check(evidence["wave0"].get("decision_ref") == "D-029", "wave0 decision evidence mismatch")
     check(evidence["wave0"].get("evidence_ref") == "E-018", "wave0 evidence reference mismatch")

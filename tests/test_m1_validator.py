@@ -384,6 +384,30 @@ class M1ValidatorTests(unittest.TestCase):
             "unexpected milestone status",
         )
 
+    def test_governance_rejects_unknown_closed_set_keys(self) -> None:
+        for value in (True, False):
+            with self.subTest(location="wave0_authorization", value=value):
+                self._assert_feature_policy_rejected(
+                    lambda data, value=value: data["wave0_authorization"].__setitem__("unknown", value),
+                    "wave0 authorization has unknown keys",
+                )
+            with self.subTest(location="feature-list", value=value):
+                self._assert_feature_policy_rejected(
+                    lambda data, value=value: data.__setitem__("unknown", value),
+                    "feature-list has unknown keys",
+                )
+            with self.subTest(location="milestone_evidence", value=value):
+                self._assert_feature_policy_rejected(
+                    lambda data, value=value: data["milestone_evidence"].__setitem__("unknown", value),
+                    "milestone evidence has unknown keys",
+                )
+        for child in ("prototype", "format", "wave0"):
+            with self.subTest(location=f"milestone_evidence.{child}"):
+                self._assert_feature_policy_rejected(
+                    lambda data, child=child: data["milestone_evidence"][child].__setitem__("unknown", True),
+                    f"milestone evidence {child} has unknown keys",
+                )
+
     def test_root_readme_references_are_checked(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
