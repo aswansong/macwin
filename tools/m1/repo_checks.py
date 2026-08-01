@@ -59,6 +59,8 @@ MILESTONE_EVIDENCE_CHILD_KEYS = {
     "format": frozenset({"schema_version", "scope", "command"}),
     "wave0": frozenset({"scope", "decision_ref", "evidence_ref"}),
 }
+P0_FEATURE_IDS = frozenset(f"P0-{index:03d}" for index in range(1, 16))
+STATUS_DEFINITIONS = frozenset({"specified", "prototyped", "implemented", "verified", "blocked"})
 
 
 def check(condition: bool, message: str) -> None:
@@ -173,25 +175,47 @@ def traceability_checks(root: Path = ROOT) -> dict[str, int]:
 
 def feature_checks(root: Path = ROOT) -> int:
     data = strict_json((root / "docs/execution/feature-list.json").read_bytes(), "feature-list.json")
+    check(isinstance(data, dict), "feature-list must be an object")
     check("milestone_status" in data, "milestone_status is required")
     check("milestone_evidence" in data, "milestone_evidence is required")
     _check_closed_keys(data, FEATURE_LIST_KEYS, "feature-list")
     features = data["features"]
-    ids = [x["id"] for x in features]
+    check(isinstance(features, list), "features must be a list")
+    check(len(features) == len(P0_FEATURE_IDS), "features must contain exactly 15 items")
+    for index, feature in enumerate(features):
+        check(isinstance(feature, dict), f"feature {index} must be an object")
+        check(isinstance(feature.get("id"), str), f"feature {index} id must be a string")
+    ids = [feature["id"] for feature in features]
     check(len(ids) == len(set(ids)), "duplicate feature IDs")
+    check(set(ids) == P0_FEATURE_IDS, "feature IDs must be exactly P0-001 through P0-015")
+    status_definitions = data["status_definitions"]
+    check(isinstance(status_definitions, dict), "status_definitions must be an object")
+    _check_closed_keys(status_definitions, STATUS_DEFINITIONS, "status_definitions")
+    for status, description in status_definitions.items():
+        check(isinstance(description, str) and description, f"status definition must be a non-empty string: {status}")
     known = set(ids)
     acceptance: set[str] = set()
     graph: dict[str, list[str]] = {}
     for feature in features:
+        check(isinstance(feature.get("priority"), str), f"missing priority: {feature['id']}")
+        check(isinstance(feature.get("status"), str), f"missing status: {feature['id']}")
         check(feature["priority"] == "P0", f"non-P0 feature: {feature['id']}")
-        check(feature["status"] in data["status_definitions"], f"unknown status: {feature['id']}")
-        check(isinstance(feature["dependencies"], list), f"missing dependencies: {feature['id']}")
+        check(feature["status"] in status_definitions, f"unknown status: {feature['id']}")
+        check(isinstance(feature.get("dependencies"), list), f"missing dependencies: {feature['id']}")
+        check(isinstance(feature.get("risks"), list), f"missing risks: {feature['id']}")
+        check(isinstance(feature.get("decision_refs"), list), f"missing decision refs: {feature['id']}")
+        check(isinstance(feature.get("acceptance_criteria"), list), f"missing acceptance: {feature['id']}")
         check(feature["risks"], f"missing risks: {feature['id']}")
         check(feature["decision_refs"], f"missing decision refs: {feature['id']}")
         check(feature["acceptance_criteria"], f"missing acceptance: {feature['id']}")
         graph[feature["id"]] = feature["dependencies"]
+        check(all(isinstance(dependency, str) for dependency in feature["dependencies"]), f"dependency IDs must be strings: {feature['id']}")
         check(set(feature["dependencies"]) <= known, f"unknown dependency: {feature['id']}")
         for criterion in feature["acceptance_criteria"]:
+            check(isinstance(criterion, dict), f"acceptance criterion must be an object: {feature['id']}")
+            check(isinstance(criterion.get("id"), str), f"acceptance ID must be a string: {feature['id']}")
+            check(isinstance(criterion.get("statement"), str), f"acceptance statement must be a string: {criterion['id']}")
+            check(isinstance(criterion.get("verification"), str), f"acceptance verification must be a string: {criterion['id']}")
             check(criterion["id"] not in acceptance, f"duplicate acceptance ID: {criterion['id']}")
             check(criterion["statement"] and criterion["verification"], f"empty acceptance: {criterion['id']}")
             acceptance.add(criterion["id"])

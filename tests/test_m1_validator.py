@@ -339,6 +339,48 @@ class M1ValidatorTests(unittest.TestCase):
                 with self.assertRaisesRegex(AssertionError, f"{field} is required"):
                     feature_checks(root)
 
+    def test_feature_registry_requires_complete_p0_closed_set(self) -> None:
+        cases = {
+            "empty": (lambda data: data.__setitem__("features", []), "exactly 15"),
+            "object": (lambda data: data.__setitem__("features", {}), "must be a list"),
+            "null": (lambda data: data.__setitem__("features", None), "must be a list"),
+            "string": (lambda data: data.__setitem__("features", "P0-001"), "must be a list"),
+            "fourteen": (lambda data: data.__setitem__("features", data["features"][:14]), "exactly 15"),
+            "sixteen": (lambda data: data["features"].append(dict(data["features"][0])), "exactly 15"),
+            "duplicate": (lambda data: data["features"][1].__setitem__("id", "P0-001"), "duplicate feature IDs"),
+            "missing_id": (lambda data: data["features"][0].pop("id"), "id must be a string"),
+            "unknown_id": (lambda data: data["features"][0].__setitem__("id", "P0-999"), "exactly P0-001 through P0-015"),
+            "nonobject": (lambda data: data["features"].__setitem__(0, None), "must be an object"),
+        }
+        for name, (mutate, message) in cases.items():
+            with self.subTest(name):
+                self._assert_feature_policy_rejected(mutate, message)
+
+    def test_feature_registry_accepts_complete_p0_set_in_any_order(self) -> None:
+        def reverse_features(data):
+            data["features"].reverse()
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "docs/execution"
+            target.mkdir(parents=True)
+            data = json.loads((ROOT / "docs/execution/feature-list.json").read_text())
+            reverse_features(data)
+            (target / "feature-list.json").write_text(json.dumps(data))
+            self.assertEqual(15, feature_checks(root))
+
+    def test_status_definitions_are_a_typed_closed_set(self) -> None:
+        cases = {
+            "unknown": lambda data: data["status_definitions"].__setitem__("future", "not approved"),
+            "missing": lambda data: data["status_definitions"].pop("blocked"),
+            "not_object": lambda data: data.__setitem__("status_definitions", None),
+            "non_string_description": lambda data: data["status_definitions"].__setitem__("specified", None),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(name):
+                message = "status definition" if name == "non_string_description" else "status_definitions"
+                self._assert_feature_policy_rejected(mutate, message)
+
     def _assert_feature_policy_rejected(self, mutate, message: str) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
