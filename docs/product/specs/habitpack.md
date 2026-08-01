@@ -101,15 +101,15 @@ SHA-256、size 和 schema 都针对解压后的原始文件字节；Deflate 可�
 
 每个条目的声明压缩范围必须被完整且只消费一次：Stored 要求 `compressed_size == file_size`；Deflate 使用 raw-deflate 解码并要求到达唯一流结尾，不能留下 `unused_data`、`unconsumed_tail`，且解压字节数必须等于 `file_size`。有效流后的 marker、第二段流和零填充都按 `HP_ZIP_STREAM` 拒绝；不能只依赖宽容的 ZIP 读取器。
 
-所有 JSON 使用无 BOM 的 UTF-8 严格解析，拒绝重复键以及 `NaN`、`Infinity`、`-Infinity`（包括嵌套值）。`created_at` 由项目 RFC3339 checker 验证完整日期、时间和时区；普通文本、仅日期或非法日历/时间全部拒绝。
+所有 JSON 使用无 BOM 的 UTF-8 严格解析，拒绝重复键以及 `NaN`、`Infinity`、`-Infinity`（包括嵌套值）。`created_at` 采用 M1 canonical UTC date-time 子集，精确格式为 `YYYY-MM-DDTHH:MM:SSZ`：`T`/`Z` 必须大写，日期和时间必须是真实 Gregorian 值，不接受时区 offset、小写 `t`/`z`、leap second、小数秒或仅日期。它不是完整 RFC 3339 接受范围。
 
-校验器在读取或解压内容前从文件末尾的固定 EOCD 验证单卷字段、中央目录范围、每个中央条目和 local header/压缩数据的连续边界，并按 ZIP64 locator 与 extra 的结构位置拒绝 ZIP64。它不在不透明内容中裸搜 ZIP 签名字节，因此合法秘密即使包含 EOCD、ZIP64 EOCD 或 locator 签名片段也不会被误判。随后再检查路径、类型、加密、条目数、大小、压缩比和可执行魔数，并进行严格 JSON、schema、媒体、声明、哈希、规则、选择与秘密关系校验。任何一步失败都不把内容交给执行层。
+校验器先从文件末尾的固定 EOCD 解析单卷字段、中央目录以及全部 local header 元数据；`0xffffffff` size sentinel 始终优先按 ZIP64 拒绝。任何 Stored 内容复制或 Deflate 解码前，它仅依据已解析的 canonical path 与 local/central 声明检查压缩包、条目、类型大小、总解压字节和 100:1 压缩比上限。通过预检后才验证连续压缩范围和唯一流；Deflate 解码器自身仍以对应路径类型上限为硬上限，且每次最多请求可信声明大小与该上限的较小值再加 1 字节。它不在不透明内容中裸搜 ZIP 签名字节，因此合法秘密即使包含 EOCD、ZIP64 EOCD 或 locator 签名片段也不会被误判。随后才读取内容，并检查可执行魔数、严格 JSON、schema、媒体、声明、哈希、规则、选择与秘密关系。任何一步失败都不把内容交给执行层。
 
 稳定错误格式为 `ERROR [HP_ERROR_CODE] fixture:path`。秘密内容永远不进入错误或日志。
 
 ## 7. 虚构夹具与统一命令
 
-[`fixtures/m1/fixture-matrix.json`](../../../fixtures/m1/fixture-matrix.json) 保存 8 个有效包来源描述和覆盖容器、JSON、版本、规则、选择、秘密及可执行内容的无效变体。构建器只在临时目录生成实际 `.habitpack`，并通过同一个校验入口读取；仓库不保存迁移包。
+[`fixtures/m1/fixture-matrix.json`](../../../fixtures/m1/fixture-matrix.json) 保存 8 个有效包来源描述和 106 个覆盖容器、JSON、版本、规则、选择、秘密及可执行内容的无效变体。构建器只在临时目录生成实际 `.habitpack`，并通过同一个校验入口读取；仓库不保存迁移包。
 
 运行：
 

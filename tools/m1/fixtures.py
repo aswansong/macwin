@@ -145,7 +145,16 @@ def _mutate(m: str, e: dict[str, bytes], mf: dict[str, Any], meta: dict[str, Any
         constant = {"json_nan":"NaN","json_infinity":"Infinity","json_negative_infinity":"-Infinity"}[m]
         e["selections.json"] = ('{"schema_version":"1.0.0","guide_requested":false,"selected_candidate_ids":[],"nested":{"value":' + constant + '}}').encode()
     elif m in {"major","minor","patch","malformed"}: mf["schema_version"]={"major":"2.0.0","minor":"1.1.0","patch":"1.0.1","malformed":"one"}[m]
-    elif m in {"created_at_text","created_at_date","created_at_invalid"}: mf["created_at"]={"created_at_text":"not-a-time","created_at_date":"2026-07-31","created_at_invalid":"2026-02-30T25:61:61Z"}[m]
+    elif m.startswith("created_at_"):
+        mf["created_at"] = {
+            "created_at_text": "not-a-time",
+            "created_at_date": "2026-07-31",
+            "created_at_invalid": "2026-02-30T25:61:61Z",
+            "created_at_lowercase": "2026-07-31t00:00:00z",
+            "created_at_offset": "2026-07-31T08:00:00+08:00",
+            "created_at_leap_second": "2026-12-31T23:59:60Z",
+            "created_at_fractional": "2026-07-31T00:00:00.001Z",
+        }[m]
     elif m in {"directory","symlink","special","encrypted","zip64","sfx_prefix","trailing_data","archive_comment","comment_mismatch","multidisk","central_multidisk","central_offset","central_size","local_gap","double_eocd","fake_tail_eocd","data_descriptor","local_extra","central_extra","matching_extra","zero_extra","zip64_extra","flag_low","flag_high","flag_mismatch","bzip2","lzma","method_unknown","method_mismatch","local_version","central_version","both_version","made_by","internal_attr","external_attr_high","external_attr_low","local_timestamp","central_timestamp","both_timestamp","central_reverse","local_only_reverse","local_reverse","manifest_last","deflate_marker","deflate_second_stream","deflate_zero_padding","stored_size_mismatch","local_compressed_sentinel","local_file_sentinel","central_compressed_sentinel","central_file_sentinel"}: meta[m]=True
     if m == "stored_size_mismatch": meta["force_stored"] = True
 

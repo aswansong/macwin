@@ -41,7 +41,7 @@ M1 仓库统一入口为 `./scripts/validate-m1`；它只验证格式与虚构�
 - 路径规范化、大小限制、重复键/路径和 Unicode 碰撞；
 - M1 ZIP 的连续布局、零 comment/extra/flags、Stored/Deflate 方法、固定版本/时间/属性与 UTF-8 字节顺序，以及 ZIP64、保留位和未知压缩拒绝；不同 Deflate level 都必须保持有效；
 - Stored/Deflate 声明范围的唯一完整消费、流后数据/第二流/填充拒绝，以及 ZIP64 size sentinel 的稳定优先级；
-- JSON 非有限数、BOM/非 UTF-8 和 RFC3339 `created_at` 负例；
+- JSON 非有限数、BOM/非 UTF-8，以及 canonical UTC `created_at` 的小写、offset、leap second、小数秒、仅日期与非法日期负例；
 - 日志脱敏和秘密检测；
 - 模块依赖排序、失败隔离和状态汇总；
 - 快照/恢复的幂等性与中断恢复。

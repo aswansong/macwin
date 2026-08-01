@@ -80,23 +80,23 @@ def _load_schemas() -> tuple[dict[str, Any], dict[str, Any]]:
     return schemas, catalog
 
 
-RFC3339_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$")
+CANONICAL_UTC_DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
-def _is_rfc3339_datetime(value: object) -> bool:
+def _is_canonical_utc_datetime(value: object) -> bool:
     if not isinstance(value, str):
         return True
-    if not RFC3339_RE.fullmatch(value):
+    if not CANONICAL_UTC_DATETIME_RE.fullmatch(value):
         return False
     try:
-        parsed = datetime.fromisoformat(value[:-1] + "+00:00" if value.endswith("Z") else value)
+        datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
     except ValueError:
         return False
-    return parsed.tzinfo is not None
+    return True
 
 
 PROJECT_FORMAT_CHECKER = FormatChecker()
-PROJECT_FORMAT_CHECKER.checks("date-time")(_is_rfc3339_datetime)
+PROJECT_FORMAT_CHECKER.checks("macwin-canonical-utc-date-time")(_is_canonical_utc_datetime)
 
 
 def _schema_validate(instance: Any, name: str, schemas: dict[str, Any]) -> None:
@@ -162,9 +162,50 @@ def _classify_missing_final_eocd(data: bytes) -> None:
     fail("HP_ZIP_LAYOUT", "archive")
 
 
+def _resource_policy(name: bytes) -> tuple[int, str]:
+    if name == b"manifest.json":
+        return MAX_MANIFEST, "HP_MANIFEST_TOO_LARGE"
+    if name.startswith(b"secrets/"):
+        return MAX_SECRET, "HP_SECRET_TOO_LARGE"
+    return MAX_JSON, "HP_JSON_TOO_LARGE"
+
+
+def _validate_declared_resources(entries: list[dict[str, Any]]) -> None:
+    total = 0
+    for entry in entries:
+        limit, size_code = _resource_policy(entry["name"])
+        file_size = entry["file_size"]
+        compressed_size = entry["compressed_size"]
+        if file_size > limit:
+            fail(size_code, "archive")
+        if file_size > compressed_size * MAX_RATIO:
+            fail("HP_COMPRESSION_RATIO", "archive")
+        total += file_size
+    if total > MAX_TOTAL:
+        fail("HP_TOTAL_TOO_LARGE", "archive")
+
+
+def _validate_deflate_stream(compressed: bytes, expected_size: int, hard_limit: int, size_code: str) -> None:
+    """Validate one raw Deflate stream without trusting its declared output size."""
+    if expected_size > hard_limit:
+        fail(size_code, "archive")
+    decoder = zlib.decompressobj(-zlib.MAX_WBITS)
+    max_output = min(expected_size, hard_limit) + 1
+    try:
+        decoded = decoder.decompress(compressed, max_output)
+        if len(decoded) < max_output:
+            decoded += decoder.flush(max_output - len(decoded))
+    except zlib.error:
+        fail("HP_ZIP_STREAM", "archive")
+    if len(decoded) != expected_size or not decoder.eof or decoder.unused_data or decoder.unconsumed_tail:
+        fail("HP_ZIP_STREAM", "archive")
+
+
 def _validate_zip_layout(data: bytes) -> str | None:
     """Validate the deliberately narrow, contiguous, single-volume M1 ZIP profile."""
     profile_error: str | None = None
+    if len(data) > MAX_ARCHIVE:
+        fail("HP_ARCHIVE_TOO_LARGE", "archive")
     if len(data) < 22 or data[-22:-18] != b"PK\x05\x06":
         _classify_missing_final_eocd(data)
     eocd_offset = len(data) - 22
@@ -206,16 +247,19 @@ def _validate_zip_layout(data: bytes) -> str | None:
         position = end
     if position != eocd_offset or len(central_entries) != total_entries:
         fail("HP_ZIP_LAYOUT", "archive")
+    if len(central_entries) > MAX_ENTRIES:
+        fail("HP_TOO_MANY_ENTRIES", "archive")
     central_names = [entry["name"] for entry in central_entries]
     expected_names = [b"manifest.json", *sorted((name for name in central_names if name != b"manifest.json"))]
     if central_names != expected_names or central_names.count(b"manifest.json") != 1:
         profile_error = profile_error or "HP_ZIP_ORDER"
 
-    expected_local_offset = 0
+    local_entries: list[dict[str, Any]] = []
     local_names: list[bytes] = []
-    for entry in sorted(central_entries, key=lambda item: item["local_offset"]):
+    ordered_entries = sorted(central_entries, key=lambda item: item["local_offset"])
+    for entry in ordered_entries:
         local_offset = entry["local_offset"]
-        if local_offset != expected_local_offset or local_offset + 30 > cd_offset or data[local_offset : local_offset + 4] != b"PK\x03\x04":
+        if local_offset + 30 > cd_offset or data[local_offset : local_offset + 4] != b"PK\x03\x04":
             fail("HP_ZIP_LAYOUT", "archive")
         local = struct.unpack_from("<4s5H3L2H", data, local_offset)
         _, version_needed, flags, method, dos_time, dos_date, crc, compressed_size, file_size, name_length, extra_length = local
@@ -224,10 +268,9 @@ def _validate_zip_layout(data: bytes) -> str | None:
         name_start = local_offset + 30
         extra_start = name_start + name_length
         data_start = extra_start + extra_length
-        data_end = data_start + compressed_size
         local_name = data[name_start:extra_start]
         local_names.append(local_name)
-        if data_end > cd_offset or local_name != entry["name"]:
+        if data_start > cd_offset or local_name != entry["name"]:
             fail("HP_ZIP_LAYOUT", "archive")
         if (flags, method, crc, compressed_size, file_size) != (entry["flags"], entry["method"], entry["crc"], entry["compressed_size"], entry["file_size"]):
             fail("HP_ZIP_LAYOUT", "archive")
@@ -254,20 +297,29 @@ def _validate_zip_layout(data: bytes) -> str | None:
                 profile_error = profile_error or "HP_ZIP_TIMESTAMP"
             elif entry["internal_attr"] != 0 or entry["external_attr"] != CANONICAL_EXTERNAL_ATTR:
                 profile_error = profile_error or "HP_ZIP_ATTRIBUTES"
+        local_entries.append({**entry, "data_start": data_start})
+
+    # Every ZIP64 sentinel and all local/central metadata are parsed before any
+    # size-policy rejection, Stored payload copy, or Deflate invocation.
+    _validate_declared_resources(local_entries)
+
+    expected_local_offset = 0
+    for entry in local_entries:
+        local_offset = entry["local_offset"]
+        data_start = entry["data_start"]
+        compressed_size = entry["compressed_size"]
+        file_size = entry["file_size"]
+        method = entry["method"]
+        data_end = data_start + compressed_size
+        if local_offset != expected_local_offset or data_end > cd_offset:
+            fail("HP_ZIP_LAYOUT", "archive")
+        limit, size_code = _resource_policy(entry["name"])
         compressed = data[data_start:data_end]
         if method == zipfile.ZIP_STORED:
             if compressed_size != file_size:
                 fail("HP_ZIP_STREAM", "archive")
         elif method == zipfile.ZIP_DEFLATED:
-            decoder = zlib.decompressobj(-zlib.MAX_WBITS)
-            try:
-                decoded = decoder.decompress(compressed, file_size + 1)
-                if len(decoded) <= file_size:
-                    decoded += decoder.flush(file_size + 1 - len(decoded))
-            except zlib.error:
-                fail("HP_ZIP_STREAM", "archive")
-            if len(decoded) != file_size or not decoder.eof or decoder.unused_data or decoder.unconsumed_tail:
-                fail("HP_ZIP_STREAM", "archive")
+            _validate_deflate_stream(compressed, file_size, limit, size_code)
         expected_local_offset = data_end
     if expected_local_offset != cd_offset:
         fail("HP_ZIP_LAYOUT", "archive")

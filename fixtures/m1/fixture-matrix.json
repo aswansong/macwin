@@ -624,6 +624,30 @@
       "expected_error": "HP_SCHEMA"
     },
     {
+      "name": "manifest-created-at-lowercase",
+      "base": "minimal-keyboard",
+      "mutation": "created_at_lowercase",
+      "expected_error": "HP_SCHEMA"
+    },
+    {
+      "name": "manifest-created-at-offset",
+      "base": "minimal-keyboard",
+      "mutation": "created_at_offset",
+      "expected_error": "HP_SCHEMA"
+    },
+    {
+      "name": "manifest-created-at-leap-second",
+      "base": "minimal-keyboard",
+      "mutation": "created_at_leap_second",
+      "expected_error": "HP_SCHEMA"
+    },
+    {
+      "name": "manifest-created-at-fractional",
+      "base": "minimal-keyboard",
+      "mutation": "created_at_fractional",
+      "expected_error": "HP_SCHEMA"
+    },
+    {
       "name": "zip-local-compressed-size-sentinel",
       "base": "minimal-keyboard",
       "mutation": "local_compressed_sentinel",

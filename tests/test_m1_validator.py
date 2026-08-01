@@ -8,10 +8,11 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 from tools.m1.fixtures import MATRIX, _json, _manifest, _write_zip, build_fixture, package_source
 from tools.m1.repo_checks import ROOT, feature_checks, json_checks, markdown_checks, traceability_checks
-from tools.m1.validator import HabitpackError, _load_schemas, _schema_validate, strict_json, validate_habitpack
+from tools.m1.validator import MAX_JSON, MAX_MANIFEST, MAX_SECRET, HabitpackError, _load_schemas, _schema_validate, _validate_deflate_stream, strict_json, validate_habitpack
 
 
 class M1ValidatorTests(unittest.TestCase):
@@ -48,16 +49,82 @@ class M1ValidatorTests(unittest.TestCase):
                 strict_json(payload, "fixture.json")
             self.assertEqual("HP_JSON_INVALID", caught.exception.code)
 
-    def test_project_rfc3339_checker_rejects_invalid_datetimes(self) -> None:
+    def test_canonical_utc_datetime_checker_accepts_only_exact_profile(self) -> None:
         schemas, _ = _load_schemas()
         _, manifest = package_source("keyboard")
-        for value in ("not-a-time", "2026-07-31", "2026-02-30T25:61:61Z"):
+        _schema_validate(manifest, "manifest.schema.json", schemas)
+        for value in (
+            "2026-07-31t00:00:00z",
+            "2026-07-31T08:00:00+08:00",
+            "2026-12-31T23:59:60Z",
+            "2026-07-31T00:00:00.001Z",
+            "2026-07-31",
+            "2026-02-30T00:00:00Z",
+        ):
             with self.subTest(value):
                 invalid = dict(manifest)
                 invalid["created_at"] = value
                 with self.assertRaises(HabitpackError) as caught:
                     _schema_validate(invalid, "manifest.schema.json", schemas)
                 self.assertEqual("HP_SCHEMA", caught.exception.code)
+
+    def test_declared_resource_limits_reject_before_deflate_starts(self) -> None:
+        expected = {
+            "manifest-over-limit": "HP_MANIFEST_TOO_LARGE",
+            "entry-json-over-limit": "HP_JSON_TOO_LARGE",
+            "secret-over-limit": "HP_SECRET_TOO_LARGE",
+            "total-over-limit": "HP_TOTAL_TOO_LARGE",
+            "compression-ratio": "HP_COMPRESSION_RATIO",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            for name, code in expected.items():
+                with self.subTest(name):
+                    descriptor = next(x for x in MATRIX["invalid"] if x["name"] == name)
+                    path = Path(directory) / f"{name}.habitpack"
+                    build_fixture(descriptor, path)
+                    with patch("tools.m1.validator.zlib.decompressobj") as decompressor:
+                        with self.assertRaises(HabitpackError) as caught:
+                            validate_habitpack(path, name)
+                    self.assertEqual(code, caught.exception.code)
+                    decompressor.assert_not_called()
+
+    def test_near_zip64_declared_size_is_bounded_before_stream_work(self) -> None:
+        entries, manifest = package_source("keyboard")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "near-zip64-size.habitpack"
+            _write_zip(path, entries, _json(manifest), None, {})
+            data = bytearray(path.read_bytes())
+            eocd = data.rfind(b"PK\x05\x06")
+            central = struct.unpack_from("<L", data, eocd + 16)[0]
+            self.assertLess(struct.unpack_from("<L", data, 18)[0], 1024)
+            struct.pack_into("<L", data, 22, 0xFFFFFFFE)
+            struct.pack_into("<L", data, central + 24, 0xFFFFFFFE)
+            path.write_bytes(data)
+            with patch("tools.m1.validator.zlib.decompressobj") as decompressor:
+                with self.assertRaises(HabitpackError) as caught:
+                    validate_habitpack(path, "near-zip64-size")
+            self.assertEqual("HP_MANIFEST_TOO_LARGE", caught.exception.code)
+            decompressor.assert_not_called()
+
+    def test_deflate_helper_enforces_its_own_hard_limit(self) -> None:
+        with patch("tools.m1.validator.zlib.decompressobj") as decompressor:
+            with self.assertRaises(HabitpackError) as caught:
+                _validate_deflate_stream(b"tiny", MAX_JSON + 1, MAX_JSON, "HP_JSON_TOO_LARGE")
+        self.assertEqual("HP_JSON_TOO_LARGE", caught.exception.code)
+        decompressor.assert_not_called()
+
+    def test_exact_entry_size_boundaries_are_valid(self) -> None:
+        entries, _ = package_source("wifi_secret")
+        module = entries["modules/wifi.json"]
+        entries["modules/wifi.json"] = module + b" " * (MAX_JSON - len(module))
+        entries["secrets/wifi/fixture-one.bin"] = b"S" * MAX_SECRET
+        manifest = _manifest(entries, True)
+        manifest_bytes = _json(manifest)
+        manifest_bytes += b" " * (MAX_MANIFEST - len(manifest_bytes))
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "exact-entry-boundaries.habitpack"
+            _write_zip(path, entries, manifest_bytes, None, {"force_stored": True})
+            validate_habitpack(path, "exact-entry-boundaries")
 
     def test_stream_and_zip64_size_errors_are_stable(self) -> None:
         expected = {
@@ -156,7 +223,7 @@ class M1ValidatorTests(unittest.TestCase):
     def test_different_deflate_levels_remain_valid(self) -> None:
         entries, manifest = package_source("keyboard")
         with tempfile.TemporaryDirectory() as directory:
-            for level in (1, 9):
+            for level in (1, 6, 9):
                 with self.subTest(level):
                     path = Path(directory) / f"level-{level}.habitpack"
                     _write_zip(path, entries, _json(manifest), None, {"compresslevel": level})
