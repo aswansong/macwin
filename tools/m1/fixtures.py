@@ -141,6 +141,8 @@ def _mutate(m: str, e: dict[str, bytes], mf: dict[str, Any], meta: dict[str, Any
     elif m == "extra_prop": _rewrite_json(e, keyboard, lambda d: d.update(extra=True))
     elif m == "duplicate_key": e[keyboard]=b'{"schema_version":"1.0.0","schema_version":"1.0.0"}'
     elif m == "invalid_json": e[keyboard]=b"{"
+    elif m == "json_depth_over": e["selections.json"] = ("[" * 65 + "0" + "]" * 65).encode()
+    elif m == "json_integer_over": e["selections.json"] = (b'{"schema_version":"1.0.0","guide_requested":false,"selected_candidate_ids":[],"large":' + b"7" * 65 + b"}")
     elif m in {"json_nan","json_infinity","json_negative_infinity"}:
         constant = {"json_nan":"NaN","json_infinity":"Infinity","json_negative_infinity":"-Infinity"}[m]
         e["selections.json"] = ('{"schema_version":"1.0.0","guide_requested":false,"selected_candidate_ids":[],"nested":{"value":' + constant + '}}').encode()
@@ -155,7 +157,7 @@ def _mutate(m: str, e: dict[str, bytes], mf: dict[str, Any], meta: dict[str, Any
             "created_at_leap_second": "2026-12-31T23:59:60Z",
             "created_at_fractional": "2026-07-31T00:00:00.001Z",
         }[m]
-    elif m in {"directory","symlink","special","encrypted","zip64","sfx_prefix","trailing_data","archive_comment","comment_mismatch","multidisk","central_multidisk","central_offset","central_size","local_gap","double_eocd","fake_tail_eocd","data_descriptor","local_extra","central_extra","matching_extra","zero_extra","zip64_extra","flag_low","flag_high","flag_mismatch","bzip2","lzma","method_unknown","method_mismatch","local_version","central_version","both_version","made_by","internal_attr","external_attr_high","external_attr_low","local_timestamp","central_timestamp","both_timestamp","central_reverse","local_only_reverse","local_reverse","manifest_last","deflate_marker","deflate_second_stream","deflate_zero_padding","stored_size_mismatch","local_compressed_sentinel","local_file_sentinel","central_compressed_sentinel","central_file_sentinel"}: meta[m]=True
+    elif m in {"directory","symlink","special","encrypted","zip64","sfx_prefix","trailing_data","archive_comment","comment_mismatch","multidisk","central_multidisk","central_offset","central_size","local_gap","double_eocd","fake_tail_eocd","data_descriptor","local_extra","central_extra","matching_extra","zero_extra","zip64_extra","flag_low","flag_high","flag_mismatch","bzip2","lzma","method_unknown","method_mismatch","local_version","central_version","both_version","made_by","internal_attr","external_attr_high","external_attr_low","local_timestamp","central_timestamp","both_timestamp","central_reverse","local_only_reverse","local_reverse","manifest_last","deflate_marker","deflate_second_stream","deflate_zero_padding","stored_size_mismatch","local_compressed_sentinel","local_file_sentinel","central_compressed_sentinel","central_file_sentinel","zip_invalid_utf8_name"}: meta[m]=True
     if m == "stored_size_mismatch": meta["force_stored"] = True
 
 
@@ -370,4 +372,29 @@ def _write_zip(path: Path, entries: dict[str, bytes], manifest: bytes, mutation:
                 pos=data.find(sig,pos)
                 if pos<0: break
                 flags=struct.unpack_from("<H",data,pos+off)[0]|1; struct.pack_into("<H",data,pos+off,flags); pos+=4
+        path.write_bytes(data)
+    if meta.get("zip_invalid_utf8_name"):
+        data = bytearray(path.read_bytes())
+        eocd = data.rfind(b"PK\x05\x06")
+        cd_offset = struct.unpack_from("<L", data, eocd + 16)[0]
+        position = cd_offset
+        target = b"modules/keyboard.json"
+        invalid = b"modules/\xffeyboard.json"
+        while position < eocd:
+            name_length, extra_length, comment_length = struct.unpack_from("<HHH", data, position + 28)
+            name_start = position + 46
+            name_end = name_start + name_length
+            if bytes(data[name_start:name_end]) == target:
+                local_offset = struct.unpack_from("<L", data, position + 42)[0]
+                local_name_length = struct.unpack_from("<H", data, local_offset + 26)[0]
+                if local_name_length != len(invalid) or len(invalid) != len(target):
+                    raise AssertionError("fixture target name length changed")
+                data[local_offset + 30:local_offset + 30 + local_name_length] = invalid
+                struct.pack_into("<H", data, local_offset + 6, struct.unpack_from("<H", data, local_offset + 6)[0] | 0x800)
+                data[name_start:name_end] = invalid
+                struct.pack_into("<H", data, position + 8, struct.unpack_from("<H", data, position + 8)[0] | 0x800)
+                break
+            position += 46 + name_length + extra_length + comment_length
+        else:
+            raise AssertionError("fixture target name not found")
         path.write_bytes(data)

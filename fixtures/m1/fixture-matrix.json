@@ -276,6 +276,18 @@
       "expected_error": "HP_JSON_INVALID"
     },
     {
+      "name": "json-depth-over-limit",
+      "base": "minimal-keyboard",
+      "mutation": "json_depth_over",
+      "expected_error": "HP_JSON_LIMIT"
+    },
+    {
+      "name": "json-integer-over-limit",
+      "base": "minimal-keyboard",
+      "mutation": "json_integer_over",
+      "expected_error": "HP_JSON_LIMIT"
+    },
+    {
       "name": "unsupported-major",
       "base": "minimal-keyboard",
       "mutation": "major",
@@ -670,6 +682,12 @@
       "base": "minimal-keyboard",
       "mutation": "central_file_sentinel",
       "expected_error": "HP_ZIP64_ENTRY"
+    },
+    {
+      "name": "zip-invalid-utf8-name",
+      "base": "minimal-keyboard",
+      "mutation": "zip_invalid_utf8_name",
+      "expected_error": "HP_ZIP_INVALID"
     }
   ]
 }

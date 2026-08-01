@@ -22,6 +22,8 @@ MAX_TOTAL = 16 * 1024 * 1024
 MAX_ENTRIES = 128
 MAX_MANIFEST = 64 * 1024
 MAX_JSON = 1024 * 1024
+MAX_JSON_NESTING = 64
+MAX_JSON_INTEGER_DIGITS = 64
 MAX_SECRET = 64 * 1024
 MAX_PATH = 240
 MAX_RATIO = 100
@@ -58,14 +60,53 @@ def strict_json(data: bytes, path: str) -> Any:
             result[key] = value
         return result
 
+    def bounded_integer(token: str) -> int:
+        if len(token.lstrip("-")) > MAX_JSON_INTEGER_DIGITS:
+            fail("HP_JSON_LIMIT", path)
+        try:
+            return int(token)
+        except (ValueError, OverflowError):
+            fail("HP_JSON_LIMIT", path)
+
+    def scan_limits(text: str) -> None:
+        depth = 0
+        in_string = False
+        escaped = False
+        for character in text:
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif character == "\\":
+                    escaped = True
+                elif character == '"':
+                    in_string = False
+                continue
+            if character == '"':
+                in_string = True
+            elif character in "[{":
+                depth += 1
+                if depth > MAX_JSON_NESTING:
+                    fail("HP_JSON_LIMIT", path)
+            elif character in "]}":
+                depth -= 1
+
     try:
+        text = data.decode("utf-8")
+        scan_limits(text)
+
         def nonfinite(value: str) -> None:
             fail("HP_JSON_NONFINITE", f"{path}:{value}")
 
-        return json.loads(data.decode("utf-8"), object_pairs_hook=pairs, parse_constant=nonfinite)
+        return json.loads(text, object_pairs_hook=pairs, parse_constant=nonfinite, parse_int=bounded_integer)
     except HabitpackError:
         raise
-    except (UnicodeDecodeError, json.JSONDecodeError):
+    except RecursionError:
+        fail("HP_JSON_LIMIT", path)
+    except UnicodeError:
+        fail("HP_JSON_INVALID", path)
+    except OverflowError:
+        fail("HP_JSON_LIMIT", path)
+    except (ValueError, json.JSONDecodeError):
         fail("HP_JSON_INVALID", path)
 
 
@@ -106,8 +147,13 @@ def _schema_validate(instance: Any, name: str, schemas: dict[str, Any]) -> None:
     for filename, schema in schemas.items():
         uri = schema.get("$id", f"https://macwin.example/schemas/habitpack/{SCHEMA_VERSION}/{filename}")
         registry = registry.with_resource(uri, Resource.from_contents(schema))
-    validator = Draft202012Validator(schemas[name], registry=registry, format_checker=PROJECT_FORMAT_CHECKER)
-    error = next(iter(validator.iter_errors(instance)), None)
+    try:
+        validator = Draft202012Validator(schemas[name], registry=registry, format_checker=PROJECT_FORMAT_CHECKER)
+        error = next(iter(validator.iter_errors(instance)), None)
+    except RecursionError:
+        fail("HP_JSON_LIMIT", name)
+    except (ValueError, OverflowError, UnicodeError):
+        fail("HP_SCHEMA", name)
     if error:
         location = "/".join(str(x) for x in error.absolute_path) or "$"
         fail("HP_SCHEMA", f"{name}:{location}")
@@ -145,6 +191,13 @@ def _local_extra(data: bytes, info: zipfile.ZipInfo) -> bytes:
     if end > len(data):
         fail("HP_ZIP_INVALID", info.filename)
     return data[start:end]
+
+
+def _validate_zip_name(raw_name: bytes) -> None:
+    try:
+        raw_name.decode("utf-8")
+    except UnicodeDecodeError:
+        fail("HP_ZIP_INVALID", "archive")
 
 
 def _classify_missing_final_eocd(data: bytes) -> None:
@@ -239,6 +292,7 @@ def _validate_zip_layout(data: bytes) -> str | None:
             fail("HP_ZIP_MULTIDISK", "archive")
         extra_start = position + 46 + name_length
         central_extra = data[extra_start : extra_start + extra_length]
+        _validate_zip_name(data[position + 46 : position + 46 + name_length])
         if _extra_has_zip64(central_extra):
             fail("HP_ZIP64_ENTRY", "archive")
         if extra_length:
@@ -269,6 +323,7 @@ def _validate_zip_layout(data: bytes) -> str | None:
         extra_start = name_start + name_length
         data_start = extra_start + extra_length
         local_name = data[name_start:extra_start]
+        _validate_zip_name(local_name)
         local_names.append(local_name)
         if data_start > cd_offset or local_name != entry["name"]:
             fail("HP_ZIP_LAYOUT", "archive")
@@ -359,6 +414,23 @@ def _allowed_path(path: str) -> bool:
 
 
 def validate_habitpack(path: Path, fixture: str = "package") -> dict[str, int]:
+    try:
+        return _validate_habitpack(path, fixture)
+    except HabitpackError:
+        raise
+    except RecursionError:
+        fail("HP_JSON_LIMIT", fixture)
+    except MemoryError:
+        fail("HP_RESOURCE_LIMIT", fixture)
+    except UnicodeError:
+        fail("HP_ZIP_INVALID", fixture)
+    except OverflowError:
+        fail("HP_JSON_LIMIT", fixture)
+    except ValueError:
+        fail("HP_SCHEMA", fixture)
+
+
+def _validate_habitpack(path: Path, fixture: str = "package") -> dict[str, int]:
     if path.stat().st_size > MAX_ARCHIVE:
         fail("HP_ARCHIVE_TOO_LARGE", fixture)
     raw_archive = path.read_bytes()
@@ -366,12 +438,17 @@ def validate_habitpack(path: Path, fixture: str = "package") -> dict[str, int]:
         zip_profile_error = _validate_zip_layout(raw_archive)
     except HabitpackError as error:
         fail(error.code, fixture)
+    except (ValueError, OverflowError, UnicodeError, zipfile.BadZipFile):
+        fail("HP_ZIP_INVALID", fixture)
     try:
         archive = zipfile.ZipFile(path)
-    except (zipfile.BadZipFile, OSError):
+    except (zipfile.BadZipFile, OSError, ValueError, UnicodeError):
         fail("HP_ZIP_INVALID", fixture)
     with archive:
-        infos = archive.infolist()
+        try:
+            infos = archive.infolist()
+        except (zipfile.BadZipFile, OSError, ValueError, UnicodeError):
+            fail("HP_ZIP_INVALID", fixture)
         if len(infos) > MAX_ENTRIES:
             fail("HP_TOO_MANY_ENTRIES", fixture)
         names: set[str] = set()
@@ -426,7 +503,9 @@ def validate_habitpack(path: Path, fixture: str = "package") -> dict[str, int]:
         for info in infos:
             try:
                 data = archive.read(info)
-            except (RuntimeError, zipfile.BadZipFile):
+            except (zipfile.BadZipFile, OSError, ValueError, UnicodeError):
+                fail("HP_ZIP_INVALID", f"{fixture}:{info.filename}")
+            except RuntimeError:
                 fail("HP_ZIP_READ", f"{fixture}:{info.filename}")
             magic = _magic_code(data[:16])
             if magic:

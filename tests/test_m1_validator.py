@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from tools.m1.fixtures import MATRIX, _json, _manifest, _write_zip, build_fixture, package_source
 from tools.m1.repo_checks import ROOT, feature_checks, json_checks, markdown_checks, traceability_checks
-from tools.m1.validator import MAX_JSON, MAX_MANIFEST, MAX_SECRET, HabitpackError, _load_schemas, _schema_validate, _validate_deflate_stream, strict_json, validate_habitpack
+from tools.m1.validator import MAX_JSON, MAX_JSON_INTEGER_DIGITS, MAX_JSON_NESTING, MAX_MANIFEST, MAX_SECRET, HabitpackError, _load_schemas, _schema_validate, _validate_deflate_stream, strict_json, validate_habitpack
 
 
 class M1ValidatorTests(unittest.TestCase):
@@ -48,6 +48,60 @@ class M1ValidatorTests(unittest.TestCase):
             with self.subTest(payload), self.assertRaises(HabitpackError) as caught:
                 strict_json(payload, "fixture.json")
             self.assertEqual("HP_JSON_INVALID", caught.exception.code)
+
+    def test_json_nesting_scanner_ignores_string_brackets_and_enforces_boundary(self) -> None:
+        payload = ("[" * MAX_JSON_NESTING + r'"brackets ] } [ and escaped quote \" plus slash \\"' + "]" * MAX_JSON_NESTING).encode()
+        self.assertIsInstance(strict_json(payload, "fixture.json"), list)
+        with self.assertRaises(HabitpackError) as caught:
+            strict_json(("[" * (MAX_JSON_NESTING + 1) + "0" + "]" * (MAX_JSON_NESTING + 1)).encode(), "fixture.json")
+        self.assertEqual("HP_JSON_LIMIT", caught.exception.code)
+
+    def test_json_integer_limit_handles_negative_tokens_and_legacy_large_tokens(self) -> None:
+        for sign in ("", "-"):
+            with self.subTest(sign=sign):
+                value = strict_json(f'{{"value":{sign}{"7" * MAX_JSON_INTEGER_DIGITS}}}'.encode(), "fixture.json")
+                self.assertEqual(len(str(abs(value["value"]))), MAX_JSON_INTEGER_DIGITS)
+        for digits in (MAX_JSON_INTEGER_DIGITS + 1, 4300, 4301):
+            with self.subTest(digits=digits), self.assertRaises(HabitpackError) as caught:
+                strict_json(f'{{"value":{"7" * digits}}}'.encode(), "fixture.json")
+            self.assertEqual("HP_JSON_LIMIT", caught.exception.code)
+
+    def test_legacy_large_integer_is_stable_at_complete_entry(self) -> None:
+        entries, manifest = package_source("keyboard")
+        with tempfile.TemporaryDirectory() as directory:
+            for digits in (4300, 4301):
+                with self.subTest(digits=digits):
+                    entries["selections.json"] = (b'{"schema_version":"1.0.0","guide_requested":false,"selected_candidate_ids":[],"large":' + b"7" * digits + b"}")
+                    manifest = _manifest(entries)
+                    path = Path(directory) / f"integer-{digits}.habitpack"
+                    _write_zip(path, entries, _json(manifest), None, {})
+                    with self.assertRaises(HabitpackError) as caught:
+                        validate_habitpack(path, f"integer-{digits}")
+                    self.assertEqual("HP_JSON_LIMIT", caught.exception.code)
+
+    def test_invalid_utf8_zip_name_is_stable_at_raw_and_zipfile_boundaries(self) -> None:
+        descriptor = next(x for x in MATRIX["invalid"] if x["name"] == "zip-invalid-utf8-name")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "invalid-utf8.habitpack"
+            build_fixture(descriptor, path)
+            self.assertIn(b"modules/\xffeyboard.json", path.read_bytes())
+            with self.assertRaises(HabitpackError) as caught:
+                validate_habitpack(path, descriptor["name"])
+            self.assertEqual("HP_ZIP_INVALID", caught.exception.code)
+            valid_path = Path(directory) / "valid.habitpack"
+            build_fixture(next(x for x in MATRIX["valid"] if x["name"] == "minimal-keyboard"), valid_path)
+            with patch("tools.m1.validator.zipfile.ZipFile", side_effect=UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid filename")):
+                with self.assertRaises(HabitpackError) as caught:
+                    validate_habitpack(valid_path, "mocked-invalid-utf8")
+            self.assertEqual("HP_ZIP_INVALID", caught.exception.code)
+
+    def test_outer_boundary_maps_common_parser_resource_errors(self) -> None:
+        cases = ((RecursionError(), "HP_JSON_LIMIT"), (OverflowError(), "HP_JSON_LIMIT"), (ValueError(), "HP_SCHEMA"), (MemoryError(), "HP_RESOURCE_LIMIT"))
+        for exception, code in cases:
+            with self.subTest(code=code), patch("tools.m1.validator._validate_habitpack", side_effect=exception):
+                with self.assertRaises(HabitpackError) as caught:
+                    validate_habitpack(Path("mocked.habitpack"), "mocked")
+            self.assertEqual(code, caught.exception.code)
 
     def test_canonical_utc_datetime_checker_accepts_only_exact_profile(self) -> None:
         schemas, _ = _load_schemas()
