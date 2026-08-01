@@ -139,8 +139,8 @@ def _reference_definitions(root: Path) -> tuple[set[str], set[str]]:
     evidence_path = root / "docs/product/evidence.md"
     check(decisions_path.is_file(), "decision definitions are required")
     check(evidence_path.is_file(), "evidence definitions are required")
-    decisions = decisions_path.read_text()
-    evidence = evidence_path.read_text()
+    decisions = decisions_path.read_text(encoding="utf-8")
+    evidence = evidence_path.read_text(encoding="utf-8")
     decision_refs = set(re.findall(r"^### ((?:D|OD)-\d{3})：", decisions, re.M))
     evidence_refs = set(re.findall(r"^### (E-\d{3})：", evidence, re.M))
     check(decision_refs, "decision definitions must not be empty")
@@ -210,7 +210,7 @@ def markdown_checks(root: Path = ROOT) -> int:
     for path in root.rglob("*"):
         if not path.is_file() or path.suffix.lower() != ".md" or _ignored(path, root):
             continue
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         for raw in link_re.findall(text):
             target = raw.split()[0].strip("<>")
             if target.startswith(("http://", "https://", "mailto:")):
@@ -220,15 +220,15 @@ def markdown_checks(root: Path = ROOT) -> int:
             check(destination.is_relative_to(root.resolve()), f"link escapes repo: {path}:{target}")
             check(destination.exists(), f"broken link: {path.relative_to(root)} -> {target}")
             if fragment and destination.suffix.lower() == ".md":
-                headings = {slug(line.lstrip("# ")) for line in destination.read_text().splitlines() if line.startswith("#")}
+                headings = {slug(line.lstrip("# ")) for line in destination.read_text(encoding="utf-8").splitlines() if line.startswith("#")}
                 check(unquote(fragment).lower() in headings, f"broken fragment: {path.relative_to(root)} -> {target}")
             count += 1
     return count
 
 
 def traceability_checks(root: Path = ROOT) -> dict[str, int]:
-    decisions = (root / "docs/product/decisions.md").read_text()
-    evidence = (root / "docs/product/evidence.md").read_text()
+    decisions = (root / "docs/product/decisions.md").read_text(encoding="utf-8")
+    evidence = (root / "docs/product/evidence.md").read_text(encoding="utf-8")
     d_defs = re.findall(r"^### (D-\d{3})：", decisions, re.M)
     od_defs = re.findall(r"^### (OD-\d{3})：", decisions, re.M)
     e_defs = re.findall(r"^### (E-\d{3})：", evidence, re.M)
@@ -241,7 +241,7 @@ def traceability_checks(root: Path = ROOT) -> dict[str, int]:
     for path in managed:
         if _ignored(path, root):
             continue
-        referenced.update(re.findall(r"(?<![A-Z-])(?:OD|D|E)-\d{3}(?!\d)", path.read_text()))
+        referenced.update(re.findall(r"(?<![A-Z-])(?:OD|D|E)-\d{3}(?!\d)", path.read_text(encoding="utf-8")))
     check(referenced <= known, f"unknown references: {sorted(referenced-known)}")
     return {"D": len(d_defs), "OD": len(od_defs), "E": len(e_defs)}
 

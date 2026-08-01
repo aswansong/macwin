@@ -333,7 +333,7 @@ class M1ValidatorTests(unittest.TestCase):
                 root = Path(directory)
                 target = root / "docs/execution"
                 target.mkdir(parents=True)
-                data = json.loads((ROOT / "docs/execution/feature-list.json").read_text())
+                data = json.loads((ROOT / "docs/execution/feature-list.json").read_text(encoding="utf-8"))
                 data.pop(field)
                 (target / "feature-list.json").write_text(json.dumps(data))
                 with self.assertRaisesRegex(AssertionError, f"{field} is required"):
@@ -365,7 +365,7 @@ class M1ValidatorTests(unittest.TestCase):
             target = root / "docs/execution"
             target.mkdir(parents=True)
             shutil.copytree(ROOT / "docs/product", root / "docs/product")
-            data = json.loads((ROOT / "docs/execution/feature-list.json").read_text())
+            data = json.loads((ROOT / "docs/execution/feature-list.json").read_text(encoding="utf-8"))
             reverse_features(data)
             (target / "feature-list.json").write_text(json.dumps(data))
             self.assertEqual(15, feature_checks(root))
@@ -462,7 +462,7 @@ class M1ValidatorTests(unittest.TestCase):
             target = root / "docs/execution"
             target.mkdir(parents=True)
             shutil.copytree(ROOT / "docs/product", root / "docs/product")
-            data = json.loads((ROOT / "docs/execution/feature-list.json").read_text())
+            data = json.loads((ROOT / "docs/execution/feature-list.json").read_text(encoding="utf-8"))
             mutate(data)
             (target / "feature-list.json").write_text(json.dumps(data))
             with self.assertRaisesRegex(AssertionError, message):
