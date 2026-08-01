@@ -103,9 +103,9 @@ SHA-256、size 和 schema 都针对解压后的原始文件字节；Deflate 可�
 
 每个条目的声明压缩范围必须被完整且只消费一次：Stored 要求 `compressed_size == file_size`；Deflate 使用 raw-deflate 解码并要求到达唯一流结尾，不能留下 `unused_data`、`unconsumed_tail`，且解压字节数必须等于 `file_size`。有效流后的 marker、第二段流和零填充都按 `HP_ZIP_STREAM` 拒绝；不能只依赖宽容的 ZIP 读取器。
 
-所有 JSON 使用无 BOM 的 UTF-8 严格解析，拒绝重复键以及 `NaN`、`Infinity`、`-Infinity`（包括嵌套值）。解析前逐字符扫描对象/数组边界，字符串内容、转义引号和反斜杠不计入嵌套深度；第 64 层允许，第 65 层稳定拒绝为 `HP_JSON_LIMIT`。整数字面量在转换前检查十进制数字位数（负号不计数），最多 64 位；第 65 位稳定拒绝为 `HP_JSON_LIMIT`。BOM、非 UTF-8 和其他 JSON 语法错误仍为 `HP_JSON_INVALID`，非有限常量仍为 `HP_JSON_NONFINITE`。`created_at` 采用 M1 canonical UTC date-time 子集，精确格式为 `YYYY-MM-DDTHH:MM:SSZ`：`T`/`Z` 必须大写，日期和时间必须是真实 Gregorian 值，不接受时区 offset、小写 `t`/`z`、leap second、小数秒或仅日期。它不是完整 RFC 3339 接受范围。
+所有 JSON 使用无 BOM 的 UTF-8 严格解析，拒绝重复键以及 `NaN`、`Infinity`、`-Infinity`（包括嵌套值）。所有浮点字面量转换后必须是有限值；指数溢出为 `+inf`/`-inf` 也稳定拒绝为 `HP_JSON_NONFINITE`，合法有限指数形式不误杀。浮点负零保留为 `-0.0`，整数字面量 `-0` 稳定解析为整数 `0`。解析前逐字符扫描对象/数组边界，字符串内容、转义引号和反斜杠不计入嵌套深度；第 64 层允许，第 65 层稳定拒绝为 `HP_JSON_LIMIT`。整数字面量在转换前检查十进制数字位数（负号不计数），最多 64 位；第 65 位稳定拒绝为 `HP_JSON_LIMIT`。解析后以非递归方式遍历所有对象键、字符串值和嵌套容器；JSON 字符串与键只允许 Unicode 标量值，任何 U+D800–U+DFFF surrogate code unit 都拒绝为 `HP_JSON_INVALID`，包括 high/low surrogate 以及 surrogate escape pair。实际 UTF-8 编码的 emoji、中文等标量允许通过。BOM、非 UTF-8 和其他 JSON 语法错误仍为 `HP_JSON_INVALID`，非有限常量仍为 `HP_JSON_NONFINITE`。`created_at` 采用 M1 canonical UTC date-time 子集，精确格式为 `YYYY-MM-DDTHH:MM:SSZ`：`T`/`Z` 必须大写，日期和时间必须是真实 Gregorian 值，不接受时区 offset、小写 `t`/`z`、leap second、小数秒或仅日期。它不是完整 RFC 3339 接受范围。
 
-稳定错误码补充如下：`HP_JSON_LIMIT` 表示 JSON 词法资源限制或由包内容触发的 JSON 递归/整数转换边界；`HP_ZIP_INVALID` 表示 ZIP 原始 local/central 元数据或 `zipfile` 边界无法稳定解析，包括非法 UTF-8 文件名；`HP_RESOURCE_LIMIT` 只在最外层将模拟或实际资源分配失败转换为稳定拒绝。解析器只捕获这些受信输入边界的具体异常，不吞掉其他编程错误。
+稳定错误码补充如下：`HP_JSON_INVALID` 表示 BOM、非 UTF-8、其他 JSON 语法错误或解码后包含 surrogate code unit；`HP_JSON_NONFINITE` 表示 JSON 非有限常量或浮点指数转换溢出；`HP_JSON_LIMIT` 表示 JSON 词法资源限制或由包内容触发的 JSON 递归/整数转换边界；`HP_ZIP_INVALID` 表示 ZIP 原始 local/central 元数据或 `zipfile` 边界无法稳定解析，包括非法 UTF-8 文件名；`HP_RESOURCE_LIMIT` 只在最外层将模拟或实际资源分配失败转换为稳定拒绝。解析器只捕获这些受信输入边界的具体异常，不吞掉其他编程错误。
 
 校验器先从文件末尾的固定 EOCD 解析单卷字段、中央目录以及全部 local header 元数据；`0xffffffff` size sentinel 始终优先按 ZIP64 拒绝。任何 Stored 内容复制或 Deflate 解码前，它仅依据已解析的 canonical path 与 local/central 声明检查压缩包、条目、类型大小、总解压字节和 100:1 压缩比上限。通过预检后才验证连续压缩范围和唯一流；Deflate 解码器自身仍以对应路径类型上限为硬上限，且每次最多请求可信声明大小与该上限的较小值再加 1 字节。它不在不透明内容中裸搜 ZIP 签名字节，因此合法秘密即使包含 EOCD、ZIP64 EOCD 或 locator 签名片段也不会被误判。随后才读取内容，并检查可执行魔数、严格 JSON、schema、媒体、声明、哈希、规则、选择与秘密关系。任何一步失败都不把内容交给执行层。
 
@@ -113,7 +113,7 @@ SHA-256、size 和 schema 都针对解压后的原始文件字节；Deflate 可�
 
 ## 7. 虚构夹具与统一命令
 
-[`fixtures/m1/fixture-matrix.json`](../../../fixtures/m1/fixture-matrix.json) 保存 8 个有效包来源描述和 109 个覆盖容器、JSON、版本、规则、选择、秘密及可执行内容的无效变体，包括 JSON 嵌套/整数限制和非法 UTF-8 ZIP 文件名。构建器只在临时目录生成实际 `.habitpack`，并通过同一个校验入口读取；仓库不保存迁移包。
+[`fixtures/m1/fixture-matrix.json`](../../../fixtures/m1/fixture-matrix.json) 保存 8 个有效包来源描述和 113 个覆盖容器、JSON、版本、规则、选择、秘密及可执行内容的无效变体，包括正/负指数浮点溢出、字符串值和对象键 surrogate、JSON 嵌套/整数限制及非法 UTF-8 ZIP 文件名；这些无效变体映射到 65 个稳定错误码。构建器只在临时目录生成实际 `.habitpack`，并通过同一个校验入口读取；仓库不保存迁移包。
 
 运行：
 

@@ -146,6 +146,13 @@ def _mutate(m: str, e: dict[str, bytes], mf: dict[str, Any], meta: dict[str, Any
     elif m in {"json_nan","json_infinity","json_negative_infinity"}:
         constant = {"json_nan":"NaN","json_infinity":"Infinity","json_negative_infinity":"-Infinity"}[m]
         e["selections.json"] = ('{"schema_version":"1.0.0","guide_requested":false,"selected_candidate_ids":[],"nested":{"value":' + constant + '}}').encode()
+    elif m in {"json_float_positive_overflow", "json_float_negative_overflow"}:
+        sign = "-" if m == "json_float_negative_overflow" else ""
+        e["selections.json"] = ('{"schema_version":"1.0.0","guide_requested":false,"selected_candidate_ids":[],"nested":{"value":' + sign + '1e999999}}').encode()
+    elif m == "json_surrogate_source_label":
+        e[keyboard] = e[keyboard].replace("虚构检测结果".encode(), br"\ud800")
+    elif m == "json_surrogate_created_by":
+        meta["manifest_bytes"] = _json(mf).replace(b'"0.0.0-fixture"', br'"\ud800"')
     elif m in {"major","minor","patch","malformed"}: mf["schema_version"]={"major":"2.0.0","minor":"1.1.0","patch":"1.0.1","malformed":"one"}[m]
     elif m.startswith("created_at_"):
         mf["created_at"] = {

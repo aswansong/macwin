@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import stat
 import struct
@@ -48,6 +49,41 @@ class M1ValidatorTests(unittest.TestCase):
             with self.subTest(payload), self.assertRaises(HabitpackError) as caught:
                 strict_json(payload, "fixture.json")
             self.assertEqual("HP_JSON_INVALID", caught.exception.code)
+
+    def test_float_tokens_are_finite_and_preserve_float_negative_zero(self) -> None:
+        value = strict_json(
+            b'{"positive":1e2,"negative":-1.25e-2,"large":1.7976931348623157e308,"negative_zero":-0.0}',
+            "fixture.json",
+        )
+        self.assertEqual(100.0, value["positive"])
+        self.assertEqual(-0.0125, value["negative"])
+        self.assertTrue(math.isfinite(value["large"]))
+        self.assertEqual(-1.0, math.copysign(1.0, value["negative_zero"]))
+        self.assertEqual(0, strict_json(b'{"negative_zero":-0}', "fixture.json")["negative_zero"])
+        for token in (b"1e999999", b"-1e999999"):
+            with self.subTest(token=token), self.assertRaises(HabitpackError) as caught:
+                strict_json(b'{"nested":{"value":' + token + b"}}", "fixture.json")
+            self.assertEqual("HP_JSON_NONFINITE", caught.exception.code)
+
+    def test_json_strings_and_keys_reject_all_surrogate_code_units_iteratively(self) -> None:
+        rejected = (
+            br'{"nested":{"value":"\ud800"}}',
+            br'{"nested":{"value":"\udc00"}}',
+            br'{"nested":{"value":"\ud83d\ude00"}}',
+            br'{"nested":{"\ud800":0}}',
+        )
+        for payload in rejected:
+            with self.subTest(payload=payload), self.assertRaises(HabitpackError) as caught:
+                strict_json(payload, "fixture.json")
+            self.assertEqual("HP_JSON_INVALID", caught.exception.code)
+
+        valid = strict_json('{"nested":[{"中文":"emoji 😀"}]}'.encode(), "fixture.json")
+        self.assertEqual("emoji 😀", valid["nested"][0]["中文"])
+
+        deeply_nested = "[" * MAX_JSON_NESTING + r'"\ud800"' + "]" * MAX_JSON_NESTING
+        with self.assertRaises(HabitpackError) as caught:
+            strict_json(deeply_nested.encode(), "fixture.json")
+        self.assertEqual("HP_JSON_INVALID", caught.exception.code)
 
     def test_json_nesting_scanner_ignores_string_brackets_and_enforces_boundary(self) -> None:
         payload = ("[" * MAX_JSON_NESTING + r'"brackets ] } [ and escaped quote \" plus slash \\"' + "]" * MAX_JSON_NESTING).encode()

@@ -618,6 +618,30 @@
       "expected_error": "HP_JSON_NONFINITE"
     },
     {
+      "name": "json-positive-float-overflow",
+      "base": "minimal-keyboard",
+      "mutation": "json_float_positive_overflow",
+      "expected_error": "HP_JSON_NONFINITE"
+    },
+    {
+      "name": "json-negative-float-overflow",
+      "base": "minimal-keyboard",
+      "mutation": "json_float_negative_overflow",
+      "expected_error": "HP_JSON_NONFINITE"
+    },
+    {
+      "name": "json-surrogate-source-label",
+      "base": "minimal-keyboard",
+      "mutation": "json_surrogate_source_label",
+      "expected_error": "HP_JSON_INVALID"
+    },
+    {
+      "name": "json-surrogate-created-by",
+      "base": "minimal-keyboard",
+      "mutation": "json_surrogate_created_by",
+      "expected_error": "HP_JSON_INVALID"
+    },
+    {
       "name": "manifest-created-at-text",
       "base": "minimal-keyboard",
       "mutation": "created_at_text",

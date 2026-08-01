@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import math
 import re
 import stat
 import struct
@@ -68,18 +69,31 @@ def strict_json(data: bytes, path: str) -> Any:
         except (ValueError, OverflowError):
             fail("HP_JSON_LIMIT", path)
 
+    def bounded_float(token: str) -> float:
+        value = float(token)
+        if not math.isfinite(value):
+            fail("HP_JSON_NONFINITE", f"{path}:{token}")
+        return value
+
     def scan_limits(text: str) -> None:
         depth = 0
         in_string = False
         escaped = False
-        for character in text:
+        index = 0
+        while index < len(text):
+            character = text[index]
             if in_string:
                 if escaped:
+                    if character == "u" and index + 4 < len(text):
+                        codepoint = text[index + 1:index + 5]
+                        if all(digit in "0123456789abcdefABCDEF" for digit in codepoint) and 0xD800 <= int(codepoint, 16) <= 0xDFFF:
+                            fail("HP_JSON_INVALID", path)
                     escaped = False
                 elif character == "\\":
                     escaped = True
                 elif character == '"':
                     in_string = False
+                index += 1
                 continue
             if character == '"':
                 in_string = True
@@ -89,6 +103,22 @@ def strict_json(data: bytes, path: str) -> Any:
                     fail("HP_JSON_LIMIT", path)
             elif character in "]}":
                 depth -= 1
+            index += 1
+
+    def reject_surrogates(value: Any) -> None:
+        pending = [value]
+        while pending:
+            current = pending.pop()
+            if isinstance(current, str):
+                if any(0xD800 <= ord(character) <= 0xDFFF for character in current):
+                    fail("HP_JSON_INVALID", path)
+            elif isinstance(current, dict):
+                for key, child in current.items():
+                    if any(0xD800 <= ord(character) <= 0xDFFF for character in key):
+                        fail("HP_JSON_INVALID", path)
+                    pending.append(child)
+            elif isinstance(current, list):
+                pending.extend(current)
 
     try:
         text = data.decode("utf-8")
@@ -97,7 +127,15 @@ def strict_json(data: bytes, path: str) -> Any:
         def nonfinite(value: str) -> None:
             fail("HP_JSON_NONFINITE", f"{path}:{value}")
 
-        return json.loads(text, object_pairs_hook=pairs, parse_constant=nonfinite, parse_int=bounded_integer)
+        result = json.loads(
+            text,
+            object_pairs_hook=pairs,
+            parse_constant=nonfinite,
+            parse_int=bounded_integer,
+            parse_float=bounded_float,
+        )
+        reject_surrogates(result)
+        return result
     except HabitpackError:
         raise
     except RecursionError:
