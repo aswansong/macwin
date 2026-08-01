@@ -8,11 +8,15 @@
 
 ### R1：可丢弃交互原型与格式规范（已完成）
 
-交互原型已冻结在 `prototype/ui-flow-v2-hardening` 的提交 `37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75` 并获接受；`main` 中的 `.habitpack` M1 格式规范和虚构夹具也已闭合，M1 已停止。原型使用虚构数据，不扫描、不提权、不联网、不修改系统，也不直接合入正式实现；M2 Wave 0 仅获局部研究授权。[D-024、D-028、D-029、E-018]
+交互原型已冻结在 `prototype/ui-flow-v2-hardening` 的提交 `37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75` 并获接受；M1 `.habitpack` 格式规范和虚构夹具也已闭合。当前 Alpha 0.1 在 `alpha/v0.1-vertical-slice` 验证真实本地纵向切片，但仍是未签名知情测试构建，不直接合入 `main`。[D-028、D-030、E-019]
 
-### R2：技术预研（Wave 0 局部已授权；真实平台其余部分未授权）
+### R2：技术预研（Wave 0 历史记录）
 
-Wave 0 只允许以下四个隔离研究流：M1 `.habitpack` `1.0.0` 独立 parser；一次性 Tauri 2 最小壳与 mock bridge；synthetic snapshot/恢复；离线签名与 fictional supply-chain fixture。研究代码只能在 `codex/m2-*` 分支，不能创建 PR、合并 `main` 或 Release；只使用虚构数据和锁定开发验证依赖。真实平台的 Windows 白名单读取、macOS 设置适配、权限、Wi‑Fi、生产快照、第三方实际供应链和更新签名仍未授权。[D-022、D-029、E-018、OD-005、OD-006、OD-007]
+Wave 0 当时只允许以下四个隔离研究流：M1 `.habitpack` `1.0.0` 独立 parser；一次性 Tauri 2 最小壳与 mock bridge；synthetic snapshot/恢复；离线签名与 fictional supply-chain fixture。其研究代码只能在 `codex/m2-*` 分支，不能创建 PR、合并 `main` 或 Release。[D-022、D-029、E-018、OD-005、OD-006、OD-007]
+
+### Alpha 0.1：当前纵向切片
+
+Alpha 只允许 Windows 10/11 x64 白名单扫描、现有格式的导出/导入、强制计划、macOS Finder 扩展名和键盘重复速率的声明式应用、一次快照、按模块恢复、报告和指南。不得实现 Wi‑Fi/密码、Ctrl/Command 兼容层、第三方工具或 Homebrew 安装、软件自动安装、UAC/TCC、真实秘密、个人文件、更新、签名/公证或 Release。[D-030、E-019]
 
 ### R3：知情 Alpha（未授权）
 

@@ -468,18 +468,18 @@ class M1ValidatorTests(unittest.TestCase):
             with self.assertRaisesRegex(AssertionError, message):
                 feature_checks(root)
 
-    def test_wave0_governance_rejects_invalid_authorization_combinations(self) -> None:
+    def test_alpha_governance_rejects_invalid_authorization_combinations(self) -> None:
         self._assert_feature_policy_rejected(
             lambda data: data.__setitem__("production_implementation_authorized", True),
             "production implementation must remain unauthorized",
         )
         self._assert_feature_policy_rejected(
-            lambda data: data.__setitem__("system_changes_authorized", True),
-            "system changes must remain unauthorized",
+            lambda data: data.__setitem__("system_changes_authorized", False),
+            "Alpha system-change authorization is required",
         )
         self._assert_feature_policy_rejected(
-            lambda data: data["features"][0].__setitem__("status", "implemented"),
-            "Wave0 evidence must not advance real P0 status",
+            lambda data: data["features"][0].__setitem__("status", "verified"),
+            "invalid feature status",
         )
         for field in ("real_devices", "real_secrets", "permissions", "system_writes", "third_party_installation", "production_dependencies", "production_skeleton", "pr_merge", "release"):
             with self.subTest(forbidden=field):
@@ -501,6 +501,12 @@ class M1ValidatorTests(unittest.TestCase):
             lambda data: data.__setitem__("milestone_status", "completed_waiting_for_next_authorization"),
             "unexpected milestone status",
         )
+        for field in ("wifi", "passwords", "ctrl_compatibility", "third_party_installation", "software_auto_install", "permissions", "real_secrets", "personal_files", "merge_main", "release"):
+            with self.subTest(alpha_forbidden=field):
+                self._assert_feature_policy_rejected(
+                    lambda data, field=field: data["alpha_authorization"].__setitem__(field, True),
+                    f"alpha authorization mismatch: {field}",
+                )
 
     def test_governance_rejects_unknown_closed_set_keys(self) -> None:
         for value in (True, False):

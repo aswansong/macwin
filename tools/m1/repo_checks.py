@@ -35,6 +35,24 @@ WAVE0_AUTHORIZATION = {
     "release": False,
 }
 
+ALPHA_AUTHORIZATION = {
+    "windows_scan": True,
+    "habitpack_export_import": True,
+    "macos_declarative_apply": True,
+    "snapshot_restore": True,
+    "report_guide": True,
+    "wifi": False,
+    "passwords": False,
+    "ctrl_compatibility": False,
+    "third_party_installation": False,
+    "software_auto_install": False,
+    "permissions": False,
+    "real_secrets": False,
+    "personal_files": False,
+    "merge_main": False,
+    "release": False,
+}
+
 FEATURE_LIST_KEYS = frozenset(
     {
         "schema_version",
@@ -47,17 +65,20 @@ FEATURE_LIST_KEYS = frozenset(
         "system_changes_authorized",
         "last_updated",
         "wave0_authorization",
+        "alpha_authorization",
         "milestone_evidence",
         "status_definitions",
         "features",
     }
 )
 WAVE0_AUTHORIZATION_KEYS = frozenset(WAVE0_AUTHORIZATION)
-MILESTONE_EVIDENCE_KEYS = frozenset({"prototype", "format", "wave0"})
+ALPHA_AUTHORIZATION_KEYS = frozenset(ALPHA_AUTHORIZATION)
+MILESTONE_EVIDENCE_KEYS = frozenset({"prototype", "format", "wave0", "alpha"})
 MILESTONE_EVIDENCE_CHILD_KEYS = {
     "prototype": frozenset({"commit", "scope"}),
     "format": frozenset({"schema_version", "scope", "command"}),
     "wave0": frozenset({"scope", "decision_ref", "evidence_ref"}),
+    "alpha": frozenset({"branch", "scope", "decision_ref", "evidence_ref"}),
 }
 P0_FEATURE_IDS = frozenset(f"P0-{index:03d}" for index in range(1, 16))
 STATUS_DEFINITIONS = frozenset({"specified", "prototyped", "implemented", "verified", "blocked"})
@@ -258,7 +279,7 @@ def feature_checks(root: Path = ROOT) -> int:
         check(isinstance(feature["priority"], str), f"feature {feature_id} priority must be a string")
         check(isinstance(feature["status"], str), f"feature {feature_id} status must be a string")
         check(feature["priority"] == "P0", f"non-P0 feature: {feature_id}")
-        check(feature["status"] == "specified", f"Wave0 evidence must not advance real P0 status: {feature_id}")
+        check(feature["status"] in {"specified", "implemented"}, f"invalid feature status: {feature_id}")
 
         decision_refs = _check_string_list(feature["decision_refs"], f"decision refs: {feature_id}", allow_empty=False)
         for ref in decision_refs:
@@ -304,13 +325,12 @@ def feature_checks(root: Path = ROOT) -> int:
         for dep in graph[node]: visit(dep)
         visiting.remove(node); done.add(node)
     for node in graph: visit(node)
-    check(data["current_milestone"] == "M2-wave0-research-only", "current milestone mismatch")
-    check(data["milestone_status"] == "research_only_wave0_active", "unexpected milestone status")
-    check(data.get("last_updated") == "2026-08-01", "last_updated mismatch")
+    check(data["current_milestone"] == "Alpha-0.1-vertical-slice", "current milestone mismatch")
+    check(data["milestone_status"] == "alpha_local_validation_active", "unexpected milestone status")
+    check(data.get("last_updated") == "2026-08-02", "last_updated mismatch")
     check(data.get("prototype_authorized") is True, "prototype authorization history must remain true")
     check(data["production_implementation_authorized"] is False, "production implementation must remain unauthorized")
-    check(data["system_changes_authorized"] is False, "system changes must remain unauthorized")
-    check(all(feature["status"] == "specified" for feature in features), "Wave0 evidence must not advance real P0 status")
+    check(data["system_changes_authorized"] is True, "Alpha system-change authorization is required")
     check("wave0_authorization" in data and isinstance(data["wave0_authorization"], dict), "wave0_authorization is required")
     authorization = data["wave0_authorization"]
     check(isinstance(authorization, dict), "wave0_authorization must be an object")
@@ -319,6 +339,13 @@ def feature_checks(root: Path = ROOT) -> int:
         check(type(authorization[field]) is bool, f"wave0 authorization field must be boolean: {field}")
         check(authorization[field] is expected, f"wave0 authorization mismatch: {field}")
     _check_closed_keys(authorization, WAVE0_AUTHORIZATION_KEYS, "wave0 authorization")
+    alpha_authorization = data.get("alpha_authorization")
+    check(isinstance(alpha_authorization, dict), "alpha_authorization is required")
+    for field, expected in ALPHA_AUTHORIZATION.items():
+        check(field in alpha_authorization, f"alpha authorization field is required: {field}")
+        check(type(alpha_authorization[field]) is bool, f"alpha authorization field must be boolean: {field}")
+        check(alpha_authorization[field] is expected, f"alpha authorization mismatch: {field}")
+    _check_closed_keys(alpha_authorization, ALPHA_AUTHORIZATION_KEYS, "alpha authorization")
     check(isinstance(data["milestone_evidence"], dict), "milestone_evidence is required")
     evidence = data["milestone_evidence"]
     check(isinstance(evidence.get("prototype"), dict), "prototype milestone evidence is required")
@@ -335,6 +362,10 @@ def feature_checks(root: Path = ROOT) -> int:
     check(evidence["wave0"].get("scope") == "research_only_no_production_or_system_changes", "wave0 evidence scope mismatch")
     check(evidence["wave0"].get("decision_ref") == "D-029", "wave0 decision evidence mismatch")
     check(evidence["wave0"].get("evidence_ref") == "E-018", "wave0 evidence reference mismatch")
+    check(evidence["alpha"].get("branch") == "alpha/v0.1-vertical-slice", "alpha evidence branch mismatch")
+    check(evidence["alpha"].get("scope") == "real_local_vertical_slice_without_wifi_secrets_or_installers", "alpha evidence scope mismatch")
+    check(evidence["alpha"].get("decision_ref") == "D-030", "alpha decision evidence mismatch")
+    check(evidence["alpha"].get("evidence_ref") == "E-019", "alpha evidence reference mismatch")
     return len(features)
 
 
