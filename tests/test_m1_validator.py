@@ -364,10 +364,85 @@ class M1ValidatorTests(unittest.TestCase):
             root = Path(directory)
             target = root / "docs/execution"
             target.mkdir(parents=True)
+            shutil.copytree(ROOT / "docs/product", root / "docs/product")
             data = json.loads((ROOT / "docs/execution/feature-list.json").read_text())
             reverse_features(data)
             (target / "feature-list.json").write_text(json.dumps(data))
             self.assertEqual(15, feature_checks(root))
+
+    def test_feature_records_have_a_closed_typed_key_set(self) -> None:
+        cases = {
+            "unknown": lambda data: data["features"][0].__setitem__("production_implementation_authorized", True),
+            "missing": lambda data: data["features"][0].pop("owner"),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(name=name):
+                self._assert_feature_policy_rejected(mutate, "feature")
+
+    def test_acceptance_criteria_have_a_closed_typed_key_set(self) -> None:
+        cases = {
+            "unknown": lambda data: data["features"][0]["acceptance_criteria"][0].__setitem__("severity", "P0"),
+            "missing": lambda data: data["features"][0]["acceptance_criteria"][0].pop("verification"),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(name=name):
+                self._assert_feature_policy_rejected(mutate, "acceptance criterion")
+
+    def test_reference_arrays_reject_bad_types_unknown_refs_and_duplicates(self) -> None:
+        cases = {
+            "decision_object": ("decision_refs", [{"id": "D-002"}], "must be a string"),
+            "evidence_null": ("evidence_refs", None, "must be a list"),
+            "human_object": ("human_decisions_required", [{"id": "OD-003"}], "must be a string"),
+            "decision_unknown": ("decision_refs", ["D-999"], "unknown decision ref"),
+            "evidence_unknown": ("evidence_refs", ["E-999"], "unknown evidence ref"),
+            "human_unknown": ("human_decisions_required", ["OD-999"], "unknown human decision ref"),
+            "decision_duplicate": ("decision_refs", ["D-002", "D-002"], "must not contain duplicates"),
+            "evidence_duplicate": ("evidence_refs", ["E-015", "E-015"], "must not contain duplicates"),
+            "human_duplicate": ("human_decisions_required", ["OD-003", "OD-003"], "must not contain duplicates"),
+        }
+        for name, (field, value, message) in cases.items():
+            with self.subTest(name=name):
+                self._assert_feature_policy_rejected(
+                    lambda data, field=field, value=value: data["features"][0].__setitem__(field, value),
+                    message,
+                )
+
+    def test_dependencies_reject_unknown_self_dependency_and_cycles(self) -> None:
+        cases = {
+            "unknown": lambda data: data["features"][0].__setitem__("dependencies", ["P0-999"]),
+            "self": lambda data: data["features"][0].__setitem__("dependencies", ["P0-001"]),
+            "cycle": lambda data: data["features"][0].__setitem__("dependencies", ["P0-002"]),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(name=name):
+                message = "dependency cycle" if name == "cycle" else ("unknown dependency" if name == "unknown" else "cannot depend on itself")
+                self._assert_feature_policy_rejected(mutate, message)
+
+    def test_acceptance_criteria_reject_duplicate_wrong_prefix_and_empty_text(self) -> None:
+        cases = {
+            "duplicate": lambda data: data["features"][0]["acceptance_criteria"][1].__setitem__("id", "P0-001-AC01"),
+            "wrong_prefix": lambda data: data["features"][0]["acceptance_criteria"][0].__setitem__("id", "P0-002-AC01"),
+            "empty_statement": lambda data: data["features"][0]["acceptance_criteria"][0].__setitem__("statement", "  "),
+            "empty_verification": lambda data: data["features"][0]["acceptance_criteria"][0].__setitem__("verification", ""),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(name=name):
+                message = "duplicate acceptance ID" if name == "duplicate" else ("wrong feature prefix" if name == "wrong_prefix" else "non-empty string")
+                self._assert_feature_policy_rejected(mutate, message)
+
+    def test_non_goals_and_risks_reject_bad_types_empty_items_and_duplicates(self) -> None:
+        cases = {
+            "non_goals_type": lambda data: data["features"][0].__setitem__("non_goals", None),
+            "risks_type": lambda data: data["features"][0].__setitem__("risks", {"risk": "value"}),
+            "non_goals_empty": lambda data: data["features"][0].__setitem__("non_goals", [""]),
+            "risks_empty": lambda data: data["features"][0].__setitem__("risks", [" "]),
+            "non_goals_duplicate": lambda data: data["features"][0].__setitem__("non_goals", ["same", "same"]),
+            "risks_duplicate": lambda data: data["features"][0].__setitem__("risks", ["same", "same"]),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(name=name):
+                message = "must be a list" if name.endswith("type") else ("must not contain duplicates" if name.endswith("duplicate") else "non-empty string")
+                self._assert_feature_policy_rejected(mutate, message)
 
     def test_status_definitions_are_a_typed_closed_set(self) -> None:
         cases = {
@@ -386,6 +461,7 @@ class M1ValidatorTests(unittest.TestCase):
             root = Path(directory)
             target = root / "docs/execution"
             target.mkdir(parents=True)
+            shutil.copytree(ROOT / "docs/product", root / "docs/product")
             data = json.loads((ROOT / "docs/execution/feature-list.json").read_text())
             mutate(data)
             (target / "feature-list.json").write_text(json.dumps(data))

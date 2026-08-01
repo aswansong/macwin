@@ -61,6 +61,28 @@ MILESTONE_EVIDENCE_CHILD_KEYS = {
 }
 P0_FEATURE_IDS = frozenset(f"P0-{index:03d}" for index in range(1, 16))
 STATUS_DEFINITIONS = frozenset({"specified", "prototyped", "implemented", "verified", "blocked"})
+FEATURE_KEYS = frozenset(
+    {
+        "id",
+        "name",
+        "priority",
+        "status",
+        "owner",
+        "decision_refs",
+        "evidence_refs",
+        "dependencies",
+        "human_decisions_required",
+        "acceptance_criteria",
+        "non_goals",
+        "risks",
+    }
+)
+ACCEPTANCE_CRITERION_KEYS = frozenset({"id", "statement", "verification"})
+FEATURE_ID_RE = re.compile(r"P0-\d{3}")
+ACCEPTANCE_ID_RE = re.compile(r"P0-\d{3}-AC\d+")
+DECISION_REF_RE = re.compile(r"D-\d{3}")
+EVIDENCE_REF_RE = re.compile(r"E-\d{3}")
+OPEN_DECISION_REF_RE = re.compile(r"OD-\d{3}")
 
 
 def check(condition: bool, message: str) -> None:
@@ -73,6 +95,36 @@ def _check_closed_keys(actual: dict[str, object], expected: set[str] | frozenset
     missing = sorted(expected - set(actual))
     check(not unknown, f"{label} has unknown keys: {unknown}")
     check(not missing, f"{label} has missing keys: {missing}")
+
+
+def _check_non_empty_string(value: object, label: str) -> None:
+    check(isinstance(value, str), f"{label} must be a string")
+    check(bool(value.strip()), f"{label} must be a non-empty string")
+
+
+def _check_string_list(value: object, label: str, *, allow_empty: bool = True) -> list[str]:
+    check(isinstance(value, list), f"{label} must be a list")
+    if not allow_empty:
+        check(bool(value), f"{label} must not be empty")
+    for index, item in enumerate(value):
+        check(isinstance(item, str), f"{label}[{index}] must be a string")
+        check(bool(item.strip()), f"{label}[{index}] must be a non-empty string")
+    check(len(value) == len(set(value)), f"{label} must not contain duplicates")
+    return value
+
+
+def _reference_definitions(root: Path) -> tuple[set[str], set[str]]:
+    decisions_path = root / "docs/product/decisions.md"
+    evidence_path = root / "docs/product/evidence.md"
+    check(decisions_path.is_file(), "decision definitions are required")
+    check(evidence_path.is_file(), "evidence definitions are required")
+    decisions = decisions_path.read_text()
+    evidence = evidence_path.read_text()
+    decision_refs = set(re.findall(r"^### ((?:D|OD)-\d{3})：", decisions, re.M))
+    evidence_refs = set(re.findall(r"^### (E-\d{3})：", evidence, re.M))
+    check(decision_refs, "decision definitions must not be empty")
+    check(evidence_refs, "evidence definitions must not be empty")
+    return decision_refs, evidence_refs
 
 
 def _ignored(path: Path, root: Path) -> bool:
@@ -185,40 +237,65 @@ def feature_checks(root: Path = ROOT) -> int:
     for index, feature in enumerate(features):
         check(isinstance(feature, dict), f"feature {index} must be an object")
         check(isinstance(feature.get("id"), str), f"feature {index} id must be a string")
+        _check_closed_keys(feature, FEATURE_KEYS, f"feature {index}")
     ids = [feature["id"] for feature in features]
     check(len(ids) == len(set(ids)), "duplicate feature IDs")
     check(set(ids) == P0_FEATURE_IDS, "feature IDs must be exactly P0-001 through P0-015")
+    check(all(FEATURE_ID_RE.fullmatch(feature_id) for feature_id in ids), "feature IDs must match P0-###")
     status_definitions = data["status_definitions"]
     check(isinstance(status_definitions, dict), "status_definitions must be an object")
     _check_closed_keys(status_definitions, STATUS_DEFINITIONS, "status_definitions")
     for status, description in status_definitions.items():
         check(isinstance(description, str) and description, f"status definition must be a non-empty string: {status}")
+    known_decisions, known_evidence = _reference_definitions(root)
     known = set(ids)
     acceptance: set[str] = set()
     graph: dict[str, list[str]] = {}
     for feature in features:
-        check(isinstance(feature.get("priority"), str), f"missing priority: {feature['id']}")
-        check(isinstance(feature.get("status"), str), f"missing status: {feature['id']}")
-        check(feature["priority"] == "P0", f"non-P0 feature: {feature['id']}")
-        check(feature["status"] in status_definitions, f"unknown status: {feature['id']}")
-        check(isinstance(feature.get("dependencies"), list), f"missing dependencies: {feature['id']}")
-        check(isinstance(feature.get("risks"), list), f"missing risks: {feature['id']}")
-        check(isinstance(feature.get("decision_refs"), list), f"missing decision refs: {feature['id']}")
-        check(isinstance(feature.get("acceptance_criteria"), list), f"missing acceptance: {feature['id']}")
-        check(feature["risks"], f"missing risks: {feature['id']}")
-        check(feature["decision_refs"], f"missing decision refs: {feature['id']}")
-        check(feature["acceptance_criteria"], f"missing acceptance: {feature['id']}")
-        graph[feature["id"]] = feature["dependencies"]
-        check(all(isinstance(dependency, str) for dependency in feature["dependencies"]), f"dependency IDs must be strings: {feature['id']}")
-        check(set(feature["dependencies"]) <= known, f"unknown dependency: {feature['id']}")
-        for criterion in feature["acceptance_criteria"]:
-            check(isinstance(criterion, dict), f"acceptance criterion must be an object: {feature['id']}")
-            check(isinstance(criterion.get("id"), str), f"acceptance ID must be a string: {feature['id']}")
-            check(isinstance(criterion.get("statement"), str), f"acceptance statement must be a string: {criterion['id']}")
-            check(isinstance(criterion.get("verification"), str), f"acceptance verification must be a string: {criterion['id']}")
-            check(criterion["id"] not in acceptance, f"duplicate acceptance ID: {criterion['id']}")
-            check(criterion["statement"] and criterion["verification"], f"empty acceptance: {criterion['id']}")
-            acceptance.add(criterion["id"])
+        feature_id = feature["id"]
+        _check_non_empty_string(feature["name"], f"feature {feature_id} name")
+        _check_non_empty_string(feature["owner"], f"feature {feature_id} owner")
+        check(isinstance(feature["priority"], str), f"feature {feature_id} priority must be a string")
+        check(isinstance(feature["status"], str), f"feature {feature_id} status must be a string")
+        check(feature["priority"] == "P0", f"non-P0 feature: {feature_id}")
+        check(feature["status"] == "specified", f"Wave0 evidence must not advance real P0 status: {feature_id}")
+
+        decision_refs = _check_string_list(feature["decision_refs"], f"decision refs: {feature_id}", allow_empty=False)
+        for ref in decision_refs:
+            check(DECISION_REF_RE.fullmatch(ref) is not None, f"invalid decision ref: {feature_id}: {ref}")
+            check(ref in known_decisions, f"unknown decision ref: {feature_id}: {ref}")
+        evidence_refs = _check_string_list(feature["evidence_refs"], f"evidence refs: {feature_id}", allow_empty=False)
+        for ref in evidence_refs:
+            check(EVIDENCE_REF_RE.fullmatch(ref) is not None, f"invalid evidence ref: {feature_id}: {ref}")
+            check(ref in known_evidence, f"unknown evidence ref: {feature_id}: {ref}")
+        human_decisions = _check_string_list(feature["human_decisions_required"], f"human decisions required: {feature_id}")
+        for ref in human_decisions:
+            check(OPEN_DECISION_REF_RE.fullmatch(ref) is not None, f"invalid human decision ref: {feature_id}: {ref}")
+            check(ref in known_decisions, f"unknown human decision ref: {feature_id}: {ref}")
+
+        dependencies = _check_string_list(feature["dependencies"], f"dependencies: {feature_id}")
+        check(feature_id not in dependencies, f"feature cannot depend on itself: {feature_id}")
+        check(set(dependencies) <= known, f"unknown dependency: {feature_id}")
+        graph[feature_id] = dependencies
+
+        criteria = feature["acceptance_criteria"]
+        check(isinstance(criteria, list), f"acceptance criteria must be a list: {feature_id}")
+        check(bool(criteria), f"acceptance criteria must not be empty: {feature_id}")
+        for criterion_index, criterion in enumerate(criteria):
+            check(isinstance(criterion, dict), f"acceptance criterion must be an object: {feature_id}[{criterion_index}]")
+            check(isinstance(criterion.get("id"), str), f"acceptance ID must be a string: {feature_id}[{criterion_index}]")
+            _check_closed_keys(criterion, ACCEPTANCE_CRITERION_KEYS, f"acceptance criterion {feature_id}[{criterion_index}]")
+            criterion_id = criterion["id"]
+            _check_non_empty_string(criterion_id, f"acceptance ID: {feature_id}")
+            check(ACCEPTANCE_ID_RE.fullmatch(criterion_id) is not None and criterion_id.startswith(f"{feature_id}-"), f"acceptance ID has wrong feature prefix: {criterion_id}")
+            _check_non_empty_string(criterion["statement"], f"acceptance statement: {criterion_id}")
+            _check_non_empty_string(criterion["verification"], f"acceptance verification: {criterion_id}")
+            check(criterion_id not in acceptance, f"duplicate acceptance ID: {criterion_id}")
+            acceptance.add(criterion_id)
+
+        for field in ("non_goals", "risks"):
+            values = _check_string_list(feature[field], f"{field}: {feature_id}", allow_empty=False)
+            check(all(value.strip() for value in values), f"{field} must contain non-empty strings: {feature_id}")
     visiting: set[str] = set(); done: set[str] = set()
     def visit(node: str) -> None:
         check(node not in visiting, f"dependency cycle at {node}")
@@ -236,6 +313,7 @@ def feature_checks(root: Path = ROOT) -> int:
     check(all(feature["status"] == "specified" for feature in features), "Wave0 evidence must not advance real P0 status")
     check("wave0_authorization" in data and isinstance(data["wave0_authorization"], dict), "wave0_authorization is required")
     authorization = data["wave0_authorization"]
+    check(isinstance(authorization, dict), "wave0_authorization must be an object")
     for field, expected in WAVE0_AUTHORIZATION.items():
         check(field in authorization, f"wave0 authorization field is required: {field}")
         check(type(authorization[field]) is bool, f"wave0 authorization field must be boolean: {field}")
