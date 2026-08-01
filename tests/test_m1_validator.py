@@ -335,7 +335,7 @@ class M1ValidatorTests(unittest.TestCase):
                 target.mkdir(parents=True)
                 data = json.loads((ROOT / "docs/execution/feature-list.json").read_text(encoding="utf-8"))
                 data.pop(field)
-                (target / "feature-list.json").write_text(json.dumps(data))
+                (target / "feature-list.json").write_text(json.dumps(data), encoding="utf-8")
                 with self.assertRaisesRegex(AssertionError, f"{field} is required"):
                     feature_checks(root)
 
@@ -367,7 +367,7 @@ class M1ValidatorTests(unittest.TestCase):
             shutil.copytree(ROOT / "docs/product", root / "docs/product")
             data = json.loads((ROOT / "docs/execution/feature-list.json").read_text(encoding="utf-8"))
             reverse_features(data)
-            (target / "feature-list.json").write_text(json.dumps(data))
+            (target / "feature-list.json").write_text(json.dumps(data), encoding="utf-8")
             self.assertEqual(15, feature_checks(root))
 
     def test_feature_records_have_a_closed_typed_key_set(self) -> None:
@@ -464,7 +464,7 @@ class M1ValidatorTests(unittest.TestCase):
             shutil.copytree(ROOT / "docs/product", root / "docs/product")
             data = json.loads((ROOT / "docs/execution/feature-list.json").read_text(encoding="utf-8"))
             mutate(data)
-            (target / "feature-list.json").write_text(json.dumps(data))
+            (target / "feature-list.json").write_text(json.dumps(data), encoding="utf-8")
             with self.assertRaisesRegex(AssertionError, message):
                 feature_checks(root)
 
@@ -538,7 +538,7 @@ class M1ValidatorTests(unittest.TestCase):
             (root / "docs/product").mkdir(parents=True)
             shutil.copy2(ROOT / "docs/product/decisions.md", root / "docs/product/decisions.md")
             shutil.copy2(ROOT / "docs/product/evidence.md", root / "docs/product/evidence.md")
-            (root / "README.md").write_text("unknown decision [D-999]\n")
+            (root / "README.md").write_text("unknown decision [D-999]\n", encoding="utf-8")
             with self.assertRaisesRegex(AssertionError, "D-999"):
                 traceability_checks(root)
 
@@ -548,17 +548,17 @@ class M1ValidatorTests(unittest.TestCase):
             (root / "docs/product").mkdir(parents=True)
             shutil.copy2(ROOT / "docs/product/decisions.md", root / "docs/product/decisions.md")
             shutil.copy2(ROOT / "docs/product/evidence.md", root / "docs/product/evidence.md")
-            (root / "docs/extra.MD").write_text("unknown [D-999]\n")
+            (root / "docs/extra.MD").write_text("unknown [D-999]\n", encoding="utf-8")
             with self.assertRaisesRegex(AssertionError, "D-999"):
                 traceability_checks(root)
-            (root / "docs/extra.MD").write_text("[jump](target.MD#标题)\n")
-            (root / "docs/target.MD").write_text("# 标题\n")
+            (root / "docs/extra.MD").write_text("[jump](target.MD#标题)\n", encoding="utf-8")
+            (root / "docs/target.MD").write_text("# 标题\n", encoding="utf-8")
             self.assertEqual(1, markdown_checks(root))
 
     def test_uppercase_json_is_strictly_checked(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "extra.JSON").write_text('{"duplicate":1,"duplicate":2}')
+            (root / "extra.JSON").write_text('{"duplicate":1,"duplicate":2}', encoding="utf-8")
             with self.assertRaises(HabitpackError) as caught:
                 json_checks(root)
             self.assertEqual("HP_JSON_DUPLICATE_KEY", caught.exception.code)
