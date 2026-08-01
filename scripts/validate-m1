@@ -3,13 +3,26 @@ set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 VENV="$ROOT/.m1-validation-venv"
+PYTHON=""
 
 python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else "Python 3.11+ is required")'
-if [ ! -x "$VENV/bin/python" ]; then
+if [ -x "$VENV/bin/python" ]; then
+  PYTHON="$VENV/bin/python"
+elif [ -x "$VENV/Scripts/python.exe" ]; then
+  PYTHON="$VENV/Scripts/python.exe"
+else
   python3 -m venv "$VENV"
-  "$VENV/bin/python" -m pip install --disable-pip-version-check -r "$ROOT/requirements.lock"
+  if [ -x "$VENV/bin/python" ]; then
+    PYTHON="$VENV/bin/python"
+  elif [ -x "$VENV/Scripts/python.exe" ]; then
+    PYTHON="$VENV/Scripts/python.exe"
+  else
+    echo "Unable to locate Python in created virtual environment" >&2
+    exit 1
+  fi
+  "$PYTHON" -m pip install --disable-pip-version-check -r "$ROOT/requirements.lock"
 fi
 
 cd "$ROOT"
-"$VENV/bin/python" -m unittest discover -s tests -p 'test_*.py'
-"$VENV/bin/python" -m tools.m1.repo_checks
+"$PYTHON" -m unittest discover -s tests -p 'test_*.py'
+"$PYTHON" -m tools.m1.repo_checks
