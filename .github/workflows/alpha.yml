@@ -25,6 +25,8 @@ jobs:
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@1.97.1
+        with:
+          components: clippy
 
       - name: Assert Apple Silicon runner
         if: matrix.os == 'macos-15'
