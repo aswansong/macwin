@@ -45,6 +45,7 @@ pub struct TargetPreferences {
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub enum PlatformError {
     #[error("unsupported platform")]
     Unsupported,

@@ -5,11 +5,16 @@
 //! Existing Karabiner rules are parsed and preserved; only rules carrying one
 //! of the stable MacWin descriptions are replaced or removed.
 
+#![cfg_attr(not(target_os = "macos"), allow(dead_code))]
+
 use crate::platform::{PlatformError, TargetPreferences};
 use serde::Serialize;
 use serde_json::{json, Map, Value};
+#[cfg(target_os = "macos")]
 use sha2::{Digest, Sha256};
+#[cfg(target_os = "macos")]
 use std::collections::HashSet;
+#[cfg(target_os = "macos")]
 use std::path::{Path, PathBuf};
 
 pub const SHORTCUTS: &[&str] = &[
@@ -167,6 +172,7 @@ fn managed_descriptions() -> [&'static str; 2] {
     [INTERNAL_DESCRIPTION, EXTERNAL_DESCRIPTION]
 }
 
+#[cfg(target_os = "macos")]
 fn has_managed_description(config: &Value, description: &str) -> bool {
     config.get("profiles").and_then(Value::as_array).into_iter().flatten().any(|profile| {
         profile.get("complex_modifications").and_then(|value| value.get("rules")).and_then(Value::as_array).into_iter().flatten().any(|rule| rule.get("description").and_then(Value::as_str) == Some(description))
