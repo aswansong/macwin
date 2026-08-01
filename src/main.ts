@@ -3,6 +3,7 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import { initialState, progressFor, setView, statusLabel } from "./app-state";
 import type {
   ExportReceipt,
+  DeviceSelfCheck,
   GuideSection,
   ImportPlan,
   MigrationOutcome,
@@ -62,10 +63,48 @@ const previewPlan: ImportPlan = {
     { module_id: "finder_extensions", title: "显示文件扩展名", current_value: "隐藏（当前）", target_value: "显示", reason: "Windows 用户通常直接看到 .docx、.xlsx 等扩展名。", benefit: "打开文件时更容易确认真实类型。", verification: "重新读取 Finder 偏好", recovery: "恢复到迁移前值", requires_admin: false },
     { module_id: "keyboard_repeat", title: "键盘重复速度", current_value: "读取 Mac 当前值", target_value: "按 Windows 重复速度匹配", reason: "保留你熟悉的按键响应节奏。", benefit: "长按删除和移动光标时更接近原来的手感。", verification: "重新读取系统键盘偏好", recovery: "恢复迁移前值", requires_admin: false },
   ],
+  keyboard_compatibility: {
+    built_in_enabled: true,
+    external_enabled: true,
+    devices: [
+      { name: "MacBook 内置键盘（演示）", kind: "built_in", recognized: true, redacted_id: "kb-demo-01" },
+      { name: "Windows 外接键盘（演示）", kind: "external", recognized: true, redacted_id: "kb-demo-02" },
+    ],
+    shortcuts: ["Ctrl+C → Command+C", "Ctrl+V → Command+V", "Ctrl+Z → Command+Z", "Ctrl+Y → Command+Y"],
+    exceptions: ["Terminal", "远程桌面", "Parallels / VMware / UTM", "VS Code"],
+    karabiner: { installed: false, version: null, config_present: false, permission: "演示数据；实际 Mac 上按系统提示授权", official_url: "https://karabiner-elements.pqrs.org/" },
+    recovery: "只移除 MacWin 自己的规则",
+  },
+};
+
+const previewDiagnostics: DeviceSelfCheck = {
+  app_version: "0.2.0-alpha.1",
+  format_version: "1.0.0",
+  runtime: previewRuntime,
+  keyboard_devices: previewPlan.keyboard_compatibility.devices,
+  karabiner: previewPlan.keyboard_compatibility.karabiner,
+  recent_modules: [],
+  privacy_note: "浏览器演示数据；真实应用只在本机生成，不含用户名、路径、序列号或密码",
 };
 
 function escapeHtml(value: unknown): string {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
+}
+
+function friendlyError(value: unknown): string {
+  const code = String(value ?? "").replace(/^Error:\s*/, "");
+  const messages: Record<string, string> = {
+    SNAPSHOT_INTEGRITY: "迁移前快照完整性校验失败，已停止恢复；原设置不会被猜测覆盖。",
+    SNAPSHOT_INVALID: "迁移前快照格式无效，已停止恢复。",
+    SNAPSHOT_MISSING: "没有找到这次迁移的快照，无法安全恢复。",
+    IMPORT_EXTENSION: "请选择 .habitpack 迁移包。",
+    HP_ZIP_STREAM: "迁移包压缩结构不受支持，已拒绝导入。",
+    HP_ZIP_LAYOUT: "迁移包结构或完整性不正确，已拒绝导入。",
+    KARABINER_JSON: "Karabiner 配置不是有效 JSON，MacWin 没有写入它。",
+    KARABINER_STRUCTURE: "Karabiner 配置结构不受支持，MacWin 没有猜测修改。",
+    KARABINER_BACKUP: "无法创建 Karabiner 迁移前备份，已跳过写入。",
+  };
+  return messages[code] ?? (code || "发生未知错误，请查看报告中的错误码。");
 }
 
 function invokeOrPreview<T>(command: string, args?: Record<string, unknown>): Promise<T> {
@@ -76,6 +115,8 @@ function invokeOrPreview<T>(command: string, args?: Record<string, unknown>): Pr
   if (command === "export_habitpack") return Promise.resolve({ path: "浏览器预览，不会写入文件", package_bytes: 0, modules: ["keyboard"], contains_secrets: false, validated: true } as T);
   if (command === "apply_plan") return Promise.resolve(previewOutcome() as T);
   if (command === "rollback_module") return Promise.resolve(previewRollback(args?.module_id as string) as T);
+  if (command === "rollback_all") return Promise.resolve(previewRollback("all") as T);
+  if (command === "device_self_check") return Promise.resolve(previewDiagnostics as T);
   return Promise.reject(new Error("浏览器预览不支持此操作"));
 }
 
@@ -129,9 +170,9 @@ function renderProgress(): string {
 function renderShell(content: string, eyebrow: string, title: string, description = ""): string {
   const platform = state.runtime?.platform === "windows" ? "Windows → Mac" : state.runtime?.platform === "macos" ? "Mac 目标端" : "离线、本地、可恢复";
   return `<div class="app-shell">
-    <header class="topbar"><button class="brand-button" data-action="home" aria-label="回到首页"><span class="brand-mark">MW</span><span><strong>MacWin</strong><small>把 Windows 习惯带到 Mac</small></span></button><span class="alpha-pill">Alpha 0.1 · ${escapeHtml(platform)}</span></header>
+    <header class="topbar"><button class="brand-button" data-action="home" aria-label="回到首页"><span class="brand-mark">MW</span><span><strong>MacWin</strong><small>把 Windows 习惯带到 Mac</small></span></button><span class="alpha-pill">Alpha 0.2 · ${escapeHtml(platform)}</span></header>
     <main class="main-content"><div class="content-column">${renderProgress()}<div class="eyebrow">${escapeHtml(eyebrow)}</div><h1>${escapeHtml(title)}</h1>${description ? `<p class="lead">${escapeHtml(description)}</p>` : ""}${content}</div></main>
-    <footer class="privacy-footer"><span class="privacy-dot"></span><span>全程本地处理 · 不搬个人文件 · 不上传扫描结果</span><span class="footer-spacer"></span><button class="text-button" data-action="alpha-info">Alpha 尚不支持什么？</button></footer>
+    <footer class="privacy-footer"><span class="privacy-dot"></span><span>${state.webPreview ? "浏览器演示数据 · 不会修改系统" : "全程本地处理 · 不搬个人文件 · 不上传扫描结果"}</span><span class="footer-spacer"></span><button class="text-button" data-action="diagnostics">设备自检</button><button class="text-button" data-action="alpha-info">Alpha 尚不支持什么？</button></footer>
   </div>`;
 }
 
@@ -166,7 +207,10 @@ function renderPlan(): string {
   if (!plan) return renderHome();
   const items = plan.items.map((item) => `<article class="plan-row"><div class="plan-check">✓</div><div class="plan-main"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.current_value)} <b>→</b> ${escapeHtml(item.target_value)}</span><small>${escapeHtml(item.benefit)} · ${escapeHtml(item.recovery)}</small></div><div class="plan-tag">可恢复</div></article>`).join("");
   const software = plan.software.filter((item) => item.installed).map((item) => `<div class="software-line"><span>${escapeHtml(item.name)}</span><a href="${escapeHtml(item.official_url)}" target="_blank" rel="noreferrer">官方入口 ↗</a></div>`).join("");
-  return renderShell(`<div class="plan-lock"><span class="lock-icon">◎</span><span>应用前必须确认这份计划</span></div><section class="plan-list">${items}</section>${software ? `<section class="software-box"><div class="section-heading compact"><span>软件匹配</span><small>Alpha 不自动安装</small></div>${software}</section>` : ""}<div class="notice soft"><span>i</span><span>本次只会修改两个 macOS 偏好：Finder 显示扩展名和键盘重复速度。无需管理员权限，不会触碰 Wi‑Fi。</span></div><div class="action-row"><button class="secondary-button" data-action="home">取消</button><button class="primary-button" data-action="apply">确认并应用 <span>→</span></button></div>`, "Mac 端 · 2 / 3", "先看计划，再让它发生", `${escapeHtml(plan.source_summary)} · ${escapeHtml(plan.package_name)} · 迁移前快照会先保存`);
+  const keyboard = plan.keyboard_compatibility;
+  const devices = keyboard.devices.length ? keyboard.devices.map((device) => `<div class="device-line"><label><input type="checkbox" data-keyboard-kind="${device.kind}" ${device.kind === "built_in" ? (keyboard.built_in_enabled ? "checked" : "") : (keyboard.external_enabled ? "checked" : "")} ${device.recognized ? "" : "disabled"}/><span><strong>${escapeHtml(device.name)}</strong><small>${device.kind === "built_in" ? "内置键盘" : "外接键盘"} · ${device.recognized ? "已识别（仅显示脱敏标识）" : "未能安全识别，默认不应用"}</small></span></label></div>`).join("") : `<p class="empty-line">未发现可安全识别的键盘；不会猜测设备。</p>`;
+  const karabiner = keyboard.karabiner.installed ? `已检测到 Karabiner-Elements${keyboard.karabiner.version ? ` ${escapeHtml(keyboard.karabiner.version)}` : ""} · 应用时只合并 MacWin 规则` : `<span>未检测到 Karabiner-Elements · 应用将降级为“需要手动完成”</span> <a href="${escapeHtml(keyboard.karabiner.official_url)}" target="_blank" rel="noreferrer">官方入口 ↗</a>`;
+  return renderShell(`<div class="plan-lock"><span class="lock-icon">◎</span><span>应用前必须确认这份计划</span></div><section class="plan-list">${items}</section><section class="compat-box"><div class="section-heading compact"><span>选择性 Ctrl 兼容</span><small>不做全局 Ctrl ↔ Command 交换</small></div><p class="compat-copy">普通应用中的 Ctrl+C/V/X/Z/Y/A/S/F/P/N/O/W/T/L/R 会转换为对应 Command；Terminal、远程桌面、虚拟机和 VS Code 保留真实 Ctrl。</p>${devices}<div class="compat-tool"><strong>Karabiner-Elements</strong><span>${karabiner}</span><small>${escapeHtml(keyboard.karabiner.permission)} · ${escapeHtml(keyboard.recovery)}</small></div></section>${software ? `<section class="software-box"><div class="section-heading compact"><span>软件匹配</span><small>Alpha 不自动安装</small></div>${software}</section>` : ""}<div class="notice soft"><span>i</span><span>本次只会修改 Finder 扩展名、键盘重复速度，以及你确认的选择性 Ctrl 规则。先保存快照；不触碰 Wi‑Fi。</span></div><div class="action-row"><button class="secondary-button" data-action="home">取消</button><button class="primary-button" data-action="apply">确认并应用 <span>→</span></button></div>`, "Mac 端 · 2 / 3", "先看计划，再让它发生", `${escapeHtml(plan.source_summary)} · ${escapeHtml(plan.package_name)} · 迁移前快照会先保存`);
 }
 
 function renderApplying(): string {
@@ -187,7 +231,14 @@ function renderComplete(): string {
 function renderReport(): string {
   const outcome = state.outcome;
   if (!outcome) return renderHome();
-  return renderShell(`<section class="report-sheet"><div class="report-meta"><span>MacWin Alpha 0.1</span><span>${escapeHtml(outcome.completed_at)}</span></div><h2>本次变更</h2>${outcome.results.map((result) => `<div class="report-line"><strong>${escapeHtml(result.title)}</strong><span>${escapeHtml(result.before)} → ${escapeHtml(result.after)}</span><small>原因：${escapeHtml(result.reason)}　收益：${escapeHtml(result.benefit)}　状态：${escapeHtml(statusLabel(result.status))}</small></div>`).join("")}<div class="report-footnote">快照：${outcome.snapshot_available ? "已保存，可按模块恢复" : "未找到"} · 报告不包含 Wi‑Fi、账号、路径或个人文件。</div></section><div class="action-row"><button class="secondary-button" data-action="complete">返回结果</button><button class="primary-button" data-action="download-report">复制报告文字 <span>↗</span></button></div>`, "迁移后主页 · 报告", "你可以清楚看到改了什么", "这份报告只记录用户能理解的变化，不展示原始系统值。");
+  return renderShell(`<section class="report-sheet"><div class="report-meta"><span>MacWin Alpha 0.2</span><span>${escapeHtml(outcome.completed_at)}</span></div><h2>本次变更</h2>${outcome.results.map((result) => `<div class="report-line"><strong>${escapeHtml(result.title)}</strong><span>${escapeHtml(result.before)} → ${escapeHtml(result.after)}</span><small>原因：${escapeHtml(result.reason)}　收益：${escapeHtml(result.benefit)}　状态：${escapeHtml(statusLabel(result.status))}${result.error_code ? ` · 错误码 ${escapeHtml(result.error_code)}` : ""}</small></div>`).join("")}<div class="report-footnote">快照：${outcome.snapshot_available ? "已保存，可按模块恢复" : "未找到"} · 报告不包含 Wi‑Fi、账号、路径或个人文件。</div></section><div class="action-row"><button class="secondary-button" data-action="complete">返回结果</button><button class="primary-button" data-action="download-report">复制报告文字 <span>↗</span></button></div>`, "迁移后主页 · 报告", "你可以清楚看到改了什么", "这份报告只记录用户能理解的变化，不展示原始系统值。");
+}
+
+function renderDiagnostics(): string {
+  const diagnostics = state.diagnostics;
+  if (!diagnostics) return renderShell(`<div class="loading-block"><p class="loading-title">正在生成设备自检</p></div>`, "Alpha 自检", "读取本机兼容状态", "只读取本机信息，不上传。",);
+  const devices = diagnostics.keyboard_devices.length ? diagnostics.keyboard_devices.map((device) => `<div class="device-line"><strong>${escapeHtml(device.name)}</strong><small>${device.kind === "built_in" ? "内置键盘" : "外接键盘"} · 脱敏标识 ${escapeHtml(device.redacted_id)} · ${device.recognized ? "可安全匹配" : "不会猜测"}</small></div>`).join("") : `<p class="empty-line">未发现可安全识别的键盘</p>`;
+  return renderShell(`<section class="diagnostics-sheet"><div class="diagnostic-grid"><div><span>应用</span><strong>${escapeHtml(diagnostics.app_version)}</strong></div><div><span>规则格式</span><strong>${escapeHtml(diagnostics.format_version)}</strong></div><div><span>系统</span><strong>${escapeHtml(diagnostics.runtime.os_version)} · ${escapeHtml(diagnostics.runtime.architecture)}</strong></div><div><span>Karabiner</span><strong>${diagnostics.karabiner.installed ? "已检测到" : "未检测到"}</strong><small>${escapeHtml(diagnostics.karabiner.permission)}</small></div></div><h3>键盘设备</h3>${devices}<h3>最近模块</h3><p class="muted">${diagnostics.recent_modules.length ? escapeHtml(diagnostics.recent_modules.join(" · ")) : "暂无执行记录"}</p><div class="notice soft"><span>i</span><span>${escapeHtml(diagnostics.privacy_note)}</span></div></section><div class="action-row"><button class="secondary-button" data-action="home">返回首页</button></div>`, "Alpha 自检", "这台 Mac 目前能安全做什么", "结果只在本机生成；不会显示用户名、完整路径、序列号或原始配置。");
 }
 
 function renderGuide(): string {
@@ -201,7 +252,7 @@ function renderRestore(): string {
 }
 
 function render(): void {
-  const content = state.view === "home" ? renderHome() : state.view === "scanning" ? renderScanning() : state.view === "scan" ? renderScan() : state.view === "exported" ? renderExported() : state.view === "plan" ? renderPlan() : state.view === "applying" ? renderApplying() : state.view === "complete" ? renderComplete() : state.view === "report" ? renderReport() : state.view === "guide" ? renderGuide() : renderRestore();
+  const content = state.view === "home" ? renderHome() : state.view === "scanning" ? renderScanning() : state.view === "scan" ? renderScan() : state.view === "exported" ? renderExported() : state.view === "plan" ? renderPlan() : state.view === "applying" ? renderApplying() : state.view === "complete" ? renderComplete() : state.view === "report" ? renderReport() : state.view === "guide" ? renderGuide() : state.view === "restore" ? renderRestore() : renderDiagnostics();
   appRoot.innerHTML = state.busy ? `${content}<div class="busy-overlay" role="status">正在处理…</div>` : content;
   bindEvents();
 }
@@ -245,7 +296,8 @@ async function applyPlan(): Promise<void> {
   state = { ...state, view: "applying", busy: true, error: null };
   render();
   try {
-    const outcome = await invokeOrPreview<MigrationOutcome>("apply_plan");
+    const keyboard = state.plan?.keyboard_compatibility;
+    const outcome = await invokeOrPreview<MigrationOutcome>("apply_plan", keyboard ? { keyboard_built_in: keyboard.built_in_enabled, keyboard_external: keyboard.external_enabled } : undefined);
     state = { ...state, outcome, view: "complete", busy: false };
   } catch (error) { state = { ...state, view: "plan", busy: false, error: String(error) }; }
   render();
@@ -257,6 +309,16 @@ async function rollback(moduleId?: string): Promise<void> {
   try {
     const outcome = await invokeOrPreview<MigrationOutcome>(moduleId ? "rollback_module" : "rollback_all", moduleId ? { module_id: moduleId } : undefined);
     state = { ...state, outcome, view: "complete", busy: false };
+  } catch (error) { state = { ...state, busy: false, error: String(error) }; }
+  render();
+}
+
+async function runDiagnostics(): Promise<void> {
+  state = { ...state, view: "diagnostics", busy: true, error: null };
+  render();
+  try {
+    const diagnostics = await invokeOrPreview<DeviceSelfCheck>("device_self_check");
+    state = { ...state, diagnostics, view: "diagnostics", busy: false };
   } catch (error) { state = { ...state, busy: false, error: String(error) }; }
   render();
 }
@@ -274,14 +336,21 @@ function bindEvents(): void {
     else if (action === "guide") updateView("guide");
     else if (action === "restore") updateView("restore");
     else if (action === "rollback-all") void rollback();
-    else if (action === "alpha-info") window.alert("Alpha 0.1 暂不支持 Wi‑Fi、Ctrl 兼容、软件安装、Homebrew、管理员权限和个人数据迁移。");
+    else if (action === "diagnostics") void runDiagnostics();
+    else if (action === "alpha-info") window.alert("Alpha 0.2 仍不处理个人文件、浏览器数据、Wi‑Fi 密码、软件自动安装、Homebrew 或系统更新；Ctrl 兼容仅使用选择性规则。");
     else if (action === "download-report") void copyReport();
   }));
   appRoot.querySelectorAll<HTMLInputElement>("input[data-keyboard]").forEach((input) => input.addEventListener("change", () => { state = { ...state, selection: { ...state.selection, include_keyboard: input.checked } }; }));
   appRoot.querySelectorAll<HTMLInputElement>("input[data-guide]").forEach((input) => input.addEventListener("change", () => { state = { ...state, selection: { ...state.selection, guide_requested: input.checked } }; }));
+  appRoot.querySelectorAll<HTMLInputElement>("input[data-keyboard-kind]").forEach((input) => input.addEventListener("change", () => {
+    const kind = input.dataset.keyboardKind;
+    if (!state.plan?.keyboard_compatibility || (kind !== "built_in" && kind !== "external")) return;
+    const keyboard = { ...state.plan.keyboard_compatibility, ...(kind === "built_in" ? { built_in_enabled: input.checked } : { external_enabled: input.checked }) };
+    state = { ...state, plan: { ...state.plan, keyboard_compatibility: keyboard } };
+  }));
   appRoot.querySelectorAll<HTMLInputElement>("input[data-software]").forEach((input) => input.addEventListener("change", () => { const id = input.dataset.software ?? ""; const ids = input.checked ? [...state.selection.software_ids, id] : state.selection.software_ids.filter((value) => value !== id); state = { ...state, selection: { ...state.selection, software_ids: ids } }; }));
   appRoot.querySelectorAll<HTMLElement>("[data-rollback]").forEach((element) => element.addEventListener("click", () => void rollback(element.dataset.rollback)));
-  if (state.error) { const error = document.createElement("div"); error.className = "error-toast"; error.textContent = `没有完成：${state.error}`; appRoot.append(error); }
+  if (state.error) { const error = document.createElement("div"); error.className = "error-toast"; error.textContent = `没有完成：${friendlyError(state.error)}`; appRoot.append(error); }
 }
 
 async function copyReport(): Promise<void> {

@@ -501,7 +501,7 @@ class M1ValidatorTests(unittest.TestCase):
             lambda data: data.__setitem__("milestone_status", "completed_waiting_for_next_authorization"),
             "unexpected milestone status",
         )
-        for field in ("wifi", "passwords", "ctrl_compatibility", "third_party_installation", "software_auto_install", "permissions", "real_secrets", "personal_files", "merge_main", "release"):
+        for field in ("wifi", "passwords", "third_party_installation", "software_auto_install", "permissions", "real_secrets", "personal_files", "merge_main", "release"):
             with self.subTest(alpha_forbidden=field):
                 self._assert_feature_policy_rejected(
                     lambda data, field=field: data["alpha_authorization"].__setitem__(field, True),

@@ -46,7 +46,7 @@ export interface ExportReceipt {
 }
 
 export interface PlanItem {
-  module_id: "finder_extensions" | "keyboard_repeat";
+  module_id: "finder_extensions" | "keyboard_repeat" | "keyboard_compatibility";
   title: string;
   current_value: string;
   target_value: string;
@@ -65,16 +65,55 @@ export interface ImportPlan {
   software: SoftwareFinding[];
   guide_requested: boolean;
   contains_secrets: boolean;
+  keyboard_compatibility: KeyboardCompatibilityPlan;
+}
+
+export interface KeyboardDevice {
+  name: string;
+  kind: "built_in" | "external" | string;
+  recognized: boolean;
+  redacted_id: string;
+}
+
+export interface KarabinerStatus {
+  installed: boolean;
+  version: string | null;
+  config_present: boolean;
+  permission: string;
+  official_url: string;
+}
+
+export interface KeyboardCompatibilityPlan {
+  built_in_enabled: boolean;
+  external_enabled: boolean;
+  devices: KeyboardDevice[];
+  shortcuts: string[];
+  exceptions: string[];
+  karabiner: KarabinerStatus;
+  recovery: string;
+}
+
+export interface DeviceSelfCheck {
+  app_version: string;
+  format_version: string;
+  runtime: RuntimeInfo;
+  keyboard_devices: KeyboardDevice[];
+  karabiner: KarabinerStatus;
+  recent_modules: string[];
+  privacy_note: string;
 }
 
 export type ModuleStatus =
   | "applied_verified"
   | "failed_recoverable"
   | "rolled_back_verified"
+  | "manual_action_required"
+  | "skipped_permission"
+  | "unknown_requires_review"
   | "unchanged";
 
 export interface ModuleResult {
-  module_id: "finder_extensions" | "keyboard_repeat";
+  module_id: "finder_extensions" | "keyboard_repeat" | "keyboard_compatibility";
   title: string;
   before: string;
   after: string;
@@ -108,7 +147,8 @@ export type View =
   | "complete"
   | "report"
   | "guide"
-  | "restore";
+  | "restore"
+  | "diagnostics";
 
 export interface AppState {
   view: View;
@@ -118,6 +158,7 @@ export interface AppState {
   outcome: MigrationOutcome | null;
   selection: ExportSelection;
   receipt: ExportReceipt | null;
+  diagnostics: DeviceSelfCheck | null;
   busy: boolean;
   error: string | null;
   webPreview: boolean;

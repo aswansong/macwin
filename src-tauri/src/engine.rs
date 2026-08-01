@@ -1,4 +1,5 @@
 use crate::habitpack::{ImportedPackage, KeyboardEvidence};
+use crate::karabiner::{ApplyReport, KeyboardCompatibilityPlan, KeyboardCompatibilityRequest};
 use crate::platform::{PlatformError, TargetPreferences};
 use crate::snapshot::{Snapshot, SnapshotStore};
 use serde::Serialize;
@@ -13,6 +14,11 @@ pub trait TargetAdapter {
     ) -> Result<(), PlatformError>;
     fn restore_keyboard_repeat(&mut self, previous: TargetPreferences)
         -> Result<(), PlatformError>;
+    fn set_keyboard_compatibility(
+        &mut self,
+        request: &KeyboardCompatibilityRequest,
+    ) -> Result<ApplyReport, PlatformError>;
+    fn restore_keyboard_compatibility(&mut self) -> Result<ApplyReport, PlatformError>;
 }
 
 pub struct NativeAdapter;
@@ -36,6 +42,15 @@ impl TargetAdapter for NativeAdapter {
         previous: TargetPreferences,
     ) -> Result<(), PlatformError> {
         crate::platform::restore_keyboard_repeat(previous)
+    }
+    fn set_keyboard_compatibility(
+        &mut self,
+        request: &KeyboardCompatibilityRequest,
+    ) -> Result<ApplyReport, PlatformError> {
+        crate::karabiner::apply(request)
+    }
+    fn restore_keyboard_compatibility(&mut self) -> Result<ApplyReport, PlatformError> {
+        crate::karabiner::remove(&crate::platform::read_target_preferences()?)
     }
 }
 
@@ -73,6 +88,7 @@ pub struct ImportPlan {
     pub software: Vec<SoftwarePlanItem>,
     pub guide_requested: bool,
     pub contains_secrets: bool,
+    pub keyboard_compatibility: KeyboardCompatibilityPlan,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -181,6 +197,7 @@ pub fn make_plan(
         software,
         guide_requested: package.guide_requested,
         contains_secrets: package.contains_secrets,
+        keyboard_compatibility: crate::karabiner::plan_for_target(),
     }
 }
 
@@ -231,6 +248,9 @@ fn guide(results: &[ModuleResult], requested: bool) -> Vec<GuideSection> {
     if keyboard {
         sections.push(GuideSection { title: "键盘重复速度".to_owned(), body: "MacWin 只调整了按键重复节奏，没有交换 Ctrl 和 Command，也没有改变终端、远程桌面或虚拟机中的真实 Ctrl。".to_owned() });
     }
+    if results.iter().any(|item| item.module_id == "keyboard_compatibility" && item.status == "applied_verified") {
+        sections.push(GuideSection { title: "选择性 Ctrl 兼容".to_owned(), body: "普通 Mac 应用中的 Ctrl+C/V/X/Z/Y/A/S/F/P/N/O/W/T/L/R 会转换为对应的 Command 组合；Terminal、iTerm2、Warp、远程桌面、虚拟机和 VS Code 默认保留真实 Ctrl。".to_owned() });
+    }
     sections.push(GuideSection { title: "Command、Option 和 Fn".to_owned(), body: "Command 是 Mac 最常用的编辑修饰键；Option 常表示替代操作或特殊字符；Fn 用于功能键和系统功能。MacWin Alpha 不会重映射它们。".to_owned() });
     sections.push(GuideSection { title: "Mac 适合你的地方".to_owned(), body: "如果你经常外出，Apple 芯片 MacBook 的能效、触控板和睡眠唤醒整合可能更省心。轻量 AI 编程也可以利用 macOS 的 Unix 工具链。".to_owned() });
     sections.push(GuideSection { title: "Windows 仍然更合适的地方".to_owned(), body: "某些企业系统、专用 Windows 软件、游戏和特殊外设仍可能更适合留在 Windows；这不是一次迁移就能解决的差异。".to_owned() });
@@ -241,6 +261,7 @@ pub fn apply_plan<A: TargetAdapter>(
     adapter: &mut A,
     store: &SnapshotStore,
     package: &ImportedPackage,
+    keyboard_request: &KeyboardCompatibilityRequest,
 ) -> Result<MigrationOutcome, String> {
     let before = adapter
         .read_preferences()
@@ -318,6 +339,42 @@ pub fn apply_plan<A: TargetAdapter>(
                 error_code: Some(error_code(&error)),
             }),
         }
+        let compatibility_apply = adapter.set_keyboard_compatibility(keyboard_request);
+        match compatibility_apply {
+            Ok(report) if report.status == "applied_verified" => results.push(ModuleResult {
+                module_id: "keyboard_compatibility".to_owned(),
+                title: "选择性 Ctrl 兼容".to_owned(),
+                before: "未启用".to_owned(),
+                after: "普通应用 Ctrl 组合已启用".to_owned(),
+                reason: "让常用 Windows 快捷键在普通 Mac 应用中更接近原来的手感。".to_owned(),
+                benefit: "Ctrl+C/V/X/Z 等可继续使用，终端和远程桌面仍保留真实 Ctrl。".to_owned(),
+                recovery: "只移除 MacWin 自己的规则".to_owned(),
+                status: "applied_verified".to_owned(),
+                error_code: None,
+            }),
+            Ok(report) => results.push(ModuleResult {
+                module_id: "keyboard_compatibility".to_owned(),
+                title: "选择性 Ctrl 兼容".to_owned(),
+                before: "未启用".to_owned(),
+                after: "等待手动完成".to_owned(),
+                reason: "第三方工具或系统授权尚未就绪。".to_owned(),
+                benefit: report.detail,
+                recovery: "无需恢复，规则尚未写入".to_owned(),
+                status: "manual_action_required".to_owned(),
+                error_code: None,
+            }),
+            Err(error) => results.push(ModuleResult {
+                module_id: "keyboard_compatibility".to_owned(),
+                title: "选择性 Ctrl 兼容".to_owned(),
+                before: "未启用".to_owned(),
+                after: "未改变".to_owned(),
+                reason: "写入规则时遇到错误。".to_owned(),
+                benefit: "不会全局交换 Ctrl 和 Command。".to_owned(),
+                recovery: "保留原配置，可稍后重试".to_owned(),
+                status: "failed_recoverable".to_owned(),
+                error_code: Some(error_code(&error)),
+            }),
+        }
     }
     let success = results.iter().all(|item| item.status == "applied_verified");
     let completed_at = now()?;
@@ -344,6 +401,11 @@ pub fn rollback_module<A: TargetAdapter>(
         "keyboard_repeat" => adapter
             .restore_keyboard_repeat(preferences.clone())
             .map_err(|error| error_code(&error))?,
+        "keyboard_compatibility" => {
+            let _ = adapter
+                .restore_keyboard_compatibility()
+                .map_err(|error| error_code(&error))?;
+        }
         _ => return Err("MODULE_UNKNOWN".to_owned()),
     }
     let after = adapter
@@ -351,9 +413,11 @@ pub fn rollback_module<A: TargetAdapter>(
         .map_err(|error| error_code(&error))?;
     let verified = if module_id == "finder_extensions" {
         after.finder_extensions == preferences.finder_extensions
-    } else {
+    } else if module_id == "keyboard_repeat" {
         after.key_repeat == preferences.key_repeat
             && after.initial_key_repeat == preferences.initial_key_repeat
+    } else {
+        true
     };
     if !verified {
         return Err("ROLLBACK_VERIFY".to_owned());
@@ -403,6 +467,15 @@ mod tests {
             self.value.initial_key_repeat = previous.initial_key_repeat;
             Ok(())
         }
+        fn set_keyboard_compatibility(
+            &mut self,
+            _request: &KeyboardCompatibilityRequest,
+        ) -> Result<ApplyReport, PlatformError> {
+            Ok(ApplyReport { status: "manual_action_required".to_owned(), detail: "fake".to_owned() })
+        }
+        fn restore_keyboard_compatibility(&mut self) -> Result<ApplyReport, PlatformError> {
+            Ok(ApplyReport { status: "rolled_back_verified".to_owned(), detail: "fake".to_owned() })
+        }
     }
     #[test]
     fn mapping_stays_in_safe_range() {
@@ -442,7 +515,7 @@ mod tests {
             contains_secrets: false,
             entries: 2,
         };
-        let outcome = apply_plan(&mut adapter, &store, &package).expect("outcome");
+        let outcome = apply_plan(&mut adapter, &store, &package, &KeyboardCompatibilityRequest { built_in_enabled: false, external_enabled: false, devices: vec![] }).expect("outcome");
         assert_eq!(outcome.outcome, "partial");
         assert_eq!(outcome.results[0].status, "failed_recoverable");
         assert_eq!(outcome.results[1].status, "applied_verified");

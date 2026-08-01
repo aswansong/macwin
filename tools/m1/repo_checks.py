@@ -43,7 +43,7 @@ ALPHA_AUTHORIZATION = {
     "report_guide": True,
     "wifi": False,
     "passwords": False,
-    "ctrl_compatibility": False,
+    "ctrl_compatibility": True,
     "third_party_installation": False,
     "software_auto_install": False,
     "permissions": False,
@@ -325,7 +325,7 @@ def feature_checks(root: Path = ROOT) -> int:
         for dep in graph[node]: visit(dep)
         visiting.remove(node); done.add(node)
     for node in graph: visit(node)
-    check(data["current_milestone"] == "Alpha-0.1-vertical-slice", "current milestone mismatch")
+    check(data["current_milestone"] == "Alpha-0.2-keyboard-compatibility", "current milestone mismatch")
     check(data["milestone_status"] == "alpha_local_validation_active", "unexpected milestone status")
     check(data.get("last_updated") == "2026-08-02", "last_updated mismatch")
     check(data.get("prototype_authorized") is True, "prototype authorization history must remain true")
@@ -362,10 +362,10 @@ def feature_checks(root: Path = ROOT) -> int:
     check(evidence["wave0"].get("scope") == "research_only_no_production_or_system_changes", "wave0 evidence scope mismatch")
     check(evidence["wave0"].get("decision_ref") == "D-029", "wave0 decision evidence mismatch")
     check(evidence["wave0"].get("evidence_ref") == "E-018", "wave0 evidence reference mismatch")
-    check(evidence["alpha"].get("branch") == "alpha/v0.1-vertical-slice", "alpha evidence branch mismatch")
-    check(evidence["alpha"].get("scope") == "real_local_vertical_slice_without_wifi_secrets_or_installers", "alpha evidence scope mismatch")
-    check(evidence["alpha"].get("decision_ref") == "D-030", "alpha decision evidence mismatch")
-    check(evidence["alpha"].get("evidence_ref") == "E-019", "alpha evidence reference mismatch")
+    check(evidence["alpha"].get("branch") == "alpha/v0.2-keyboard-compatibility", "alpha evidence branch mismatch")
+    check(evidence["alpha"].get("scope") == "real_mac_keyboard_compatibility_without_wifi_secrets_or_installers", "alpha evidence scope mismatch")
+    check(evidence["alpha"].get("decision_ref") == "D-031", "alpha decision evidence mismatch")
+    check(evidence["alpha"].get("evidence_ref") == "E-020", "alpha evidence reference mismatch")
     return len(features)
 
 

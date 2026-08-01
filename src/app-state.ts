@@ -7,6 +7,7 @@ export const initialState = (webPreview: boolean): AppState => ({
   plan: null,
   outcome: null,
   receipt: null,
+  diagnostics: null,
   busy: false,
   error: null,
   webPreview,
@@ -19,10 +20,11 @@ export const initialState = (webPreview: boolean): AppState => ({
 
 export function canNavigate(state: AppState, next: View): boolean {
   if (next === "home") return true;
+  if (next === "diagnostics") return true;
   if (next === "scan") return Boolean(state.scan);
   if (next === "exported") return Boolean(state.receipt);
   if (next === "plan") return Boolean(state.plan);
-  if (["complete", "report", "guide", "restore"].includes(next)) {
+  if (["complete", "report", "guide", "restore", "diagnostics"].includes(next)) {
     return Boolean(state.outcome);
   }
   return next === "scanning" || next === "applying";
@@ -36,7 +38,7 @@ export function progressFor(view: View): { side: "windows" | "mac" | "home"; ste
   if (["scanning", "scan", "exported"].includes(view)) {
     return { side: "windows", step: view === "scanning" ? 1 : view === "scan" ? 2 : 3 };
   }
-  if (["plan", "applying", "complete", "report", "guide", "restore"].includes(view)) {
+  if (["plan", "applying", "complete", "report", "guide", "restore", "diagnostics"].includes(view)) {
     return { side: "mac", step: view === "plan" ? 2 : view === "applying" ? 2 : 3 };
   }
   return { side: "home", step: 0 };
@@ -47,6 +49,9 @@ export function statusLabel(status: string): string {
     applied_verified: "已验证",
     failed_recoverable: "失败，可恢复",
     rolled_back_verified: "已恢复并验证",
+    manual_action_required: "需要手动完成",
+    skipped_permission: "已跳过（权限）",
+    unknown_requires_review: "状态未知，需要检查",
     unchanged: "未更改",
   };
   return labels[status] ?? "需要检查";

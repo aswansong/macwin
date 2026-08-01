@@ -1,10 +1,10 @@
 [package]
 name = "macwin"
-version = "0.1.0"
-description = "MacWin Alpha 0.1 — Windows habits to Mac"
+version = "0.2.0"
+description = "MacWin Alpha 0.2 — Windows habits to Mac"
 authors = ["MacWin"]
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.97"
 
 [lib]
 name = "macwin_lib"

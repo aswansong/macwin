@@ -1,8 +1,8 @@
 # 当前执行计划
 
-计划 ID：`Alpha-0.1-vertical-slice`
+计划 ID：`Alpha-0.2-keyboard-compatibility`
 
-状态：**Alpha 0.1 真实纵向切片执行中**（`alpha_local_validation_active`）
+状态：**Alpha 0.2 真实 Mac 闭环与选择性 Ctrl 执行中**（`alpha_local_validation_active`）
 
 最后更新：2026-08-02
 
@@ -10,11 +10,11 @@
 
 ## 0. 当前授权与执行门
 
-负责人已接受 M1 原型并授权在独立分支 `alpha/v0.1-vertical-slice` 完成最小真实纵向切片。[D-030、E-019]
+负责人已接受 M1 原型并授权在独立分支 `alpha/v0.2-keyboard-compatibility` 完成 Alpha 0.2。[D-031、E-020]
 
-本轮允许：Windows 10/11 x64 白名单扫描、现有 `.habitpack` 1.0.0 生成与导入、强制计划、macOS Finder 扩展名与键盘重复速率的声明式应用、单份迁移前快照、按模块恢复、报告和指南。实现必须默认本地离线、无账号、零上传、只执行代码内固定规则。
+本轮允许：保留 Alpha 0.1 的扫描、现有 `.habitpack` 1.0.0、强制计划、Finder 扩展名、键盘重复速率、单份快照、按模块恢复、报告和指南；新增真实 Apple 芯片 Mac 验证、内置/外接键盘检测、选择性 Ctrl 白名单、Karabiner 非破坏合并/恢复、设备自检和双平台 CI 产物。实现必须默认本地离线、无账号、零上传、只执行代码内固定规则。
 
-本轮明确不做：Wi‑Fi/密码、Ctrl/Command 兼容层、第三方工具或 Homebrew 安装、软件自动安装、UAC/TCC/管理员流程、真实秘密、个人文件、更新、签名/公证、公开 Release。浏览器与软件只做白名单检测及官方入口提示。[D-030、E-019]
+本轮明确不做：Wi‑Fi/密码、全局 Ctrl/Command 交换、第三方工具静默安装、Homebrew、软件自动安装、真实秘密、个人文件、更新、签名/公证、公开 Release；不绕过 Karabiner/macOS 权限。浏览器与软件只做白名单检测及官方入口提示。[D-031、E-020]
 
 当前分支不得合并 `main` 或创建 Release；可提交并推送 Alpha 分支供明确知情测试者使用。主控可见可用额度低于 20% 时停止新任务并保留目标。
 

@@ -1,6 +1,7 @@
 mod commands;
 mod engine;
 mod habitpack;
+mod karabiner;
 mod platform;
 mod snapshot;
 
@@ -11,6 +12,7 @@ pub fn run() {
         .manage(commands::MacWinState::default())
         .invoke_handler(tauri::generate_handler![
             commands::runtime_info,
+            commands::device_self_check,
             commands::scan_windows,
             commands::export_habitpack,
             commands::import_habitpack,

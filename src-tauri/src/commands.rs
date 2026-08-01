@@ -1,5 +1,6 @@
 use crate::engine::{self, ImportPlan, MigrationOutcome, NativeAdapter, SoftwarePlanItem};
 use crate::habitpack::{self, KeyboardEvidence, PackageInput};
+use crate::karabiner::{self, KarabinerStatus, KeyboardDevice};
 use crate::platform::{self, RuntimeInfo, SoftwareFinding, WindowsScan};
 use crate::snapshot::default_store;
 use serde::{Deserialize, Serialize};
@@ -30,9 +31,41 @@ pub struct ExportReceipt {
     pub validated: bool,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct DeviceSelfCheck {
+    pub app_version: String,
+    pub format_version: String,
+    pub runtime: RuntimeInfo,
+    pub keyboard_devices: Vec<KeyboardDevice>,
+    pub karabiner: KarabinerStatus,
+    pub recent_modules: Vec<String>,
+    pub privacy_note: String,
+}
+
 #[tauri::command]
 pub fn runtime_info() -> RuntimeInfo {
     platform::runtime_info()
+}
+
+#[tauri::command]
+pub fn device_self_check(state: State<'_, MacWinState>) -> DeviceSelfCheck {
+    let recent_modules = state
+        .outcome
+        .lock()
+        .ok()
+        .and_then(|outcome| outcome.clone())
+        .map(|outcome| outcome.results.into_iter().map(|result| format!("{}:{}", result.module_id, result.status)).collect())
+        .unwrap_or_default();
+    let plan = karabiner::plan_for_target();
+    DeviceSelfCheck {
+        app_version: env!("CARGO_PKG_VERSION").to_owned(),
+        format_version: habitpack::SCHEMA_VERSION.to_owned(),
+        runtime: platform::runtime_info(),
+        keyboard_devices: plan.devices,
+        karabiner: plan.karabiner,
+        recent_modules,
+        privacy_note: "本地生成；不含用户名、路径、序列号、密码或原始配置".to_owned(),
+    }
 }
 
 #[tauri::command]
@@ -120,6 +153,8 @@ pub fn import_habitpack(
 pub fn apply_plan(
     app: AppHandle,
     state: State<'_, MacWinState>,
+    keyboard_built_in: Option<bool>,
+    keyboard_external: Option<bool>,
 ) -> Result<MigrationOutcome, String> {
     let package = state
         .package
@@ -133,7 +168,16 @@ pub fn apply_plan(
         .map_err(|_| "APP_DATA_PATH".to_owned())?;
     let store = default_store(&root);
     let mut adapter = NativeAdapter;
-    let outcome = engine::apply_plan(&mut adapter, &store, &package)?;
+    let plan = state
+        .plan
+        .lock()
+        .map_err(|_| "STATE_LOCK".to_owned())?
+        .clone()
+        .ok_or_else(|| "PLAN_MISSING".to_owned())?;
+    let mut request = karabiner::request_from_plan(&plan.keyboard_compatibility);
+    if let Some(enabled) = keyboard_built_in { request.built_in_enabled = enabled; }
+    if let Some(enabled) = keyboard_external { request.external_enabled = enabled; }
+    let outcome = engine::apply_plan(&mut adapter, &store, &package, &request)?;
     *state.outcome.lock().map_err(|_| "STATE_LOCK".to_owned())? = Some(outcome.clone());
     Ok(outcome)
 }
@@ -180,7 +224,7 @@ pub fn rollback_all(
         .clone()
         .ok_or_else(|| "OUTCOME_MISSING".to_owned())?;
     let mut first_error = None;
-    for module in ["keyboard_repeat", "finder_extensions"] {
+    for module in ["keyboard_compatibility", "keyboard_repeat", "finder_extensions"] {
         if let Err(error) =
             engine::rollback_module(&mut adapter, &store, module, &mut outcome.results)
         {

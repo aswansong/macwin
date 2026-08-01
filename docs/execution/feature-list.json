@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "product": "MacWin",
   "direction": "windows_to_macos",
-  "current_milestone": "Alpha-0.1-vertical-slice",
+  "current_milestone": "Alpha-0.2-keyboard-compatibility",
   "milestone_status": "alpha_local_validation_active",
   "prototype_authorized": true,
   "production_implementation_authorized": false,
@@ -36,7 +36,7 @@
     "report_guide": true,
     "wifi": false,
     "passwords": false,
-    "ctrl_compatibility": false,
+    "ctrl_compatibility": true,
     "third_party_installation": false,
     "software_auto_install": false,
     "permissions": false,
@@ -61,10 +61,10 @@
       "evidence_ref": "E-018"
     },
     "alpha": {
-      "branch": "alpha/v0.1-vertical-slice",
-      "scope": "real_local_vertical_slice_without_wifi_secrets_or_installers",
-      "decision_ref": "D-030",
-      "evidence_ref": "E-019"
+      "branch": "alpha/v0.2-keyboard-compatibility",
+      "scope": "real_mac_keyboard_compatibility_without_wifi_secrets_or_installers",
+      "decision_ref": "D-031",
+      "evidence_ref": "E-020"
     }
   },
   "status_definitions": {
