@@ -2,12 +2,32 @@
   "schema_version": "1.0.0",
   "product": "MacWin",
   "direction": "windows_to_macos",
-  "current_milestone": "M1-clickable-prototype-and-format",
-  "milestone_status": "completed_waiting_for_next_authorization",
+  "current_milestone": "M2-wave0-research-only",
+  "milestone_status": "research_only_wave0_active",
   "prototype_authorized": true,
   "production_implementation_authorized": false,
   "system_changes_authorized": false,
-  "last_updated": "2026-07-31",
+  "last_updated": "2026-08-01",
+  "wave0_authorization": {
+    "local_fixture": true,
+    "parser": true,
+    "mock": true,
+    "synthetic_snapshot": true,
+    "offline_signature": true,
+    "supply_chain_fixture": true,
+    "research_branch_push": true,
+    "official_docs_https": true,
+    "locked_dev_dependencies_in_isolated_env": true,
+    "real_devices": false,
+    "real_secrets": false,
+    "permissions": false,
+    "system_writes": false,
+    "third_party_installation": false,
+    "production_dependencies": false,
+    "production_skeleton": false,
+    "pr_merge": false,
+    "release": false
+  },
   "milestone_evidence": {
     "prototype": {
       "commit": "37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75",
@@ -17,6 +37,11 @@
       "schema_version": "1.0.0",
       "scope": "schema_container_and_fictional_fixture_validation_only",
       "command": "./scripts/validate-m1"
+    },
+    "wave0": {
+      "scope": "research_only_no_production_or_system_changes",
+      "decision_ref": "D-029",
+      "evidence_ref": "E-018"
     }
   },
   "status_definitions": {

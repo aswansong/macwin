@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.m1.fixtures import MATRIX, _json, _manifest, _write_zip, build_fixture, package_source
-from tools.m1.repo_checks import ROOT, feature_checks, json_checks, markdown_checks, traceability_checks
+from tools.m1.repo_checks import WAVE0_AUTHORIZATION, ROOT, feature_checks, json_checks, markdown_checks, traceability_checks
 from tools.m1.validator import MAX_JSON, MAX_JSON_INTEGER_DIGITS, MAX_JSON_NESTING, MAX_MANIFEST, MAX_SECRET, HabitpackError, _load_schemas, _schema_validate, _validate_deflate_stream, strict_json, validate_habitpack
 
 
@@ -338,6 +338,51 @@ class M1ValidatorTests(unittest.TestCase):
                 (target / "feature-list.json").write_text(json.dumps(data))
                 with self.assertRaisesRegex(AssertionError, f"{field} is required"):
                     feature_checks(root)
+
+    def _assert_feature_policy_rejected(self, mutate, message: str) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "docs/execution"
+            target.mkdir(parents=True)
+            data = json.loads((ROOT / "docs/execution/feature-list.json").read_text())
+            mutate(data)
+            (target / "feature-list.json").write_text(json.dumps(data))
+            with self.assertRaisesRegex(AssertionError, message):
+                feature_checks(root)
+
+    def test_wave0_governance_rejects_invalid_authorization_combinations(self) -> None:
+        self._assert_feature_policy_rejected(
+            lambda data: data.__setitem__("production_implementation_authorized", True),
+            "production implementation must remain unauthorized",
+        )
+        self._assert_feature_policy_rejected(
+            lambda data: data.__setitem__("system_changes_authorized", True),
+            "system changes must remain unauthorized",
+        )
+        self._assert_feature_policy_rejected(
+            lambda data: data["features"][0].__setitem__("status", "implemented"),
+            "Wave0 evidence must not advance real P0 status",
+        )
+        for field in ("real_devices", "real_secrets", "permissions", "system_writes", "third_party_installation", "production_dependencies", "production_skeleton", "pr_merge", "release"):
+            with self.subTest(forbidden=field):
+                self._assert_feature_policy_rejected(
+                    lambda data, field=field: data["wave0_authorization"].__setitem__(field, True),
+                    f"wave0 authorization mismatch: {field}",
+                )
+        for field in (name for name, expected in WAVE0_AUTHORIZATION.items() if expected):
+            with self.subTest(missing=field):
+                self._assert_feature_policy_rejected(
+                    lambda data, field=field: data["wave0_authorization"].__setitem__(field, False),
+                    f"wave0 authorization mismatch: {field}",
+                )
+                self._assert_feature_policy_rejected(
+                    lambda data, field=field: data["wave0_authorization"].pop(field),
+                    f"wave0 authorization field is required: {field}",
+                )
+        self._assert_feature_policy_rejected(
+            lambda data: data.__setitem__("milestone_status", "completed_waiting_for_next_authorization"),
+            "unexpected milestone status",
+        )
 
     def test_root_readme_references_are_checked(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -14,6 +14,27 @@ from .validator import HabitpackError, strict_json, validate_habitpack
 
 ROOT = Path(__file__).resolve().parents[2]
 
+WAVE0_AUTHORIZATION = {
+    "local_fixture": True,
+    "parser": True,
+    "mock": True,
+    "synthetic_snapshot": True,
+    "offline_signature": True,
+    "supply_chain_fixture": True,
+    "research_branch_push": True,
+    "official_docs_https": True,
+    "locked_dev_dependencies_in_isolated_env": True,
+    "real_devices": False,
+    "real_secrets": False,
+    "permissions": False,
+    "system_writes": False,
+    "third_party_installation": False,
+    "production_dependencies": False,
+    "production_skeleton": False,
+    "pr_merge": False,
+    "release": False,
+}
+
 
 def check(condition: bool, message: str) -> None:
     if not condition:
@@ -127,7 +148,7 @@ def feature_checks(root: Path = ROOT) -> int:
     acceptance: set[str] = set()
     graph: dict[str, list[str]] = {}
     for feature in features:
-        check(feature["priority"] == "P0", f"non-P0 in M1 list: {feature['id']}")
+        check(feature["priority"] == "P0", f"non-P0 feature: {feature['id']}")
         check(feature["status"] in data["status_definitions"], f"unknown status: {feature['id']}")
         check(isinstance(feature["dependencies"], list), f"missing dependencies: {feature['id']}")
         check(feature["risks"], f"missing risks: {feature['id']}")
@@ -147,12 +168,20 @@ def feature_checks(root: Path = ROOT) -> int:
         for dep in graph[node]: visit(dep)
         visiting.remove(node); done.add(node)
     for node in graph: visit(node)
-    check(data["current_milestone"] == "M1-clickable-prototype-and-format", "current milestone mismatch")
+    check(data["current_milestone"] == "M2-wave0-research-only", "current milestone mismatch")
+    check("milestone_status" in data, "milestone_status is required")
+    check(data["milestone_status"] == "research_only_wave0_active", "unexpected milestone status")
+    check(data.get("last_updated") == "2026-08-01", "last_updated mismatch")
+    check(data.get("prototype_authorized") is True, "prototype authorization history must remain true")
     check(data["production_implementation_authorized"] is False, "production implementation must remain unauthorized")
     check(data["system_changes_authorized"] is False, "system changes must remain unauthorized")
-    check(all(feature["status"] == "specified" for feature in features), "M1 evidence must not advance real P0 status")
-    check("milestone_status" in data, "milestone_status is required")
-    check(data["milestone_status"] == "completed_waiting_for_next_authorization", "unexpected milestone status")
+    check(all(feature["status"] == "specified" for feature in features), "Wave0 evidence must not advance real P0 status")
+    check("wave0_authorization" in data and isinstance(data["wave0_authorization"], dict), "wave0_authorization is required")
+    authorization = data["wave0_authorization"]
+    for field, expected in WAVE0_AUTHORIZATION.items():
+        check(field in authorization, f"wave0 authorization field is required: {field}")
+        check(type(authorization[field]) is bool, f"wave0 authorization field must be boolean: {field}")
+        check(authorization[field] is expected, f"wave0 authorization mismatch: {field}")
     check("milestone_evidence" in data and isinstance(data["milestone_evidence"], dict), "milestone_evidence is required")
     evidence = data["milestone_evidence"]
     check(isinstance(evidence.get("prototype"), dict), "prototype milestone evidence is required")
@@ -162,6 +191,10 @@ def feature_checks(root: Path = ROOT) -> int:
     check(evidence["format"].get("schema_version") == "1.0.0", "format evidence schema version mismatch")
     check(evidence["format"].get("scope") == "schema_container_and_fictional_fixture_validation_only", "format evidence scope mismatch")
     check(evidence["format"].get("command") == "./scripts/validate-m1", "format evidence command mismatch")
+    check(isinstance(evidence.get("wave0"), dict), "wave0 milestone evidence is required")
+    check(evidence["wave0"].get("scope") == "research_only_no_production_or_system_changes", "wave0 evidence scope mismatch")
+    check(evidence["wave0"].get("decision_ref") == "D-029", "wave0 decision evidence mismatch")
+    check(evidence["wave0"].get("evidence_ref") == "E-018", "wave0 evidence reference mismatch")
     return len(features)
 
 

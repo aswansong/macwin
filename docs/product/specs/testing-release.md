@@ -8,11 +8,11 @@
 
 ### R1：可丢弃交互原型与格式规范（已完成）
 
-交互原型已冻结在 `prototype/ui-flow-v2-hardening` 的提交 `37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75` 并获接受；`main` 中的 `.habitpack` M1 格式规范和虚构夹具也已闭合，M1 已停止。原型使用虚构数据，不扫描、不提权、不联网、不修改系统，也不直接合入正式实现；M2 正在等待负责人授权。[D-024、D-028]
+交互原型已冻结在 `prototype/ui-flow-v2-hardening` 的提交 `37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75` 并获接受；`main` 中的 `.habitpack` M1 格式规范和虚构夹具也已闭合，M1 已停止。原型使用虚构数据，不扫描、不提权、不联网、不修改系统，也不直接合入正式实现；M2 Wave 0 仅获局部研究授权。[D-024、D-028、D-029、E-018]
 
-### R2：技术预研（未授权）
+### R2：技术预研（Wave 0 局部已授权；真实平台其余部分未授权）
 
-分别验证包解析、Windows 白名单读取、macOS 设置适配、权限、Wi‑Fi、快照、第三方供应链与更新签名。预研不能以隐藏脚本代替产品安全边界。[D-022、OD-005、OD-006、OD-007]
+Wave 0 只允许以下四个隔离研究流：M1 `.habitpack` `1.0.0` 独立 parser；一次性 Tauri 2 最小壳与 mock bridge；synthetic snapshot/恢复；离线签名与 fictional supply-chain fixture。研究代码只能在 `codex/m2-*` 分支，不能创建 PR、合并 `main` 或 Release；只使用虚构数据和锁定开发验证依赖。真实平台的 Windows 白名单读取、macOS 设置适配、权限、Wi‑Fi、生产快照、第三方实际供应链和更新签名仍未授权。[D-022、D-029、E-018、OD-005、OD-006、OD-007]
 
 ### R3：知情 Alpha（未授权）
 
