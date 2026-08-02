@@ -42,6 +42,14 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
+      - name: Align application version with release tag
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare-release.py "$RELEASE_TAG"
+
       - name: Require release signing material
         shell: bash
         run: |
