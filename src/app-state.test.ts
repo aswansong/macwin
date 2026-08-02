@@ -17,5 +17,10 @@ describe("v1 flow guards", () => {
   it("never labels an unknown result as success", () => {
     expect(statusLabel("something_new")).toBe("需要检查");
     expect(statusLabel("applied_verified")).toBe("已验证");
+    expect(statusLabel("skipped")).toBe("已跳过（按计划）");
+  });
+
+  it("starts with the safe pointer module selected", () => {
+    expect(initialState(true).selection.include_pointer).toBe(true);
   });
 });

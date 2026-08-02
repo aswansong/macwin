@@ -36,6 +36,8 @@ jobs:
       APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       MACWIN_UPDATER_PUBKEY: ${{ secrets.MACWIN_UPDATER_PUBKEY }}
+      WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -51,6 +53,9 @@ jobs:
             test -n "$APPLE_ID"
             test -n "$APPLE_PASSWORD"
             test -n "$APPLE_TEAM_ID"
+          else
+            test -n "$WINDOWS_CERTIFICATE_BASE64"
+            test -n "$WINDOWS_CERTIFICATE_PASSWORD"
           fi
 
       - name: Set up Node.js
@@ -91,6 +96,32 @@ jobs:
       - name: Build signed installer
         run: npm run tauri build -- --target ${{ matrix.target }}
 
+      - name: Verify and notarize macOS bundles
+        if: matrix.os == 'macos-15'
+        shell: bash
+        run: |
+          find "src-tauri/target/${{ matrix.target }}/release/bundle" -name '*.app' -print0 | while IFS= read -r -d '' app; do
+            codesign --verify --deep --strict --verbose=2 "$app"
+          done
+          find "src-tauri/target/${{ matrix.target }}/release/bundle" -name '*.dmg' -print0 | while IFS= read -r -d '' dmg; do
+            xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+            xcrun stapler staple "$dmg"
+            xcrun stapler validate "$dmg"
+          done
+
+      - name: Sign Windows installer
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $certificate = Join-Path $env:RUNNER_TEMP "macwin-signing.pfx"
+          [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
+          Get-ChildItem "src-tauri/target/${{ matrix.target }}/release/bundle" -Recurse -File -Include *.exe,*.msi | ForEach-Object {
+            & signtool sign /fd SHA256 /f $certificate /p $env:WINDOWS_CERTIFICATE_PASSWORD /tr http://timestamp.digicert.com /td SHA256 $_.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            & signtool verify /pa $_.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
       - name: Create checksums and dependency manifests
         shell: bash
         run: |
@@ -115,6 +146,33 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: release-assets
+
+      - name: Build signed updater manifest
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path("release-assets")
+          tag = os.environ["RELEASE_TAG"]
+          platforms = {}
+          for sig in root.rglob("*.sig"):
+              artifact = sig.with_suffix("")
+              if not artifact.exists():
+                  continue
+              parent = sig.parent.name
+              target = "darwin-aarch64" if "aarch64" in parent else "windows-x86_64"
+              platforms[target] = {
+                  "signature": sig.read_text(encoding="utf-8").strip(),
+                  "url": f"https://github.com/aswansong/macwin/releases/download/{tag}/{artifact.name}",
+              }
+          if set(platforms) != {"darwin-aarch64", "windows-x86_64"}:
+              raise SystemExit("signed updater artifacts for both targets are required")
+          manifest = {"version": tag.removeprefix("v"), "notes": "MacWin v1 release", "platforms": platforms}
+          (root / "latest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
