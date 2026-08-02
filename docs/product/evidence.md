@@ -246,3 +246,10 @@
 - 摘要：修复 `apply_plan` 在用户取消键盘重复速度或选择性 Ctrl 后遗漏 `skipped` 结果的问题；恢复命令现在只接受本次实际应用或可恢复失败的模块，`rollback_all` 不再无条件触碰未选模块，恢复页也不为跳过/手动项目显示恢复按钮。新增回归测试确认取消模块不会写入目标值。
 - 产品含义：用户在计划页取消的设置不会出现在“已修改”或恢复动作中，也不会因为“全部恢复”覆盖迁移后用户后来主动做的新设置。
 - 关联决定：D-026、D-027、OD-009
+
+### E-034：手动 tag 的 macOS Release 路径一致
+
+- 类型：CI 流程修复、静态验证
+- 摘要：修复 signed Release workflow 在 `workflow_dispatch` 输入已有 tag 时仍使用 `github.ref_name` 生成和校验 macOS DMG 路径的问题；生成与公证步骤现在共用 `RELEASE_TAG=${{ inputs.tag || github.ref_name }}`。本地静态断言确认两处路径均使用该值。
+- 产品含义：手动重跑指定 tag 时，DMG 文件名、stapling 校验路径和发布资产保持一致，不会因分支名漂移导致发布 job 找不到已公证 DMG。
+- 关联决定：D-032、OD-006

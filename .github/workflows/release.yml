@@ -133,10 +133,12 @@ jobs:
       - name: Create plain macOS DMG from signed app
         if: matrix.os == 'macos-15'
         shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           bundle_root="src-tauri/target/${{ matrix.target }}/release/bundle"
           app_path="$bundle_root/macos/MacWin.app"
-          dmg_path="$bundle_root/dmg/MacWin_${{ github.ref_name }}_${{ matrix.target }}.dmg"
+          dmg_path="$bundle_root/dmg/MacWin_${RELEASE_TAG}_${{ matrix.target }}.dmg"
           test -d "$app_path"
           mkdir -p "$bundle_root/dmg"
           hdiutil create -volname MacWin -srcfolder "$app_path" -ov -format UDZO "$dmg_path"
@@ -144,9 +146,11 @@ jobs:
       - name: Verify and notarize macOS bundles
         if: matrix.os == 'macos-15'
         shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           app="src-tauri/target/${{ matrix.target }}/release/bundle/macos/MacWin.app"
-          dmg="src-tauri/target/${{ matrix.target }}/release/bundle/dmg/MacWin_${{ github.ref_name }}_${{ matrix.target }}.dmg"
+          dmg="src-tauri/target/${{ matrix.target }}/release/bundle/dmg/MacWin_${RELEASE_TAG}_${{ matrix.target }}.dmg"
           codesign --verify --deep --strict --verbose=2 "$app"
           xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
           xcrun stapler staple "$dmg"
