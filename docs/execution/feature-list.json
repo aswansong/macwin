@@ -319,7 +319,7 @@
       "decision_refs": ["D-007", "D-011", "D-027"],
       "evidence_refs": ["E-001", "E-002"],
       "dependencies": ["P0-005", "P0-006"],
-      "human_decisions_required": ["OD-003", "OD-007"],
+      "human_decisions_required": ["OD-007"],
       "acceptance_criteria": [
         {
           "id": "P0-007-AC01",
@@ -444,7 +444,7 @@
         {
           "id": "P0-010-AC02",
           "statement": "开发模块仅包含批准白名单内的轻量工具，默认不含 Docker、Ollama 等重型栈。",
-          "verification": "开发夹具生成计划并与 OD-003 白名单比较；重型栈名称和动作均不存在。"
+          "verification": "开发夹具生成计划并与 D-034 白名单比较；重型栈名称和动作均不存在。"
         },
         {
           "id": "P0-010-AC03",
