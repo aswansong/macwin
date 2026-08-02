@@ -24,7 +24,8 @@
     "cancelled module result and selective recovery boundary",
     "tag-aware macOS DMG generation and notarization path",
     "tag-pinned build and publish checkout",
-    "real-device acceptance runbook and redacted evidence boundary"
+    "real-device acceptance runbook and redacted evidence boundary",
+    "draft PR #1 opened for main review"
   ],
   "failed_or_deferred": [
     "P0-008 real external-device reconnect matrix not complete",
@@ -38,10 +39,11 @@
     "commit d85ff55 on release/v1.0.0",
     "docs/product/v1-validation.md",
     "docs/product/evidence.md E-024/E-025/E-026/E-027/E-028/E-029/E-030/E-031/E-032/E-033/E-034/E-035/E-036/E-037/E-038",
-    "GitHub Actions run 30755361729 succeeded on macos-15 and windows-latest",
+    "GitHub Actions run 30755844212 succeeded on macos-15 and windows-latest",
+    "draft PR https://github.com/aswansong/macwin/pull/1 targets main and remains open",
     "./scripts/validate-m1 (52 tests), release-preparation, manifest, release-assets, npm and cargo checks passed"
   ],
-  "next_action": "Complete one-time real Windows 10/11 and Apple Silicon macOS 15/26 acceptance with signing credentials; before that, keep release manifest and whitelist documentation aligned without claiming unsupported installs or Wi-Fi password migration.",
+  "next_action": "Review draft PR #1, then complete one-time real Windows 10/11 and Apple Silicon macOS 15/26 acceptance with signing credentials; before that, keep release manifest and whitelist documentation aligned without claiming unsupported installs or Wi-Fi password migration.",
   "human_gates": [
     "Apple Developer ID signing and notarization credentials",
     "Windows code-signing certificate",
