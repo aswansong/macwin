@@ -23,7 +23,7 @@
 - 软件自动安装：当前固定白名单提供官方入口；Mac 计划和报告会把已选择但未自动安装的项目标为 `manual_action_required`，不伪报已安装。签名/哈希、架构、版本和安装后可执行验证仍需完成。
 - 首批软件目录：仅 Chrome、Edge、Firefox、Microsoft 365、WPS Office、Visual Studio Code、Git、Node.js、Python、Codex CLI、Claude Code；历史候选不进入 v1 扫描或迁移包。[D-034、E-025]
 - Karabiner/LinearMouse：缺失、拒绝授权、设备断开/重连和卸载后的恢复矩阵仍需实际设备验收。
-- 更新：Tauri updater 已加入代码和 GitHub Releases endpoint 草稿；`PENDING_RELEASE_KEY` 必须由发布凭据替换，不能用于正式更新。
+- 更新：Tauri updater 已加入代码和 GitHub Releases endpoint 草稿；手动安装路径要求用户确认，并由 updater 在下载后验证签名；`PENDING_RELEASE_KEY` 必须由发布凭据替换，不能用于正式更新。
 - 安装包：bundle 配置和签名 Release workflow 已草拟；Windows 可信签名、Developer ID、公证、stapling、真实安装/卸载尚未完成。
 - 真实矩阵：至少需要 Windows 10 x64、Windows 11 x64、Apple 芯片 macOS 15、Apple 芯片 macOS 26，以及内置键盘、外接 Windows 键盘、鼠标和触控板。
 

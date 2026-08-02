@@ -52,6 +52,11 @@ pub struct UpdateCheckResult {
     pub version: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateInstallRequest {
+    pub confirmed: bool,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct SnapshotStatus {
     pub available: bool,
@@ -515,6 +520,36 @@ pub async fn check_update(app: AppHandle) -> Result<UpdateCheckResult, String> {
             version: None,
         },
     })
+}
+
+#[tauri::command]
+pub async fn install_update(
+    app: AppHandle,
+    request: UpdateInstallRequest,
+) -> Result<UpdateCheckResult, String> {
+    if !request.confirmed {
+        return Err("UPDATE_CONFIRM_REQUIRED".to_owned());
+    }
+    let Some(pubkey) = option_env!("MACWIN_UPDATER_PUBKEY") else {
+        return Err("UPDATE_NOT_CONFIGURED".to_owned());
+    };
+    if pubkey.is_empty() || pubkey == "PENDING_RELEASE_KEY" {
+        return Err("UPDATE_NOT_CONFIGURED".to_owned());
+    }
+    let updater = app.updater().map_err(|_| "UPDATE_NOT_CONFIGURED".to_owned())?;
+    let Some(update) = updater
+        .check()
+        .await
+        .map_err(|_| "UPDATE_CHECK_FAILED".to_owned())?
+    else {
+        return Ok(UpdateCheckResult { status: "current".to_owned(), version: None });
+    };
+    let version = update.version.clone();
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|_| "UPDATE_INSTALL_FAILED".to_owned())?;
+    Ok(UpdateCheckResult { status: "installed_restart_required".to_owned(), version: Some(version) })
 }
 
 #[allow(dead_code)]

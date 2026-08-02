@@ -592,7 +592,7 @@
       "status": "specified",
       "owner": "product-ui",
       "decision_refs": ["D-008", "D-012", "D-015", "D-016"],
-      "evidence_refs": ["E-015", "E-019"],
+      "evidence_refs": ["E-015", "E-019", "E-027"],
       "dependencies": ["P0-013"],
       "human_decisions_required": ["OD-001", "OD-006"],
       "acceptance_criteria": [

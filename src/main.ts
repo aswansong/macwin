@@ -113,6 +113,8 @@ function friendlyError(value: unknown): string {
     KARABINER_JSON: "Karabiner 配置不是有效 JSON，MacWin 没有写入它。",
     KARABINER_STRUCTURE: "Karabiner 配置结构不受支持，MacWin 没有猜测修改。",
     KARABINER_BACKUP: "无法创建 Karabiner 迁移前备份，已跳过写入。",
+    UPDATE_CONFIRM_REQUIRED: "更新必须经过确认。",
+    UPDATE_INSTALL_FAILED: "更新下载、签名校验或安装失败；当前版本未被替换。",
   };
   return messages[code] ?? (code || "发生未知错误，请查看报告中的错误码。");
 }
@@ -441,7 +443,15 @@ async function checkUpdate(showResult: boolean): Promise<void> {
   }
   try {
     const result = await invoke<{ status: string; version: string | null }>("check_update");
-    if (showResult) window.alert(result.status === "available" ? `发现新版本 ${result.version}` : "当前已是最新版本。");
+    if (showResult && result.status === "available") {
+      const confirmed = window.confirm(`发现新版本 ${result.version ?? ""}。MacWin 会先验证签名，再下载并安装。现在安装吗？`);
+      if (confirmed) {
+        const installed = await invoke<{ status: string; version: string | null }>("install_update", { request: { confirmed: true } });
+        window.alert(installed.status === "installed_restart_required" ? `版本 ${installed.version ?? ""} 已安装，重启 MacWin 后生效。` : "当前已是最新版本。");
+      }
+    } else if (showResult) {
+      window.alert("当前已是最新版本。");
+    }
   } catch (error) {
     if (showResult && !String(error).includes("UPDATE_NOT_CONFIGURED")) recordError(error);
     if (showResult) window.alert("暂时无法检查更新；离线时不影响本地迁移功能。");

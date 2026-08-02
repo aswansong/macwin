@@ -27,7 +27,8 @@ pub fn run() {
             commands::export_report,
             commands::record_error,
             commands::snapshot_status,
-            commands::check_update
+            commands::check_update,
+            commands::install_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running MacWin");

@@ -202,12 +202,23 @@ jobs:
                   candidates["darwin-aarch64"].append((artifact, sig))
               elif "x86_64-pc-windows-msvc" in parent and artifact.name.endswith((".nsis.zip", ".msi.zip")):
                   candidates["windows-x86_64"].append((artifact, sig))
-          if any(len(items) != 1 for items in candidates.values()):
-              details = ", ".join(f"{target}={len(items)}" for target, items in candidates.items())
-              raise SystemExit(f"exactly one signed updater artifact per target is required ({details})")
+          selected = {}
+          mac_items = candidates["darwin-aarch64"]
+          if len(mac_items) != 1:
+              raise SystemExit(f"exactly one signed macOS updater artifact is required (found {len(mac_items)})")
+          selected["darwin-aarch64"] = mac_items[0]
+          # Tauri can emit both MSI and NSIS updater archives when bundle targets
+          # are "all". Prefer MSI deterministically; fall back to NSIS.
+          windows_items = candidates["windows-x86_64"]
+          for suffix in (".msi.zip", ".nsis.zip"):
+              matches = [item for item in windows_items if item[0].name.endswith(suffix)]
+              if len(matches) == 1:
+                  selected["windows-x86_64"] = matches[0]
+                  break
+          if "windows-x86_64" not in selected:
+              raise SystemExit(f"exactly one signed MSI or NSIS updater artifact is required (found {len(windows_items)})")
           platforms = {}
-          for target, items in candidates.items():
-              artifact, sig = items[0]
+          for target, (artifact, sig) in selected.items():
               platforms[target] = {
                   "signature": sig.read_text(encoding="utf-8").strip(),
                   "url": f"https://github.com/aswansong/macwin/releases/download/{tag}/{artifact.name}",
