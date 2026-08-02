@@ -281,3 +281,11 @@
 - 摘要：在同一临时未签名配置下执行 Tauri `--bundles dmg`，生成 Apple Silicon DMG；`hdiutil verify` 返回有效，磁盘映像内容可读。产物版本仍是 `1.0.0-rc.1`，未完成 Developer ID 签名、公证或 stapling。
 - 产品含义：DMG 编排和磁盘映像完整性已在本机验证；这只是开发构建证据，不能作为 GitHub Releases 正式安装包，也不能替代真实安装/升级/卸载验收。
 - 关联决定：D-032、D-033、OD-006、E-021、E-023
+
+### E-039：Windows 安装器签名顺序修正
+
+- 类型：发布链路安全审查、官方文档核对
+- 摘要：Tauri 官方 Windows 发布文档支持通过 `bundle.windows.signCommand` 指定安装器签名命令；当前 Release workflow 在 Windows runner 的临时证书库导入证书，并把 `signtool` 作为 `signCommand` 传给 Tauri，再独立验证生成的 `.exe`/`.msi`。这样代码签名发生在 updater 压缩包生成之前，避免事后修改安装器却继续使用旧 updater 签名。
+- 产品含义：正式构建仍必须提供真实 Windows 代码签名证书，并通过发布资产哈希、updater 签名和真实安装验收；本证据不表示当前仓库已有凭据或正式发布已完成。
+- 参考：[Tauri Windows Code Signing](https://tauri.app/distribute/sign/windows/)、[Tauri Windows Installer](https://tauri.app/distribute/windows-installer/)
+- 关联决定：D-032、OD-002、OD-006

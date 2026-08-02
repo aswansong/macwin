@@ -103,9 +103,25 @@ jobs:
           npm run build
           cargo test --manifest-path src-tauri/Cargo.toml --locked
 
-      - name: Build signed installer
+      - name: Import Windows code-signing certificate
         if: matrix.os == 'windows-latest'
-        run: npm run tauri build -- --target ${{ matrix.target }}
+        shell: pwsh
+        run: |
+          $certificate = Join-Path $env:RUNNER_TEMP "macwin-signing.pfx"
+          [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
+          Import-PfxCertificate -FilePath $certificate -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText) | Out-Null
+          Remove-Item -Force $certificate
+
+      - name: Build signed Windows installer and updater artifact
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          # Tauri invokes signCommand while creating the installer, before it
+          # creates the updater archive. This keeps code signing inside the
+          # bytes covered by TAURI_SIGNING_PRIVATE_KEY.
+          $signCommand = 'signtool sign /fd SHA256 /a /tr http://timestamp.digicert.com /td SHA256 %1'
+          $config = @{ bundle = @{ windows = @{ signCommand = $signCommand } } } | ConvertTo-Json -Compress
+          npm run tauri build -- --target ${{ matrix.target }} --config $config
 
       - name: Import Apple signing certificate
         if: matrix.os == 'macos-15'
@@ -158,15 +174,11 @@ jobs:
           xcrun stapler staple "$dmg"
           xcrun stapler validate "$dmg"
 
-      - name: Sign Windows installer
+      - name: Verify Windows installer signatures
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          $certificate = Join-Path $env:RUNNER_TEMP "macwin-signing.pfx"
-          [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
           Get-ChildItem "src-tauri/target/${{ matrix.target }}/release/bundle" -Recurse -File -Include *.exe,*.msi | ForEach-Object {
-            & signtool sign /fd SHA256 /f $certificate /p $env:WINDOWS_CERTIFICATE_PASSWORD /tr http://timestamp.digicert.com /td SHA256 $_.FullName
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             & signtool verify /pa $_.FullName
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
