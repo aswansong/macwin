@@ -885,11 +885,10 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
     {
         return Err(error("HP_MANIFEST_FILE_MISMATCH"));
     }
-    if payloads.keys().any(|path| {
-        path == "modules/developer.json"
-            || path == "modules/wifi.json"
-            || path.starts_with("secrets/")
-    }) {
+    if payloads
+        .keys()
+        .any(|path| path == "modules/wifi.json" || path.starts_with("secrets/"))
+    {
         return Err(error("HP_MODULE_UNSUPPORTED_ALPHA"));
     }
     for file in files {
@@ -1026,6 +1025,27 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
                     let id = string(required(params, "software_id")?)?;
                     if ![
                         "edge", "chrome", "firefox", "microsoft365", "wps", "libreoffice",
+                        "vscode", "git", "github-cli", "node", "python", "uv", "jupyter",
+                        "ruff", "codex-cli", "claude-code",
+                    ]
+                    .contains(&id)
+                    {
+                        return Err(error("HP_SCHEMA"));
+                    }
+                    let evidence = parse_software_label(&label, id);
+                    if evidence.id != id || evidence.official_url.is_empty() {
+                        return Err(error("HP_SCHEMA"));
+                    }
+                    software.push(evidence);
+                }
+                "developer" => {
+                    if !params.keys().all(|key| key == "tool_id" || key == "install_homebrew")
+                        || bool_value(required(params, "install_homebrew")?)?
+                    {
+                        return Err(error("HP_SCHEMA"));
+                    }
+                    let id = string(required(params, "tool_id")?)?;
+                    if ![
                         "vscode", "git", "github-cli", "node", "python", "uv", "jupyter",
                         "ruff", "codex-cli", "claude-code",
                     ]
@@ -1238,7 +1258,7 @@ fn build_entries(input: &PackageInput) -> Result<PackageEntries> {
             );
         }
     }
-    let software_candidates = input
+    let (software_candidates, developer_candidates) = input
         .software
         .iter()
         .enumerate()
@@ -1250,6 +1270,15 @@ fn build_entries(input: &PackageInput) -> Result<PackageEntries> {
             ]
             .contains(&software.id.as_str())
         })
+        .partition::<Vec<_>, _>(|(_index, software)| {
+            ![
+                "vscode", "git", "github-cli", "node", "python", "uv", "jupyter", "ruff",
+                "codex-cli", "claude-code",
+            ]
+            .contains(&software.id.as_str())
+        });
+    let software_candidates = software_candidates
+        .into_iter()
         .map(|(index, software)| {
             let label = format!(
                 "v1.software:id={};name={};version={};default={}",
@@ -1258,18 +1287,11 @@ fn build_entries(input: &PackageInput) -> Result<PackageEntries> {
                 software.version.clone().unwrap_or_default(),
                 if software.is_default_browser { 1 } else { 0 }
             );
-            let rule_id = if ["edge", "chrome", "firefox", "microsoft365", "wps", "libreoffice"]
-                .contains(&software.id.as_str())
-            {
-                "fixture.software.browser"
-            } else {
-                "fixture.software.application"
-            };
             let candidate_id = format!("software.{}", index + 1);
             selected.push(candidate_id.clone());
             Candidate {
                 candidate_id,
-                rule_id,
+                rule_id: "fixture.software.browser",
                 rule_version: SCHEMA_VERSION,
                 source: CandidateSource { kind: "fixture_detected", label },
                 status: "detected",
@@ -1285,6 +1307,37 @@ fn build_entries(input: &PackageInput) -> Result<PackageEntries> {
             candidates: software_candidates,
         };
         entries.insert("modules/software.json".to_owned(), json_bytes(&document)?);
+    }
+    let developer_candidates = developer_candidates
+        .into_iter()
+        .map(|(index, software)| {
+            let label = format!(
+                "v1.software:id={};name={};version={};default={}",
+                software.id,
+                software.name,
+                software.version.clone().unwrap_or_default(),
+                if software.is_default_browser { 1 } else { 0 }
+            );
+            let candidate_id = format!("developer.{}", index + 1);
+            selected.push(candidate_id.clone());
+            Candidate {
+                candidate_id,
+                rule_id: "fixture.developer.lightweight",
+                rule_version: SCHEMA_VERSION,
+                source: CandidateSource { kind: "fixture_detected", label },
+                status: "detected",
+                exclusion_reason: None,
+                parameters: serde_json::json!({"tool_id":software.id,"install_homebrew":false}),
+            }
+        })
+        .collect::<Vec<_>>();
+    if !developer_candidates.is_empty() {
+        let document = Module {
+            schema_version: SCHEMA_VERSION,
+            module: "developer",
+            candidates: developer_candidates,
+        };
+        entries.insert("modules/developer.json".to_owned(), json_bytes(&document)?);
     }
     entries.insert(
         "selections.json".to_owned(),
@@ -1411,6 +1464,7 @@ pub fn build_package(input: PackageInput) -> Result<(Vec<u8>, PackageReceipt)> {
         files,
     };
     let manifest_bytes = json_bytes(&manifest)?;
+    let module_paths = entries.keys().cloned().collect::<Vec<_>>();
     let bytes = write_stored_zip(entries, manifest_bytes)?;
     let parsed = parse_bytes(&bytes)?;
     let mut modules = Vec::new();
@@ -1422,6 +1476,9 @@ pub fn build_package(input: PackageInput) -> Result<(Vec<u8>, PackageReceipt)> {
     }
     if parsed.pointer.is_some() {
         modules.push("pointer".to_owned());
+    }
+    if module_paths.iter().any(|path| path == "modules/developer.json") {
+        modules.push("developer".to_owned());
     }
     Ok((
         bytes.clone(),
@@ -1509,6 +1566,26 @@ mod tests {
         let parsed = parse_file(&path).expect("parse on disk");
         assert_eq!(parsed.pointer.unwrap().trackpad_direction.as_deref(), Some("natural"));
         assert!(!directory.path().join(".move.habitpack.tmp").exists());
+    }
+    #[test]
+    fn developer_tools_use_the_separate_module_and_no_homebrew_flag() {
+        let (bytes, receipt) = build_package(PackageInput {
+            source_os: "11".to_owned(),
+            keyboard: None,
+            pointer: None,
+            software: vec![SoftwareEvidence {
+                id: "vscode".to_owned(),
+                name: "Visual Studio Code".to_owned(),
+                version: Some("1.0".to_owned()),
+                is_default_browser: false,
+                official_url: "https://code.visualstudio.com/".to_owned(),
+            }],
+            guide_requested: false,
+        })
+        .expect("package");
+        assert!(receipt.modules.iter().any(|module| module == "developer"));
+        let parsed = parse_bytes(&bytes).expect("parse");
+        assert_eq!(parsed.software[0].id, "vscode");
     }
     #[test]
     fn rejects_command_fields_and_trailing_bytes() {
