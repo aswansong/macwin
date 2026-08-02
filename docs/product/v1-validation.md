@@ -15,7 +15,7 @@
 | 鼠标/触控板滚动 | 原生全局方向可写入并复核；独立方向明确降级 | LinearMouse 配置不猜测，需官方界面和回连验证 |
 | 一份迁移前快照 | v1 版本、完整性哈希、`ensure` 不覆盖已有基线；设备自检显示是否存在及创建时间 | 仍需验证卸载/重装后的发现和按模块恢复 |
 | 本地报告 | 报告页提供 HTML 与脱敏 JSON 两个保存入口；文件保存后显示本地位置 | 仍需真实安装/卸载后检查报告目录保留策略 |
-| 前端与后端检查 | `npm test`、`npm run build`、`cargo test`、`cargo clippy` | CI 双平台运行仍需新 v1 workflow 验证 |
+| 前端与后端检查 | 本地 `npm test`、`npm run build`、`cargo test`、`cargo clippy`；CI `30738169679` 的 Windows latest 与 macOS 15 均通过 | 仍需真实安装包、权限和外设矩阵 |
 
 ## 尚未达到正式发布门槛
 
