@@ -35,10 +35,10 @@
     "signing and notarization credentials are not available"
   ],
   "evidence": [
-    "commit f854871 on release/v1.0.0",
+    "commit 51ad779 on release/v1.0.0",
     "docs/product/v1-validation.md",
-    "docs/product/evidence.md E-024/E-025/E-026/E-027/E-028/E-029/E-030/E-031/E-032/E-033/E-034/E-035/E-036",
-    "GitHub Actions run 30753317555 succeeded on macos-15 and windows-latest",
+    "docs/product/evidence.md E-024/E-025/E-026/E-027/E-028/E-029/E-030/E-031/E-032/E-033/E-034/E-035/E-036/E-037",
+    "GitHub Actions run 30754270685 succeeded on macos-15 and windows-latest",
     "./scripts/validate-m1 (52 tests), release-preparation, manifest, release-assets, npm and cargo checks passed"
   ],
   "next_action": "Complete one-time real Windows 10/11 and Apple Silicon macOS 15/26 acceptance with signing credentials; before that, keep release manifest and whitelist documentation aligned without claiming unsupported installs or Wi-Fi password migration.",
