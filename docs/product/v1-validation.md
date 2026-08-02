@@ -15,7 +15,7 @@
 | 鼠标/触控板滚动 | 原生全局方向可写入并复核；独立方向明确降级 | LinearMouse 配置不猜测，需官方界面和回连验证 |
 | 一份迁移前快照 | v1 版本、完整性哈希、`ensure` 不覆盖已有基线；设备自检显示是否存在及创建时间 | 仍需验证卸载/重装后的发现和按模块恢复 |
 | 本地报告 | 报告页提供 HTML 与脱敏 JSON 两个保存入口；文件保存后显示本地位置 | 仍需真实安装/卸载后检查报告目录保留策略 |
-| 前端与后端检查 | 本地 `npm test`、`npm run build`、`cargo test`、`cargo clippy`；CI `30755361729` 的 Windows latest 与 macOS 15 均通过 | 仍需真实安装包、权限和外设矩阵 |
+| 前端与后端检查 | 本地 `npm test`、`npm run build`、`cargo test`、`cargo clippy`；CI `30756452606` 的 Windows latest 与 macOS 15 均通过 | 仍需真实安装包、权限和外设矩阵 |
 | 正式版本号对齐 | `scripts/prepare-release.py` 单测与本地失败路径测试通过；正式标签构建前校验 `vMAJOR.MINOR.PATCH` 与 Cargo 版本并同步 Tauri/npm lockfile | 只校验版本一致性，不提供签名凭据或正式 Release |
 | updater manifest 选择 | `scripts/build-release-manifest.py` 的 4 条离线夹具测试通过；macOS 只接受一个 `.app.tar.gz`，Windows 优先唯一 `.msi.zip`、否则唯一 `.nsis.zip`，签名为空或候选歧义即拒绝 | 只验证元数据选择，不证明真实签名、安装包内容或 GitHub Release |
 | 发布资产整体审计 | `scripts/validate-release-assets.py` 的 4 条离线夹具测试；Release publish job 在发布前校验双平台 SHA-256、SBOM、安装包、updater 签名文本和 `latest.json` 一致性 | 只验证已下载产物的结构与元数据，不替代代码签名、公证、stapling 或真实设备安装验收 |

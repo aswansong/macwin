@@ -2,7 +2,7 @@ name: v1 validation
 
 on:
   push:
-    branches: ["release/v1.0.0", "main"]
+    branches: ["main"]
   pull_request:
     branches: ["release/v1.0.0", "main"]
 
