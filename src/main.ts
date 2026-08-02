@@ -250,7 +250,7 @@ function renderComplete(): string {
 function renderReport(): string {
   const outcome = state.outcome;
   if (!outcome) return renderHome();
-  return renderShell(`<section class="report-sheet"><div class="report-meta"><span>MacWin v1.0.0</span><span>${escapeHtml(outcome.completed_at)}</span></div><h2>本次变更</h2>${outcome.results.map((result) => `<div class="report-line"><strong>${escapeHtml(result.title)}</strong><span>${escapeHtml(result.before)} → ${escapeHtml(result.after)}</span><small>原因：${escapeHtml(result.reason)}　收益：${escapeHtml(result.benefit)}　状态：${escapeHtml(statusLabel(result.status))}${result.error_code ? ` · 错误码 ${escapeHtml(result.error_code)}` : ""}</small></div>`).join("")}<div class="report-footnote">快照：${outcome.snapshot_available ? "已保存，可按模块恢复" : "未找到"} · 报告不包含 Wi‑Fi、账号、路径或个人文件。</div></section><div class="action-row"><button class="secondary-button" data-action="complete">返回结果</button><button class="primary-button" data-action="download-report">复制报告文字 <span>↗</span></button></div>`, "迁移后主页 · 报告", "你可以清楚看到改了什么", "这份报告只记录用户能理解的变化，不展示原始系统值。");
+  return renderShell(`<section class="report-sheet"><div class="report-meta"><span>MacWin v1.0.0</span><span>${escapeHtml(outcome.completed_at)}</span></div><h2>本次变更</h2>${outcome.results.map((result) => `<div class="report-line"><strong>${escapeHtml(result.title)}</strong><span>${escapeHtml(result.before)} → ${escapeHtml(result.after)}</span><small>原因：${escapeHtml(result.reason)}　收益：${escapeHtml(result.benefit)}　状态：${escapeHtml(statusLabel(result.status))}${result.error_code ? ` · 错误码 ${escapeHtml(result.error_code)}` : ""}</small></div>`).join("")}<div class="report-footnote">快照：${outcome.snapshot_available ? "已保存，可按模块恢复" : "未找到"} · 报告不包含 Wi‑Fi、账号、路径或个人文件。</div></section><div class="action-row"><button class="secondary-button" data-action="complete">返回结果</button><button class="primary-button" data-action="download-report">保存 HTML 报告 <span>↗</span></button><button class="secondary-button" data-action="download-report-json">保存脱敏 JSON</button></div>`, "迁移后主页 · 报告", "你可以清楚看到改了什么", "这份报告只记录用户能理解的变化，不展示原始系统值。");
 }
 
 function renderDiagnostics(): string {
@@ -386,7 +386,8 @@ function bindEvents(): void {
     else if (action === "diagnostics") void runDiagnostics();
     else if (action === "check-update") void checkUpdate(true);
     else if (action === "alpha-info") window.alert("MacWin 只迁移白名单习惯与环境，不读取个人文件、浏览器历史/密码/Cookie、账号、Token 或项目代码；除版本检查外不联网。所有真实变化前必须确认计划，快照保留到你主动删除。");
-    else if (action === "download-report") void copyReport();
+    else if (action === "download-report") void saveReport("html");
+    else if (action === "download-report-json") void saveReport("json");
   }));
   appRoot.querySelectorAll<HTMLInputElement>("input[data-keyboard]").forEach((input) => input.addEventListener("change", () => { state = { ...state, selection: { ...state.selection, include_keyboard: input.checked } }; }));
   appRoot.querySelectorAll<HTMLInputElement>("input[data-pointer]").forEach((input) => input.addEventListener("change", () => { state = { ...state, selection: { ...state.selection, include_pointer: input.checked } }; }));
@@ -409,11 +410,11 @@ function bindEvents(): void {
   if (state.error) { const error = document.createElement("div"); error.className = "error-toast"; error.textContent = `没有完成：${friendlyError(state.error)}`; appRoot.append(error); }
 }
 
-async function copyReport(): Promise<void> {
+async function saveReport(format: "html" | "json"): Promise<void> {
   const text = state.outcome?.results.map((result) => `${result.title}：${result.before} → ${result.after}（${statusLabel(result.status)}）`).join("\n") ?? "";
   if (isTauri) {
     try {
-      const receipt = await invoke<{ path: string; format: string }>("export_report", { format: "html" });
+      const receipt = await invoke<{ path: string; format: string }>("export_report", { format });
       window.alert(`报告已保存：${receipt.path}`);
     } catch (error) {
       recordError(error);
@@ -423,6 +424,7 @@ async function copyReport(): Promise<void> {
     return;
   }
   await navigator.clipboard?.writeText(text);
+  window.alert(format === "html" ? "浏览器演示已复制报告文字；真实应用会保存 HTML 文件。" : "浏览器演示已复制脱敏报告文字；真实应用会保存 JSON 文件。");
 }
 
 async function checkUpdate(showResult: boolean): Promise<void> {
