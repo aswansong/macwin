@@ -309,26 +309,26 @@ mod windows {
                 "vscode",
                 "Visual Studio Code",
                 "https://code.visualstudio.com/",
-                false,
+                true,
             ))
         } else if lower == "git" || lower.starts_with("git version") || lower.contains("git for windows") {
-            Some(("git", "Git", "https://git-scm.com/", false))
+            Some(("git", "Git", "https://git-scm.com/", true))
         } else if lower.contains("github cli") || lower == "gh" {
-            Some(("github-cli", "GitHub CLI", "https://cli.github.com/", false))
+            Some(("github-cli", "GitHub CLI", "https://cli.github.com/", true))
         } else if lower.contains("python") {
-            Some(("python", "Python", "https://www.python.org/", false))
+            Some(("python", "Python", "https://www.python.org/", true))
         } else if lower.contains("node.js") || lower == "nodejs" || lower.starts_with("node.js ") {
-            Some(("node", "Node.js", "https://nodejs.org/", false))
+            Some(("node", "Node.js", "https://nodejs.org/", true))
         } else if lower == "uv" || lower.starts_with("uv ") {
-            Some(("uv", "uv", "https://docs.astral.sh/uv/", false))
+            Some(("uv", "uv", "https://docs.astral.sh/uv/", true))
         } else if lower.contains("jupyter") {
-            Some(("jupyter", "Jupyter", "https://jupyter.org/", false))
+            Some(("jupyter", "Jupyter", "https://jupyter.org/", true))
         } else if lower.contains("ruff") {
-            Some(("ruff", "Ruff", "https://docs.astral.sh/ruff/", false))
+            Some(("ruff", "Ruff", "https://docs.astral.sh/ruff/", true))
         } else if lower.contains("codex") {
-            Some(("codex-cli", "Codex CLI", "https://github.com/openai/codex", false))
+            Some(("codex-cli", "Codex CLI", "https://github.com/openai/codex", true))
         } else if lower.contains("claude code") {
-            Some(("claude-code", "Claude Code", "https://docs.anthropic.com/en/docs/claude-code", false))
+            Some(("claude-code", "Claude Code", "https://docs.anthropic.com/en/docs/claude-code", true))
         } else {
             None
         }
@@ -476,6 +476,29 @@ mod windows {
             trackpad_scroll_direction: "windows_style".to_owned(),
             scanned_at,
         })
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::whitelist;
+
+        #[test]
+        fn developer_whitelist_entries_are_exportable() {
+            for name in [
+                "Visual Studio Code",
+                "Git for Windows",
+                "GitHub CLI",
+                "Python 3.12",
+                "Node.js",
+                "uv",
+                "Jupyter",
+                "Ruff",
+                "Codex CLI",
+                "Claude Code",
+            ] {
+                assert!(whitelist(name).is_some_and(|entry| entry.3), "{name}");
+            }
+        }
     }
 }
 
