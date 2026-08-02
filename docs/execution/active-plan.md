@@ -35,7 +35,7 @@
 
 ## 当前下一动作
 
-下一动作：草稿 PR [#1](https://github.com/aswansong/macwin/pull/1) 当前指向提交 `be737a2`，无评论或请求修改；GitHub Actions run `30762520800` 的 macOS 15 与 Windows 检查均通过。现在等待负责人提供真实 Windows 10/11 与 Apple 芯片 macOS 15/26 设备、签名凭据和一次性人工验收，完成权限/外设/安装卸载矩阵；OD-005/OD-007 未关闭前不新增真实 Wi‑Fi 密码或自动安装实现。
+下一动作：草稿 PR [#1](https://github.com/aswansong/macwin/pull/1) 当前指向提交 `6b76ee3`，无评论或请求修改；代码提交 `be737a2` 的 GitHub Actions run `30762520800` 已通过 macOS 15 与 Windows 检查，文档收口提交的 run `30763275386` 目前 macOS 已通过、Windows 仍在构建。待该运行结束后，继续等待负责人提供真实 Windows 10/11 与 Apple 芯片 macOS 15/26 设备、签名凭据和一次性人工验收，完成权限/外设/安装卸载矩阵；OD-005/OD-007 未关闭前不新增真实 Wi‑Fi 密码或自动安装实现。
 
 ## 阻塞项与门槛
 
