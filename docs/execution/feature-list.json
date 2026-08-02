@@ -71,7 +71,8 @@
     "wave0": {
       "scope": "research_only_no_production_or_system_changes",
       "decision_ref": "D-029",
-      "evidence_ref": "E-018"
+      "evidence_ref": "E-018",
+      "reconfirmation_ref": "E-023"
     },
     "alpha": {
       "branch": "alpha/v0.2-keyboard-compatibility",

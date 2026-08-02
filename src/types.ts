@@ -107,6 +107,12 @@ export interface KarabinerStatus {
   official_url: string;
 }
 
+export interface SnapshotStatus {
+  available: boolean;
+  version: string | null;
+  created_at: string | null;
+}
+
 export interface KeyboardCompatibilityPlan {
   built_in_enabled: boolean;
   external_enabled: boolean;
@@ -123,6 +129,7 @@ export interface DeviceSelfCheck {
   runtime: RuntimeInfo;
   keyboard_devices: KeyboardDevice[];
   karabiner: KarabinerStatus;
+  snapshot: SnapshotStatus;
   recent_modules: string[];
   privacy_note: string;
 }

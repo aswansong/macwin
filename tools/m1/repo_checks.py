@@ -92,7 +92,7 @@ MILESTONE_EVIDENCE_KEYS = frozenset({"prototype", "format", "wave0", "alpha", "r
 MILESTONE_EVIDENCE_CHILD_KEYS = {
     "prototype": frozenset({"commit", "scope"}),
     "format": frozenset({"schema_version", "scope", "command"}),
-    "wave0": frozenset({"scope", "decision_ref", "evidence_ref"}),
+    "wave0": frozenset({"scope", "decision_ref", "evidence_ref", "reconfirmation_ref"}),
     "alpha": frozenset({"branch", "scope", "decision_ref", "evidence_ref"}),
     "release": frozenset({"branch", "scope", "decision_ref", "evidence_ref"}),
 }
@@ -385,6 +385,7 @@ def feature_checks(root: Path = ROOT) -> int:
     check(evidence["wave0"].get("scope") == "research_only_no_production_or_system_changes", "wave0 evidence scope mismatch")
     check(evidence["wave0"].get("decision_ref") == "D-029", "wave0 decision evidence mismatch")
     check(evidence["wave0"].get("evidence_ref") == "E-018", "wave0 evidence reference mismatch")
+    check(evidence["wave0"].get("reconfirmation_ref") == "E-023", "wave0 reconfirmation evidence mismatch")
     check(evidence["alpha"].get("branch") == "alpha/v0.2-keyboard-compatibility", "alpha evidence branch mismatch")
     check(evidence["alpha"].get("scope") == "real_mac_keyboard_compatibility_without_wifi_secrets_or_installers", "alpha evidence scope mismatch")
     check(evidence["alpha"].get("decision_ref") == "D-031", "alpha decision evidence mismatch")

@@ -73,6 +73,7 @@ pub struct DeviceSelfCheck {
     pub runtime: RuntimeInfo,
     pub keyboard_devices: Vec<KeyboardDevice>,
     pub karabiner: KarabinerStatus,
+    pub snapshot: SnapshotStatus,
     pub recent_modules: Vec<String>,
     pub privacy_note: String,
 }
@@ -83,7 +84,7 @@ pub fn runtime_info() -> RuntimeInfo {
 }
 
 #[tauri::command]
-pub fn device_self_check(state: State<'_, MacWinState>) -> DeviceSelfCheck {
+pub fn device_self_check(app: AppHandle, state: State<'_, MacWinState>) -> DeviceSelfCheck {
     let recent_modules = state
         .outcome
         .lock()
@@ -98,6 +99,11 @@ pub fn device_self_check(state: State<'_, MacWinState>) -> DeviceSelfCheck {
         runtime: platform::runtime_info(),
         keyboard_devices: plan.devices,
         karabiner: plan.karabiner,
+        snapshot: snapshot_status_for(&app).unwrap_or(SnapshotStatus {
+            available: false,
+            version: None,
+            created_at: None,
+        }),
         recent_modules,
         privacy_note: "本地生成；不含用户名、路径、序列号、密码或原始配置".to_owned(),
     }
@@ -451,6 +457,10 @@ pub fn record_error(app: AppHandle, input: ErrorLogInput) -> Result<(), String> 
 
 #[tauri::command]
 pub fn snapshot_status(app: AppHandle) -> Result<SnapshotStatus, String> {
+    snapshot_status_for(&app)
+}
+
+fn snapshot_status_for(app: &AppHandle) -> Result<SnapshotStatus, String> {
     let root = app
         .path()
         .app_data_dir()

@@ -168,3 +168,11 @@
 - 产品含义：Wi‑Fi 密码链路必须继续停在 OD-005 决策门，不能用命令行回显、剪贴板或未验证的跨平台配置文件冒充安全实现；鼠标/触控板独立方向在原生接口不足时必须明确降级并要求官方工具授权。当前实现已采用这两个安全降级原则。
 - 参考： [Microsoft WlanGetProfile](https://learn.microsoft.com/en-us/windows/win32/api/wlanapi/nf-wlanapi-wlangetprofile)、[Apple NEHotspotConfiguration](https://developer.apple.com/documentation/networkextension/nehotspotconfiguration)、[LinearMouse 辅助功能说明](https://github.com/linearmouse/linearmouse/blob/main/ACCESSIBILITY.md)
 - 关联决定：D-019、D-032、OD-005、OD-007
+
+### E-023：负责人再次确认原型与 M2 Wave 0 研究边界
+
+- 类型：负责人确认、执行授权复核
+- 摘要：负责人确认当前原型可以接受，并再次同意研究型 M2 Wave 0 授权方案。该确认只复核 D-029 的研究边界，不把研究分支变成生产分支；研究代码、虚构夹具和报告仍须使用 `codex/m2-*` 独立分支，禁止 PR、合并 `main` 和 Release。
+- 用量门禁：主控可见可用额度低于 20% 时暂停新增工作并保留 Goal；该门禁不是产品状态，也不能用 `goal complete` 或 `blocked` 伪装暂停。当前工具未返回剩余百分比，因此不据此声称已触发门禁。
+- 产品含义：M1 原型结论可继续作为研究输入；真实设备、真实秘密、权限、系统写入、第三方实际安装、生产依赖与公开发布仍需对应授权和人类验收门槛。
+- 关联决定：D-029、D-032、D-033
