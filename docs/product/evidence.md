@@ -225,3 +225,10 @@
 - 摘要：提交 `2419cb8` 将 Release workflow 中的 updater manifest 选择逻辑抽为 `scripts/build-release-manifest.py`，并用 4 条离线夹具覆盖 macOS 唯一产物、Windows MSI 优先、NSIS 回退、空签名和候选歧义拒绝。该脚本不联网、不读取秘密、不执行安装包。
 - 产品含义：正式发布时不会在多个 Windows updater 产物或缺少签名文本时静默选错；这只是元数据选择验证，不等于签名、公证、真实安装或公开 Release 已完成。
 - 关联决定：D-032、D-033、OD-006
+
+### E-031：发布资产整体审计已加入发布门
+
+- 类型：技术验证、发布流程审查
+- 摘要：新增 `scripts/validate-release-assets.py` 及 4 条离线单元测试，并接入 Release publish job。脚本在发布前逐平台校验 `SHA256SUMS.txt`、每个文件的 SHA-256、Cargo/npm SBOM、macOS DMG、Windows 安装包、updater 压缩包及非空签名文本，并确认 `latest.json` 的版本、平台、URL 与实际产物一致。它不签名、不联网、不执行或安装任何产物。
+- 产品含义：即使构建 job 已完成，发布 job 也不会把缺少哈希、SBOM、安装包、签名文本或 updater 目标不一致的资产发布出去；这仍不替代真实凭据、代码签名、公证或设备验收。
+- 关联决定：D-032、D-033、OD-006

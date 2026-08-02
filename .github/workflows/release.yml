@@ -197,6 +197,13 @@ jobs:
         run: |
           python3 scripts/build-release-manifest.py "$RELEASE_TAG" release-assets
 
+      - name: Validate complete release assets
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          python3 scripts/validate-release-assets.py "$RELEASE_TAG" release-assets
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
