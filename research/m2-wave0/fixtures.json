@@ -1,0 +1,98 @@
+[
+  {
+    "id": "fixture-vscode",
+    "source": "official_site",
+    "https": true,
+    "publisher_verified": true,
+    "signature": "trusted",
+    "hash_verified": true,
+    "license": "automation_allowed",
+    "gatekeeper_bypass": false,
+    "network": "online",
+    "selected": true
+  },
+  {
+    "id": "fixture-karabiner",
+    "source": "official_github_release",
+    "https": true,
+    "publisher_verified": true,
+    "signature": "trusted",
+    "hash_verified": true,
+    "license": "automation_allowed",
+    "gatekeeper_bypass": false,
+    "network": "online",
+    "selected": true
+  },
+  {
+    "id": "fixture-m365",
+    "source": "official_site",
+    "https": true,
+    "publisher_verified": true,
+    "signature": "trusted",
+    "hash_verified": true,
+    "license": "manual_only",
+    "gatekeeper_bypass": false,
+    "network": "online",
+    "selected": true
+  },
+  {
+    "id": "fixture-unsigned",
+    "source": "official_site",
+    "https": true,
+    "publisher_verified": true,
+    "signature": "missing",
+    "hash_verified": true,
+    "license": "automation_allowed",
+    "gatekeeper_bypass": false,
+    "network": "online",
+    "selected": true
+  },
+  {
+    "id": "fixture-bypass",
+    "source": "official_site",
+    "https": true,
+    "publisher_verified": true,
+    "signature": "trusted",
+    "hash_verified": true,
+    "license": "automation_allowed",
+    "gatekeeper_bypass": true,
+    "network": "online",
+    "selected": true
+  },
+  {
+    "id": "fixture-offline",
+    "source": "official_site",
+    "https": true,
+    "publisher_verified": true,
+    "signature": "trusted",
+    "hash_verified": true,
+    "license": "automation_allowed",
+    "gatekeeper_bypass": false,
+    "network": "offline",
+    "selected": true
+  },
+  {
+    "id": "fixture-not-selected",
+    "source": "official_site",
+    "https": true,
+    "publisher_verified": true,
+    "signature": "trusted",
+    "hash_verified": true,
+    "license": "automation_allowed",
+    "gatekeeper_bypass": false,
+    "network": "online",
+    "selected": false
+  },
+  {
+    "id": "fixture-unknown-source",
+    "source": "third_party_mirror",
+    "https": true,
+    "publisher_verified": false,
+    "signature": "trusted",
+    "hash_verified": true,
+    "license": "automation_allowed",
+    "gatekeeper_bypass": false,
+    "network": "online",
+    "selected": true
+  }
+]
