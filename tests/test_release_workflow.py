@@ -8,6 +8,12 @@ WORKFLOW = Path(__file__).parents[1] / ".github/workflows/release.yml"
 
 
 class ReleaseWorkflowTests(unittest.TestCase):
+    def test_updater_keeps_downgrade_protection(self) -> None:
+        source = (WORKFLOW.parents[2] / "src-tauri/src/lib.rs").read_text(encoding="utf-8")
+        self.assertIn("Builder::new()", source)
+        self.assertNotIn(".version_comparator", source)
+        self.assertNotIn("allow_downgrades:", source)
+
     def test_windows_code_signing_happens_before_updater_artifact_generation(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         import_step = text.index("Import Windows code-signing certificate")
@@ -33,4 +39,3 @@ class ReleaseWorkflowTests(unittest.TestCase):
             "WINDOWS_CERTIFICATE_PASSWORD",
         ):
             self.assertIn(variable, text)
-

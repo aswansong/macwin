@@ -28,7 +28,8 @@
     "draft PR #1 opened for main review",
     "draft PR #1 review checked with no comments or requested changes",
     "latest PR-triggered v1 CI run passed for ab234f8",
-    "Windows signing-before-updater packaging guard"
+    "Windows signing-before-updater packaging guard",
+    "Tauri updater downgrade protection documented and guarded"
   ],
   "failed_or_deferred": [
     "P0-008 real external-device reconnect matrix not complete",
@@ -41,7 +42,7 @@
   "evidence": [
     "commit ab234f8 on release/v1.0.0",
     "docs/product/v1-validation.md",
-    "docs/product/evidence.md E-024/E-025/E-026/E-027/E-028/E-029/E-030/E-031/E-032/E-033/E-034/E-035/E-036/E-037/E-038/E-039",
+    "docs/product/evidence.md E-024/E-025/E-026/E-027/E-028/E-029/E-030/E-031/E-032/E-033/E-034/E-035/E-036/E-037/E-038/E-039/E-040",
     "GitHub Actions run 30761380120 succeeded on macos-15 and windows-latest",
     "release/v1.0.0 head ab234f8 is clean and pushed",
     "draft PR https://github.com/aswansong/macwin/pull/1 targets main and remains open",

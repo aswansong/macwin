@@ -289,3 +289,11 @@
 - 产品含义：正式构建仍必须提供真实 Windows 代码签名证书，并通过发布资产哈希、updater 签名和真实安装验收；本证据不表示当前仓库已有凭据或正式发布已完成。
 - 参考：[Tauri Windows Code Signing](https://tauri.app/distribute/sign/windows/)、[Tauri Windows Installer](https://tauri.app/distribute/windows-installer/)
 - 关联决定：D-032、OD-002、OD-006
+
+### E-040：updater 默认拒绝降级
+
+- 类型：供应链安全审查、官方文档核对
+- 摘要：当前 `tauri-plugin-updater` 使用默认版本比较，只有远端版本高于当前版本才会返回可安装更新；MacWin 的 updater builder 未设置 `version_comparator` 或 `allow_downgrades`，并通过静态回归测试防止后续误开启降级。
+- 产品含义：正式更新链路不会因服务端返回旧版本而自动降级；若未来需要有意回滚，必须新增负责人确认的发布决策、签名策略和真实设备验收，不能通过普通更新入口隐式实现。
+- 参考：[Tauri updater 官方文档](https://v2.tauri.app/zh-cn/plugin/updater/)
+- 关联决定：D-016、D-032、OD-006

@@ -7,6 +7,9 @@ mod snapshot;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Keep Tauri's secure default version comparator: only an update whose
+    // version is greater than the installed version is eligible. Do not add
+    // `version_comparator` or `allow_downgrades` without a new release gate.
     let updater = tauri_plugin_updater::Builder::new()
         .pubkey(option_env!("MACWIN_UPDATER_PUBKEY").unwrap_or("PENDING_RELEASE_KEY"))
         .build();

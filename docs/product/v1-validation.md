@@ -21,6 +21,7 @@
 | 发布资产整体审计 | `scripts/validate-release-assets.py` 的 4 条离线夹具测试；Release publish job 在发布前校验双平台 SHA-256、SBOM、安装包、updater 签名文本和 `latest.json` 一致性 | 只验证已下载产物的结构与元数据，不替代代码签名、公证、stapling 或真实设备安装验收 |
 | 公开 Release 资产展平 | `scripts/build-release-checksums.py` 与 `scripts/stage-release-assets.py` 的离线测试；发布 job 生成唯一文件名、总 SHA-256 和中文变更说明 | 只验证发布资产编排，不证明签名、公证或 GitHub Release 已创建 |
 | Windows 安装器与 updater 签名顺序 | Release workflow 将证书导入临时证书库，并通过 Tauri `bundle.windows.signCommand` 在生成 updater 压缩包前签名安装器；随后独立执行 `signtool verify /pa` | 只验证工作流静态路径；真实证书、SmartScreen 声誉和正式 Release 仍需人工门槛 |
+| updater 回滚保护 | `tauri-plugin-updater` 保持默认版本比较，只有远端版本高于当前版本才进入安装路径；仓库未设置 `version_comparator` 或 `allow_downgrades`，并有静态回归断言 | 只证明代码未开启降级；正式更新仍需公钥、签名产物、真实升级/回滚验收 |
 | 取消模块与恢复边界 | Rust `cancelled_keyboard_modules_are_reported_as_skipped`；恢复命令只接受本次实际应用或可恢复失败的模块，全部恢复不会触碰未选模块 | 仍需在真实设备验证恢复后的系统值和卸载/重装发现 |
 | 手动 tag 的 Release 路径 | Release workflow 的 macOS DMG 生成与公证校验统一使用 `inputs.tag || github.ref_name`，避免 workflow_dispatch 时把分支名写入资产路径 | 只验证 workflow 表达式与静态路径，不替代真实签名、公证或发布 |
 | 手动 tag 的源码一致性 | Release workflow 的 build/publish checkout 显式使用 `inputs.tag || github.ref`，再由 `prepare-release.py` 校验版本 | 只验证 workflow 配置，不证明真实签名构建已执行 |
