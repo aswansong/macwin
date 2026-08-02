@@ -226,7 +226,7 @@ pub fn make_plan(
             requires_admin: false,
         });
     }
-    let software = package
+    let software: Vec<SoftwarePlanItem> = package
         .software
         .iter()
         .map(|item| {
@@ -247,7 +247,12 @@ pub fn make_plan(
             }
         })
         .collect();
-    let selected_module_ids = items.iter().map(|item| item.module_id.clone()).collect();
+    let mut selected_module_ids = items.iter().map(|item| item.module_id.clone()).collect::<Vec<_>>();
+    selected_module_ids.extend(
+        software
+            .iter()
+            .map(|item| format!("software.{}", item.id)),
+    );
     ImportPlan {
         package_name,
         source_summary: format!("Windows {} x64 → Apple 芯片 Mac", package.source_os),
@@ -328,6 +333,9 @@ fn guide(results: &[ModuleResult], requested: bool) -> Vec<GuideSection> {
     }
     if results.iter().any(|item| item.module_id == "keyboard_compatibility" && item.status == "applied_verified") {
         sections.push(GuideSection { title: "选择性 Ctrl 兼容".to_owned(), body: "普通 Mac 应用中的 Ctrl+C/V/X/Z/Y/A/S/F/P/N/O/W/T/L/R 会转换为对应的 Command 组合；Terminal、iTerm2、Warp、远程桌面、虚拟机和 VS Code 默认保留真实 Ctrl。".to_owned() });
+    }
+    if results.iter().any(|item| item.module_id.starts_with("software.") && item.status == "manual_action_required") {
+        sections.push(GuideSection { title: "软件与开发环境".to_owned(), body: "MacWin 只保留了你选择的软件安装建议，不会搬运账号、许可证、浏览器数据或项目文件。请从报告中的官方入口逐项安装，并在安装后打开应用或命令确认版本。".to_owned() });
     }
     sections.push(GuideSection { title: "Command、Option 和 Fn".to_owned(), body: "Command 是 Mac 最常用的编辑修饰键；Option 常表示替代操作或特殊字符；Fn 用于功能键和系统功能。MacWin 不会全局交换它们。".to_owned() });
     sections.push(GuideSection { title: "Mac 适合你的地方".to_owned(), body: "如果你经常外出，Apple 芯片 MacBook 的能效、触控板和睡眠唤醒整合可能更省心。轻量 AI 编程也可以利用 macOS 的 Unix 工具链。".to_owned() });
@@ -540,6 +548,34 @@ pub fn apply_plan<A: TargetAdapter>(
             }
         }
         }
+    for software in &package.software {
+        let module_id = format!("software.{}", software.id);
+        if selected_module_ids.contains(&module_id) {
+            results.push(ModuleResult {
+                module_id,
+                title: software.name.clone(),
+                before: "MacWin 未读取目标端安装状态".to_owned(),
+                after: "等待从官方入口手动安装".to_owned(),
+                reason: "当前版本不会静默下载或绕过 Gatekeeper；只保留你在 Windows 端选择的软件。".to_owned(),
+                benefit: "来源和版本策略清楚，账号、许可证和个人数据不会被搬运。".to_owned(),
+                recovery: "不会修改已安装软件，无需恢复。".to_owned(),
+                status: "manual_action_required".to_owned(),
+                error_code: None,
+            });
+        } else {
+            results.push(ModuleResult {
+                module_id,
+                title: software.name.clone(),
+                before: "未读取".to_owned(),
+                after: "已跳过".to_owned(),
+                reason: "用户在 Mac 计划页取消了此软件。".to_owned(),
+                benefit: "不会安装或修改软件。".to_owned(),
+                recovery: "无需恢复。".to_owned(),
+                status: "skipped".to_owned(),
+                error_code: None,
+            });
+        }
+    }
     let success = results.iter().all(|item| matches!(item.status.as_str(), "applied_verified" | "skipped"));
     let completed_at = now()?;
     Ok(MigrationOutcome {
@@ -730,5 +766,55 @@ mod tests {
         assert_eq!(outcome.results[0].status, "failed_recoverable");
         assert_eq!(outcome.results[1].status, "applied_verified");
         assert!(store.path().exists());
+    }
+
+    #[test]
+    fn selected_software_is_manual_and_not_reported_as_installed() {
+        let directory = tempfile::tempdir().expect("temp");
+        let store = SnapshotStore::new(directory.path());
+        let mut adapter = Fake {
+            value: TargetPreferences {
+                finder_extensions_existed: true,
+                finder_extensions: false,
+                key_repeat_existed: false,
+                key_repeat: 0,
+                initial_key_repeat_existed: false,
+                initial_key_repeat: 0,
+                pointer_scroll_existed: false,
+                pointer_scroll_reversed: false,
+            },
+            fail_finder: false,
+        };
+        let package = ImportedPackage {
+            created_at: "2026-08-02T00:00:00Z".to_owned(),
+            source_os: "11".to_owned(),
+            keyboard: None,
+            pointer: None,
+            software: vec![crate::habitpack::SoftwareEvidence {
+                id: "vscode".to_owned(),
+                name: "Visual Studio Code".to_owned(),
+                version: Some("1.92".to_owned()),
+                is_default_browser: false,
+                official_url: "https://code.visualstudio.com/".to_owned(),
+            }],
+            guide_requested: true,
+            contains_secrets: false,
+            entries: 2,
+        };
+        let preferences = adapter.value.clone();
+        let plan = make_plan(&package, &preferences, "demo.habitpack".to_owned());
+        assert!(plan.selected_module_ids.iter().any(|id| id == "software.vscode"));
+        let selected = plan.selected_module_ids.iter().cloned().collect();
+        let outcome = apply_plan(
+            &mut adapter,
+            &store,
+            &package,
+            &KeyboardCompatibilityRequest { built_in_enabled: false, external_enabled: false, devices: vec![] },
+            &selected,
+        )
+        .expect("outcome");
+        let software = outcome.results.iter().find(|result| result.module_id == "software.vscode").expect("software result");
+        assert_eq!(software.status, "manual_action_required");
+        assert_eq!(outcome.outcome, "partial");
     }
 }

@@ -20,7 +20,7 @@
 ## 尚未达到正式发布门槛
 
 - Wi‑Fi 密码：未实现真实凭据读写；在未证明平台安全不变量前不会把明文密码写入未加密包。
-- 软件自动安装：当前固定白名单提供官方入口；签名/哈希、架构、版本和安装后可执行验证仍需完成。
+- 软件自动安装：当前固定白名单提供官方入口；Mac 计划和报告会把已选择但未自动安装的项目标为 `manual_action_required`，不伪报已安装。签名/哈希、架构、版本和安装后可执行验证仍需完成。
 - 首批软件目录：仅 Chrome、Edge、Firefox、Microsoft 365、WPS Office、Visual Studio Code、Git、Node.js、Python、Codex CLI、Claude Code；历史候选不进入 v1 扫描或迁移包。[D-034、E-025]
 - Karabiner/LinearMouse：缺失、拒绝授权、设备断开/重连和卸载后的恢复矩阵仍需实际设备验收。
 - 更新：Tauri updater 已加入代码和 GitHub Releases endpoint 草稿；`PENDING_RELEASE_KEY` 必须由发布凭据替换，不能用于正式更新。

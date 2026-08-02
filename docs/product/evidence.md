@@ -190,3 +190,10 @@
 - 摘要：v1.0 首批识别范围明确限定为 Chrome、Edge、Firefox、Microsoft 365、WPS Office、Visual Studio Code、Git、Node.js LTS、Python 3、Codex CLI 和 Claude Code；Karabiner-Elements、LinearMouse 仅作为目标端辅助工具的知情确认。LibreOffice、GitHub CLI、uv、Jupyter、Ruff 等历史候选暂不进入 v1 扫描、`.habitpack` 或安装计划。
 - 产品含义：扫描器、格式 parser、计划元数据和演示夹具必须使用同一份首批目录；目录扩展必须另行决策并补齐来源、验证和回滚证据。
 - 关联决定：D-020、D-034、OD-003
+
+### E-026：软件手动完成状态已接入计划与报告
+
+- 类型：技术验证、隐私/安全审查
+- 摘要：Mac 计划对用户在 Windows 端选择的白名单软件提供一次性勾选和官方入口；应用阶段不静默下载、不绕过 Gatekeeper，并在结果与指南中输出 `manual_action_required`，恢复页不为未修改系统的软件显示恢复按钮。Rust 测试覆盖软件结果不会被伪报为已安装。
+- 产品含义：在可信来源、签名/哈希和安装后验证尚未满足前，用户仍能完成本地设置迁移并得到可执行的官方安装下一步。
+- 关联决定：D-013、D-026、D-034

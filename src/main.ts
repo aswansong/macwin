@@ -81,7 +81,7 @@ const previewPlan: ImportPlan = {
   confirmation_token: "preview-plan-confirmed-v1",
   pointer: { mouse_direction: "windows_style", trackpad_direction: "windows_style" },
   pointer_support: { linear_mouse_installed: false, linear_mouse_version: null, native_independent: false, permission: "浏览器演示数据；实际 Mac 按系统要求检查", official_url: "https://linearmouse.app/" },
-  selected_module_ids: ["finder_extensions", "keyboard_repeat", "keyboard_compatibility"],
+  selected_module_ids: ["finder_extensions", "keyboard_repeat", "keyboard_compatibility", "software.chrome", "software.vscode", "software.wps"],
 };
 
 const previewDiagnostics: DeviceSelfCheck = {
@@ -134,12 +134,15 @@ function invokeOrPreview<T>(command: string, args?: Record<string, unknown>): Pr
 
 function previewOutcome(): MigrationOutcome {
   return {
-    outcome: "completed",
+    outcome: "partial",
     completed_at: "2026-08-02T10:01:00Z",
     snapshot_available: true,
     results: [
       { module_id: "finder_extensions", title: "显示文件扩展名", before: "隐藏", after: "显示", reason: "让文件类型一眼可见。", benefit: "减少打开错误文件的机会。", recovery: "可恢复到迁移前值", status: "applied_verified", error_code: null },
       { module_id: "keyboard_repeat", title: "键盘重复速度", before: "Mac 当前值", after: "已匹配 Windows 节奏", reason: "减少换机后的手感差异。", benefit: "删除和移动文字更熟悉。", recovery: "可恢复到迁移前值", status: "applied_verified", error_code: null },
+      { module_id: "software.chrome", title: "Google Chrome", before: "未读取", after: "等待从官方入口手动安装", reason: "当前版本不会静默下载或绕过 Gatekeeper。", benefit: "来源清楚，账号和浏览器数据不会搬运。", recovery: "无需恢复", status: "manual_action_required", error_code: null },
+      { module_id: "software.vscode", title: "Visual Studio Code", before: "未读取", after: "等待从官方入口手动安装", reason: "当前版本不会静默下载或绕过 Gatekeeper。", benefit: "来源清楚，项目和登录状态不会搬运。", recovery: "无需恢复", status: "manual_action_required", error_code: null },
+      { module_id: "software.wps", title: "WPS Office", before: "未读取", after: "等待从官方入口手动安装", reason: "当前版本不会静默下载或绕过 Gatekeeper。", benefit: "只提供官方入口，不搬运许可证或账号。", recovery: "无需恢复", status: "manual_action_required", error_code: null },
     ],
     guide_sections: guideSections(true),
   };
@@ -224,7 +227,7 @@ function renderPlan(): string {
   const plan = state.plan;
   if (!plan) return renderHome();
   const items = plan.items.map((item) => `<label class="plan-row"><input class="plan-check" type="checkbox" data-module="${escapeHtml(item.module_id)}" ${plan.selected_module_ids.includes(item.module_id) ? "checked" : ""}/><span class="plan-main"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.current_value)} <b>→</b> ${escapeHtml(item.target_value)}</span><small>${escapeHtml(item.benefit)} · ${escapeHtml(item.recovery)}</small></span><span class="plan-tag">${item.requires_admin ? "需要授权" : "可恢复"}</span></label>`).join("");
-  const software = plan.software.filter((item) => item.installed).map((item) => `<div class="software-line"><span>${escapeHtml(item.name)} · ${escapeHtml(item.version_policy)}</span><span>${item.install_mode === "official_manual" ? "需在线确认" : "可验证自动安装"}</span><a href="${escapeHtml(item.official_url)}" target="_blank" rel="noreferrer">官方入口 ↗</a></div>`).join("");
+  const software = plan.software.filter((item) => item.installed).map((item) => { const moduleId = `software.${item.id}`; const selected = plan.selected_module_ids.includes(moduleId); return `<label class="software-line"><input type="checkbox" data-software-plan="${escapeHtml(item.id)}" ${selected ? "checked" : ""}/><span>${escapeHtml(item.name)} · ${escapeHtml(item.version_policy)}<small>只提供官方入口；不搬运账号或浏览器数据</small></span><span>需手动完成</span><a href="${escapeHtml(item.official_url)}" target="_blank" rel="noreferrer">官方入口 ↗</a></label>`; }).join("");
   const keyboard = plan.keyboard_compatibility;
   const devices = keyboard.devices.length ? keyboard.devices.map((device) => `<div class="device-line"><label><input type="checkbox" data-keyboard-kind="${device.kind}" ${device.kind === "built_in" ? (keyboard.built_in_enabled ? "checked" : "") : (keyboard.external_enabled ? "checked" : "")} ${device.recognized ? "" : "disabled"}/><span><strong>${escapeHtml(device.name)}</strong><small>${device.kind === "built_in" ? "内置键盘" : "外接键盘"} · ${device.recognized ? "已识别（仅显示脱敏标识）" : "未能安全识别，默认不应用"}</small></span></label></div>`).join("") : `<p class="empty-line">未发现可安全识别的键盘；不会猜测设备。</p>`;
   const karabiner = keyboard.karabiner.installed ? `已检测到 Karabiner-Elements${keyboard.karabiner.version ? ` ${escapeHtml(keyboard.karabiner.version)}` : ""} · 应用时只合并 MacWin 规则` : `<span>未检测到 Karabiner-Elements · 应用将降级为“需要手动完成”</span> <a href="${escapeHtml(keyboard.karabiner.official_url)}" target="_blank" rel="noreferrer">官方入口 ↗</a>`;
@@ -272,7 +275,10 @@ function renderGuide(): string {
 
 function renderRestore(): string {
   const results = state.outcome?.results ?? [];
-  return renderShell(`<section class="restore-list">${results.map((result) => `<div class="restore-row"><div><strong>${escapeHtml(result.title)}</strong><small>恢复到：${escapeHtml(result.before)}</small></div><button class="small-button" data-rollback="${escapeHtml(result.module_id)}">恢复</button></div>`).join("")}</section><div class="notice soft"><span>i</span><span>恢复只针对这次迁移保存的原值，不会恢复出厂，也不会影响其他设置。</span></div><div class="action-row"><button class="secondary-button" data-action="complete">暂不恢复</button><button class="primary-button" data-action="rollback-all">全部恢复 <span>→</span></button></div>`, "迁移后主页 · 恢复", "想回到迁移前？", "选择一个设置即可单独恢复，其他设置不会被碰到。");
+  const restorable = new Set(["finder_extensions", "keyboard_repeat", "keyboard_compatibility", "pointer_scroll"]);
+  const restorableRows = results.filter((result) => restorable.has(result.module_id)).map((result) => `<div class="restore-row"><div><strong>${escapeHtml(result.title)}</strong><small>恢复到：${escapeHtml(result.before)}</small></div><button class="small-button" data-rollback="${escapeHtml(result.module_id)}">恢复</button></div>`).join("");
+  const manualRows = results.filter((result) => !restorable.has(result.module_id)).map((result) => `<div class="restore-row"><div><strong>${escapeHtml(result.title)}</strong><small>无需恢复 · 本次未修改系统</small></div><span class="muted">${escapeHtml(statusLabel(result.status))}</span></div>`).join("");
+  return renderShell(`<section class="restore-list">${restorableRows}${manualRows}</section><div class="notice soft"><span>i</span><span>恢复只针对这次迁移保存的原值，不会恢复出厂，也不会影响其他设置；软件官方入口项目不会显示恢复按钮。</span></div><div class="action-row"><button class="secondary-button" data-action="complete">暂不恢复</button><button class="primary-button" data-action="rollback-all">全部恢复 <span>→</span></button></div>`, "迁移后主页 · 恢复", "想回到迁移前？", "选择一个设置即可单独恢复，其他设置不会被碰到。");
 }
 
 function render(): void {
@@ -406,6 +412,7 @@ function bindEvents(): void {
     render();
   }));
   appRoot.querySelectorAll<HTMLInputElement>("input[data-software]").forEach((input) => input.addEventListener("change", () => { const id = input.dataset.software ?? ""; const ids = input.checked ? [...state.selection.software_ids, id] : state.selection.software_ids.filter((value) => value !== id); state = { ...state, selection: { ...state.selection, software_ids: ids } }; }));
+  appRoot.querySelectorAll<HTMLInputElement>("input[data-software-plan]").forEach((input) => input.addEventListener("change", () => { if (!state.plan) return; const moduleId = `software.${input.dataset.softwarePlan ?? ""}`; const selected = input.checked ? [...state.plan.selected_module_ids, moduleId] : state.plan.selected_module_ids.filter((value) => value !== moduleId); state = { ...state, plan: { ...state.plan, selected_module_ids: [...new Set(selected)] } }; }));
   appRoot.querySelectorAll<HTMLElement>("[data-rollback]").forEach((element) => element.addEventListener("click", () => void rollback(element.dataset.rollback)));
   if (state.error) { const error = document.createElement("div"); error.className = "error-toast"; error.textContent = `没有完成：${friendlyError(state.error)}`; appRoot.append(error); }
 }

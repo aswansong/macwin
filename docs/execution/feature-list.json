@@ -392,7 +392,7 @@
       "status": "specified",
       "owner": "software-module",
       "decision_refs": ["D-013", "D-016", "D-018", "D-034"],
-      "evidence_refs": ["E-004", "E-008"],
+      "evidence_refs": ["E-004", "E-008", "E-026"],
       "dependencies": ["P0-002", "P0-005", "P0-006"],
       "human_decisions_required": ["OD-007"],
       "acceptance_criteria": [
@@ -432,7 +432,7 @@
       "status": "specified",
       "owner": "developer-module",
       "decision_refs": ["D-020", "D-034"],
-      "evidence_refs": ["E-007"],
+      "evidence_refs": ["E-007", "E-026"],
       "dependencies": ["P0-009"],
       "human_decisions_required": ["OD-007"],
       "acceptance_criteria": [

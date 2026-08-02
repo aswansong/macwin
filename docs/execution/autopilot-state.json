@@ -14,7 +14,8 @@
     "local Rust, frontend, Tauri and format validation",
     "Windows/macOS CI checks",
     "HTML and redacted JSON report export",
-    "v1 software whitelist freeze"
+    "v1 software whitelist freeze",
+    "explicit manual software outcomes in plan, report and guide"
   ],
   "failed_or_deferred": [
     "P0-008 real external-device reconnect matrix not complete",
@@ -27,7 +28,7 @@
   "evidence": [
     "commit 396de5d on release/v1.0.0",
     "docs/product/v1-validation.md",
-    "docs/product/evidence.md E-024/E-025",
+    "docs/product/evidence.md E-024/E-025/E-026",
     "GitHub Actions run 30738597728 succeeded on macos-15 and windows-latest",
     "./scripts/validate-m1 and local npm/cargo checks passed"
   ],

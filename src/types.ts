@@ -142,10 +142,11 @@ export type ModuleStatus =
   | "manual_action_required"
   | "skipped_permission"
   | "unknown_requires_review"
-  | "unchanged";
+  | "unchanged"
+  | "skipped";
 
 export interface ModuleResult {
-  module_id: "finder_extensions" | "keyboard_repeat" | "keyboard_compatibility" | "pointer_scroll";
+  module_id: string;
   title: string;
   before: string;
   after: string;

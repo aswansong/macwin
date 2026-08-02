@@ -220,11 +220,16 @@ pub fn confirm_plan(
         .map_err(|_| "STATE_LOCK".to_owned())?
         .clone()
         .ok_or_else(|| "PLAN_MISSING".to_owned())?;
-    let known: HashSet<&str> = plan.items.iter().map(|item| item.module_id.as_str()).collect();
+    let known: HashSet<String> = plan
+        .items
+        .iter()
+        .map(|item| item.module_id.clone())
+        .chain(plan.software.iter().map(|item| format!("software.{}", item.id)))
+        .collect();
     let mut selected = confirmation.selected_module_ids;
     selected.sort();
     selected.dedup();
-    if selected.iter().any(|module| !known.contains(module.as_str())) {
+    if selected.iter().any(|module| !known.contains(module)) {
         return Err("PLAN_MODULE_UNKNOWN".to_owned());
     }
     plan.selected_module_ids = selected;
