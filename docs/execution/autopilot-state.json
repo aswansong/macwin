@@ -25,7 +25,7 @@
     "signing and notarization credentials are not available"
   ],
   "evidence": [
-    "commit 093372c on release/v1.0.0",
+    "commit 396de5d on release/v1.0.0",
     "docs/product/v1-validation.md",
     "docs/product/evidence.md E-024/E-025",
     "GitHub Actions run 30738597728 succeeded on macos-15 and windows-latest",
