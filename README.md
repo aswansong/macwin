@@ -79,6 +79,7 @@ MacWin 明确不会执行迁移包中的命令、脚本或路径；不会上传�
 - [Alpha 0.1 验证记录](docs/product/alpha-0.1-validation.md)
 - [Alpha 0.2 验证记录](docs/product/alpha-0.2-validation.md)
 - [v1 验证矩阵](docs/product/v1-validation.md)
+- [真实设备验收手册](docs/execution/real-device-acceptance.md)
 - [仓库协作规则](AGENTS.md)
 - [安全政策](SECURITY.md)
 

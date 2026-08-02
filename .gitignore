@@ -18,6 +18,10 @@ diagnostics/
 *.habitpack
 .m1-validation-venv/
 
+# Python caches created by local validation and research fixtures
+__pycache__/
+*.py[cod]
+
 # Local backups must never be committed
 backups/
 recovery/
