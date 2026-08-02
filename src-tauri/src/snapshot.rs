@@ -147,6 +147,14 @@ impl SnapshotStore {
         }
         Ok(Some(snapshot))
     }
+
+    pub fn delete(&self) -> Result<bool, String> {
+        match fs::remove_file(self.path()) {
+            Ok(()) => Ok(true),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+            Err(_) => Err("SNAPSHOT_DELETE".to_owned()),
+        }
+    }
 }
 
 pub fn default_store(root: &Path) -> SnapshotStore {
@@ -209,5 +217,29 @@ mod tests {
         )
         .expect("tamper");
         assert_eq!(store.load().unwrap_err(), "SNAPSHOT_INTEGRITY");
+    }
+
+    #[test]
+    fn deleting_snapshot_is_explicit_and_idempotent() {
+        let directory = tempfile::tempdir().expect("temp");
+        let store = SnapshotStore::new(directory.path());
+        assert!(!store.delete().expect("missing is safe"));
+        store
+            .save(
+                TargetPreferences {
+                    finder_extensions_existed: false,
+                    finder_extensions: false,
+                    key_repeat_existed: false,
+                    key_repeat: 0,
+                    initial_key_repeat_existed: false,
+                    initial_key_repeat: 0,
+                    pointer_scroll_existed: false,
+                    pointer_scroll_reversed: false,
+                },
+                "2026-08-02T00:00:00Z".to_owned(),
+            )
+            .expect("save");
+        assert!(store.delete().expect("delete"));
+        assert!(store.load().expect("load").is_none());
     }
 }

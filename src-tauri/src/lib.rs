@@ -27,6 +27,7 @@ pub fn run() {
             commands::export_report,
             commands::record_error,
             commands::snapshot_status,
+            commands::delete_snapshot,
             commands::check_update,
             commands::install_update
         ])

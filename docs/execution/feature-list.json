@@ -277,7 +277,7 @@
       "status": "implemented",
       "owner": "macos-adapter",
       "decision_refs": ["D-012", "D-019", "D-026"],
-      "evidence_refs": ["E-014", "E-015", "E-019"],
+      "evidence_refs": ["E-014", "E-015", "E-019", "E-028"],
       "dependencies": ["P0-005"],
       "human_decisions_required": ["OD-009"],
       "acceptance_criteria": [

@@ -9,6 +9,7 @@ import type {
   MigrationOutcome,
   ModuleResult,
   RuntimeInfo,
+  SnapshotStatus,
   View,
   WindowsScan,
 } from "./types";
@@ -115,6 +116,8 @@ function friendlyError(value: unknown): string {
     KARABINER_BACKUP: "无法创建 Karabiner 迁移前备份，已跳过写入。",
     UPDATE_CONFIRM_REQUIRED: "更新必须经过确认。",
     UPDATE_INSTALL_FAILED: "更新下载、签名校验或安装失败；当前版本未被替换。",
+    SNAPSHOT_DELETE_CONFIRM_REQUIRED: "删除快照必须经过确认。",
+    SNAPSHOT_DELETE: "无法删除迁移前快照；它仍然保留。",
   };
   return messages[code] ?? (code || "发生未知错误，请查看报告中的错误码。");
 }
@@ -267,7 +270,8 @@ function renderDiagnostics(): string {
     : diagnostics.snapshot.error
       ? `不可用 · ${escapeHtml(friendlyError(diagnostics.snapshot.error))}`
       : "未找到";
-  return renderShell(`<section class="diagnostics-sheet"><div class="diagnostic-grid"><div><span>应用</span><strong>${escapeHtml(diagnostics.app_version)}</strong></div><div><span>规则格式</span><strong>${escapeHtml(diagnostics.format_version)}</strong></div><div><span>系统</span><strong>${escapeHtml(diagnostics.runtime.os_version)} · ${escapeHtml(diagnostics.runtime.architecture)}</strong></div><div><span>Karabiner</span><strong>${diagnostics.karabiner.installed ? "已检测到" : "未检测到"}</strong><small>${escapeHtml(diagnostics.karabiner.permission)}</small></div><div><span>迁移前快照</span><strong>${snapshot}</strong><small>卸载应用不会自动删除</small></div></div><h3>键盘设备</h3>${devices}<h3>最近模块</h3><p class="muted">${diagnostics.recent_modules.length ? escapeHtml(diagnostics.recent_modules.join(" · ")) : "暂无执行记录"}</p><div class="notice soft"><span>i</span><span>${escapeHtml(diagnostics.privacy_note)}</span></div></section><div class="action-row"><button class="secondary-button" data-action="home">返回首页</button></div>`, "设备自检", "这台 Mac 目前能安全做什么", "结果只在本机生成；不会显示用户名、完整路径、序列号或原始配置。");
+  const deleteButton = isTauri && diagnostics.snapshot.available ? `<button class="secondary-button" data-action="delete-snapshot">删除迁移前快照</button>` : "";
+  return renderShell(`<section class="diagnostics-sheet"><div class="diagnostic-grid"><div><span>应用</span><strong>${escapeHtml(diagnostics.app_version)}</strong></div><div><span>规则格式</span><strong>${escapeHtml(diagnostics.format_version)}</strong></div><div><span>系统</span><strong>${escapeHtml(diagnostics.runtime.os_version)} · ${escapeHtml(diagnostics.runtime.architecture)}</strong></div><div><span>Karabiner</span><strong>${diagnostics.karabiner.installed ? "已检测到" : "未检测到"}</strong><small>${escapeHtml(diagnostics.karabiner.permission)}</small></div><div><span>迁移前快照</span><strong>${snapshot}</strong><small>卸载应用不会自动删除</small></div></div><h3>键盘设备</h3>${devices}<h3>最近模块</h3><p class="muted">${diagnostics.recent_modules.length ? escapeHtml(diagnostics.recent_modules.join(" · ")) : "暂无执行记录"}</p><div class="notice soft"><span>i</span><span>${escapeHtml(diagnostics.privacy_note)}</span></div></section><div class="action-row"><button class="secondary-button" data-action="home">返回首页</button>${deleteButton}</div>`, "设备自检", "这台 Mac 目前能安全做什么", "结果只在本机生成；不会显示用户名、完整路径、序列号或原始配置。");
 }
 
 function renderGuide(): string {
@@ -378,6 +382,20 @@ async function runDiagnostics(): Promise<void> {
   render();
 }
 
+async function deleteSnapshot(): Promise<void> {
+  if (!isTauri || !state.diagnostics?.snapshot.available) return;
+  if (!window.confirm("删除迁移前快照后，MacWin 将无法自动恢复这次迁移。确定删除吗？")) return;
+  setBusy(true);
+  try {
+    const snapshot = await invoke<SnapshotStatus>("delete_snapshot", { request: { confirmed: true } });
+    state = { ...state, diagnostics: { ...state.diagnostics, snapshot }, busy: false };
+  } catch (error) {
+    recordError(error);
+    state = { ...state, busy: false, error: String(error) };
+  }
+  render();
+}
+
 function bindEvents(): void {
   appRoot.querySelectorAll<HTMLElement>("[data-action]").forEach((element) => element.addEventListener("click", () => {
     const action = element.dataset.action;
@@ -392,6 +410,7 @@ function bindEvents(): void {
     else if (action === "restore") updateView("restore");
     else if (action === "rollback-all") void rollback();
     else if (action === "diagnostics") void runDiagnostics();
+    else if (action === "delete-snapshot") void deleteSnapshot();
     else if (action === "check-update") void checkUpdate(true);
     else if (action === "alpha-info") window.alert("MacWin 只迁移白名单习惯与环境，不读取个人文件、浏览器历史/密码/Cookie、账号、Token 或项目代码；除版本检查外不联网。所有真实变化前必须确认计划，快照保留到你主动删除。");
     else if (action === "download-report") void saveReport("html");

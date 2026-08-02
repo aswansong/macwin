@@ -66,6 +66,11 @@ pub struct SnapshotStatus {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct SnapshotDeleteRequest {
+    pub confirmed: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct PlanConfirmation {
     pub selected_module_ids: Vec<String>,
     pub keyboard_built_in: Option<bool>,
@@ -472,6 +477,22 @@ pub fn record_error(app: AppHandle, input: ErrorLogInput) -> Result<(), String> 
 
 #[tauri::command]
 pub fn snapshot_status(app: AppHandle) -> Result<SnapshotStatus, String> {
+    snapshot_status_for(&app)
+}
+
+#[tauri::command]
+pub fn delete_snapshot(
+    app: AppHandle,
+    request: SnapshotDeleteRequest,
+) -> Result<SnapshotStatus, String> {
+    if !request.confirmed {
+        return Err("SNAPSHOT_DELETE_CONFIRM_REQUIRED".to_owned());
+    }
+    let root = app
+        .path()
+        .app_data_dir()
+        .map_err(|_| "APP_DATA_PATH".to_owned())?;
+    default_store(&root).delete()?;
     snapshot_status_for(&app)
 }
 
