@@ -29,7 +29,7 @@
 3. P0-009/P0-010 已按 D-034 收窄并统一 Windows 首批白名单、官方入口和声明式开发模块；Mac 计划现在只在用户确认的软件项上生成 `manual_action_required` 结果，不伪报已安装。可信自动安装、签名/哈希和 Homebrew 独立确认仍由 OD-007 决定，当前只提供可审查的官方入口。
 4. P0-011 的官方接口边界已完成研究并记录在 E-022；真实 Wi‑Fi 密码链路继续停在 OD-005，不改用不安全接口。
 5. P0-013 已加入本地 HTML/脱敏 JSON 报告；P0-014 已加入本地错误日志、GitHub 入口、updater 依赖和签名 Release 草稿，公钥注入仍只在正式发布工作流中进行。
-6. 启用 Tauri bundle，完善 Windows x64/macOS arm64 安装、升级、卸载和 CI 草稿 Release；`scripts/prepare-release.py` 会在正式标签构建前校验并同步 Tauri/npm 版本，`scripts/build-release-manifest.py` 会对 updater 产物做确定性选择，`scripts/validate-release-assets.py` 会在发布前校验双平台安装包、哈希、SBOM、签名文本和 manifest 一致性，`scripts/stage-release-assets.py` 会展平公开资产并生成总 SHA-256，手动 tag 输入也会用于 macOS DMG 的生成和公证路径；不把未签名包标为正式版。
+6. 启用 Tauri bundle，完善 Windows x64/macOS arm64 安装、升级、卸载和 CI 草稿 Release；Release workflow 的 build/publish job 会检出输入 tag，`scripts/prepare-release.py` 会在正式标签构建前校验并同步 Tauri/npm 版本，`scripts/build-release-manifest.py` 会对 updater 产物做确定性选择，`scripts/validate-release-assets.py` 会在发布前校验双平台安装包、哈希、SBOM、签名文本和 manifest 一致性，`scripts/stage-release-assets.py` 会展平公开资产并生成总 SHA-256，手动 tag 输入也会用于 macOS DMG 的生成和公证路径；不把未签名包标为正式版。
 7. RC 阶段的一次完整代码审查、安全/隐私审查和端到端 UX 审查已完成；报告双格式入口、快照完整性错误态、开发工具白名单和取消模块/恢复边界已修复。完整本地测试矩阵与双平台 CI 均已通过，P2 留在 backlog。
 8. 收集真实 Windows 10/11、macOS 15/26 设备证据，完成签名、公证、stapling、哈希、SBOM、发布说明后，走一次最终人类确认，再合并 `main`、打 `v1.0.0` 标签和发布。
 

@@ -253,3 +253,10 @@
 - 摘要：修复 signed Release workflow 在 `workflow_dispatch` 输入已有 tag 时仍使用 `github.ref_name` 生成和校验 macOS DMG 路径的问题；生成与公证步骤现在共用 `RELEASE_TAG=${{ inputs.tag || github.ref_name }}`。本地静态断言确认两处路径均使用该值。
 - 产品含义：手动重跑指定 tag 时，DMG 文件名、stapling 校验路径和发布资产保持一致，不会因分支名漂移导致发布 job 找不到已公证 DMG。
 - 关联决定：D-032、OD-006
+
+### E-035：手动 tag 检出源码一致性
+
+- 类型：CI 流程修复、静态验证
+- 摘要：Release workflow 的 build 和 publish 两个 checkout 步骤现在显式使用 `ref: ${{ inputs.tag || github.ref }}`；手动输入 tag 时不会再默认构建仓库默认分支，push tag 时仍检出触发该 run 的 tag。随后由 `prepare-release.py` 继续校验 tag 与 Cargo/npm/Tauri 版本一致。
+- 产品含义：正式资产的源码、版本号、updater manifest 和 tag 指向同一提交/版本，避免“Release 文件名正确但实际代码来自错误分支”的供应链错误。
+- 关联决定：D-032、D-033、OD-006
