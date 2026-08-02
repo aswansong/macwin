@@ -27,7 +27,7 @@
     "real-device acceptance runbook and redacted evidence boundary",
     "draft PR #1 opened for main review",
     "draft PR #1 review checked with no comments or requested changes",
-    "PR-triggered v1 CI run for be737a2 passed before the documentation reconciliation",
+    "PR-triggered v1 CI runs through 6b76ee3 passed before the latest reconciliation",
     "Windows signing-before-updater packaging guard",
     "Tauri updater downgrade protection documented and guarded",
     "snapshot lifecycle and report format decisions reconciled",
@@ -42,16 +42,16 @@
     "signing and notarization credentials are not available"
   ],
   "evidence": [
-    "commit be737a2 on release/v1.0.0",
+    "commit 370cc98 on release/v1.0.0",
     "docs/product/v1-validation.md",
     "docs/product/evidence.md E-024/E-025/E-026/E-027/E-028/E-029/E-030/E-031/E-032/E-033/E-034/E-035/E-036/E-037/E-038/E-039/E-040/E-041/E-042/E-043/E-044",
-    "GitHub Actions run 30762520800 succeeded on macos-15 and windows-latest",
+    "GitHub Actions runs 30763275386 and 30762520800 succeeded on macos-15 and windows-latest",
     "release/v1.0.0 documentation reconciliation is clean and pushed",
-    "latest completed PR validation passed on macos-15 and windows-latest; current documentation head validation may be queued or in progress",
+    "current head validation is expected to run after the workflow action-version refresh; do not treat queued or in-progress checks as release evidence",
     "draft PR https://github.com/aswansong/macwin/pull/1 targets main and remains open",
     "./scripts/validate-m1 (55 tests), release-preparation, manifest, release-assets, npm and cargo checks passed"
   ],
-  "next_action": "等待当前文档 head 的 PR CI 完成；随后等待负责人提供真实 Windows 10/11 与 Apple Silicon macOS 15/26 设备、签名凭据和一次性人工验收。在此之前保持发布清单与白名单文档对齐，不宣称未支持的软件自动安装或 Wi-Fi 密码迁移。",
+  "next_action": "等待当前 head 的 PR CI 完成并核对 action runtime；随后等待负责人提供真实 Windows 10/11 与 Apple Silicon macOS 15/26 设备、签名凭据和一次性人工验收。在此之前保持发布清单与白名单文档对齐，不宣称未支持的软件自动安装或 Wi-Fi 密码迁移。",
   "human_gates": [
     "Apple Developer ID signing and notarization credentials",
     "Windows code-signing certificate",
