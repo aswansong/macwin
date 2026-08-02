@@ -183,7 +183,7 @@ function renderShell(content: string, eyebrow: string, title: string, descriptio
   return `<div class="app-shell">
     <header class="topbar"><button class="brand-button" data-action="home" aria-label="回到首页"><span class="brand-mark">MW</span><span><strong>MacWin</strong><small>把 Windows 习惯带到 Mac</small></span></button><span class="alpha-pill">v1.0 · ${escapeHtml(platform)}</span></header>
     <main class="main-content"><div class="content-column">${renderProgress()}<div class="eyebrow">${escapeHtml(eyebrow)}</div><h1>${escapeHtml(title)}</h1>${description ? `<p class="lead">${escapeHtml(description)}</p>` : ""}${content}</div></main>
-    <footer class="privacy-footer"><span class="privacy-dot"></span><span>${state.webPreview ? "浏览器演示数据 · 不会修改系统" : "全程本地处理 · 不搬个人文件 · 不上传扫描结果"}</span><span class="footer-spacer"></span><button class="text-button" data-action="diagnostics">设备自检</button><button class="text-button" data-action="check-update">检查更新</button><button class="text-button" data-action="alpha-info">支持范围与隐私</button></footer>
+    <footer class="privacy-footer"><span class="privacy-dot"></span><span>${state.webPreview ? "浏览器演示数据 · 不会修改系统" : "全程本地处理 · 不搬个人文件 · 不上传扫描结果"}</span><span class="footer-spacer"></span><button class="text-button" data-action="diagnostics">设备自检</button><button class="text-button" data-action="check-update">检查更新</button><a class="text-button" href="https://github.com/aswansong/macwin/issues" target="_blank" rel="noreferrer">反馈问题 ↗</a><button class="text-button" data-action="alpha-info">支持范围与隐私</button></footer>
   </div>`;
 }
 

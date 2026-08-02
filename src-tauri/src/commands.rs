@@ -52,6 +52,13 @@ pub struct UpdateCheckResult {
     pub version: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct SnapshotStatus {
+    pub available: bool,
+    pub version: Option<String>,
+    pub created_at: Option<String>,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct PlanConfirmation {
     pub selected_module_ids: Vec<String>,
@@ -443,11 +450,32 @@ pub fn record_error(app: AppHandle, input: ErrorLogInput) -> Result<(), String> 
 }
 
 #[tauri::command]
+pub fn snapshot_status(app: AppHandle) -> Result<SnapshotStatus, String> {
+    let root = app
+        .path()
+        .app_data_dir()
+        .map_err(|_| "APP_DATA_PATH".to_owned())?;
+    let snapshot = default_store(&root).load()?;
+    Ok(match snapshot {
+        Some(snapshot) => SnapshotStatus {
+            available: true,
+            version: Some(snapshot.version),
+            created_at: Some(snapshot.created_at),
+        },
+        None => SnapshotStatus {
+            available: false,
+            version: None,
+            created_at: None,
+        },
+    })
+}
+
+#[tauri::command]
 pub async fn check_update(app: AppHandle) -> Result<UpdateCheckResult, String> {
     let Some(pubkey) = option_env!("MACWIN_UPDATER_PUBKEY") else {
         return Err("UPDATE_NOT_CONFIGURED".to_owned());
     };
-    if pubkey == "" || pubkey == "PENDING_RELEASE_KEY" {
+    if pubkey.is_empty() || pubkey == "PENDING_RELEASE_KEY" {
         return Err("UPDATE_NOT_CONFIGURED".to_owned());
     }
     let updater = app.updater().map_err(|_| "UPDATE_NOT_CONFIGURED".to_owned())?;

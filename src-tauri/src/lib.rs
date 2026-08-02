@@ -26,6 +26,7 @@ pub fn run() {
             commands::rollback_all,
             commands::export_report,
             commands::record_error,
+            commands::snapshot_status,
             commands::check_update
         ])
         .run(tauri::generate_context!())
