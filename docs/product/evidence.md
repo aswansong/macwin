@@ -267,3 +267,10 @@
 - 摘要：新增 `docs/execution/real-device-acceptance.md`，固定 Windows 10/11 x64 与 Apple 芯片 macOS 15/26 四台目标环境、内置/外接键盘、鼠标/触控板、UAC/TCC 拒绝降级、离线软件待处理、单模块失败、选择性恢复、升级/卸载/重装和签名公证检查。证据只允许短设备 ID、应用版本、状态和脱敏观察，不允许密码、SSID、用户名、序列号、绝对路径、完整日志或迁移包原文。
 - 产品含义：最后的人工作业可以按同一矩阵复现，缺少设备或凭据时明确保持 `blocked`/`not-applicable`，不会把 CI 或开发构建冒充真实验收。
 - 关联决定：D-032、D-033、OD-005、OD-006、OD-007、OD-009、E-021、E-023
+
+### E-037：本地 macOS App bundle 可构建，updater 签名仍受凭据门控
+
+- 类型：技术验证、发布边界
+- 摘要：在 Apple 芯片 Mac 上执行 Tauri `--bundles app`，前端构建、Rust release 编译和 `MacWin.app` bundle 均成功；默认 updater 产物随后因配置为占位公钥且缺少私钥而拒绝签名。使用官方临时 config 覆盖 `bundle.createUpdaterArtifacts=false` 并显式 `--no-sign` 后，本地未签名 `MacWin.app` 可重复生成。临时覆盖不修改正式 `tauri.conf.json`。
+- 产品含义：代码级 macOS bundle 路径已验证；updater 签名、Developer ID、公证、stapling 和面向新手的安装包仍不能由本地未签名构建替代。
+- 关联决定：D-032、D-033、OD-006、E-021、E-023

@@ -53,6 +53,13 @@ cargo test --manifest-path src-tauri/Cargo.toml --locked
 npm run tauri build -- --no-bundle
 ```
 
+本地未签名 macOS App bundle（仅验证构建，不可作为正式分发）：
+
+```bash
+# 先确保 cargo 已在 PATH；此覆盖只关闭本地 updater 产物，不改变正式配置
+npm run tauri build -- --bundles app --no-sign --config '{"bundle":{"createUpdaterArtifacts":false}}'
+```
+
 Windows 端在扫描页使用普通权限读取白名单注册表、键盘布局、重复速率和滚动习惯；导出包后将 `.habitpack` 以用户自选方式带到 Mac。Mac 端导入后必须先确认计划，后端令牌会锁定用户勾选的模块，才会按固定规则写入 Finder 扩展名、键盘重复速率、选择性 Ctrl 和可安全支持的滚动方向。Karabiner-Elements 与 LinearMouse 不由 MacWin 静默安装；缺失或授权未就绪时降级为官方入口。任何模块失败都单独记录，恢复使用迁移前的一份快照。
 
 MacWin 明确不会执行迁移包中的命令、脚本或路径；不会上传扫描数据。软件条目只接受固定白名单和官方入口，无法在当前版本完成签名/哈希验证的安装会明确降级为手动入口。报告可在本地导出 HTML 或脱敏 JSON。
