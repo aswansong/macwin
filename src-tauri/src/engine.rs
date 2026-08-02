@@ -96,8 +96,8 @@ pub struct SoftwarePlanItem {
 fn software_metadata(id: &str) -> (&'static str, &'static str, bool, &'static str) {
     match id {
         "edge" | "chrome" | "firefox" => ("browser", "official_manual", false, "最新稳定版"),
-        "microsoft365" | "wps" | "libreoffice" => ("office", "official_manual", false, "最新稳定版"),
-        "vscode" | "git" | "github-cli" | "node" | "python" | "uv" | "jupyter" | "ruff" | "codex-cli" | "claude-code" => ("developer", "official_manual", false, "主版本匹配"),
+        "microsoft365" | "wps" => ("office", "official_manual", false, "最新稳定版"),
+        "vscode" | "git" | "node" | "python" | "codex-cli" | "claude-code" => ("developer", "official_manual", false, "主版本匹配"),
         _ => ("other", "official_manual", false, "官方版本"),
     }
 }

@@ -43,7 +43,7 @@ const previewScan: WindowsScan = {
   software: [
     { id: "chrome", name: "Google Chrome", version: "126", installed: true, is_default_browser: true, mac_name: "Google Chrome", official_url: "https://www.google.com/chrome/", export_supported: true, category: "browser", install_mode: "official_manual", requires_homebrew: false, version_policy: "最新稳定版" },
     { id: "vscode", name: "Visual Studio Code", version: "1.92", installed: true, is_default_browser: false, mac_name: "Visual Studio Code", official_url: "https://code.visualstudio.com/", export_supported: true, category: "developer", install_mode: "official_manual", requires_homebrew: false, version_policy: "主版本匹配" },
-    { id: "libreoffice", name: "LibreOffice", version: "24.2", installed: false, is_default_browser: false, mac_name: "LibreOffice", official_url: "https://www.libreoffice.org/", export_supported: true, category: "office", install_mode: "official_manual", requires_homebrew: false, version_policy: "最新稳定版" },
+    { id: "wps", name: "WPS Office", version: "12.1", installed: false, is_default_browser: false, mac_name: "WPS Office", official_url: "https://www.wps.com/", export_supported: true, category: "office", install_mode: "official_manual", requires_homebrew: false, version_policy: "最新稳定版" },
   ],
   input_languages: ["中文（简体）", "English (US)"],
   keyboard_layouts: ["00000804", "00000409"],

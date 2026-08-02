@@ -2,29 +2,36 @@
   "schema_version": "1.0.0",
   "goal": "MacWin v1.0.0 Windows 到 Mac 正式成品",
   "branch": "release/v1.0.0",
-  "current_milestone": "p0_009_014_implementation",
+  "current_milestone": "rc_review_and_release_gates",
   "status": "in_progress",
   "completed": [
     "M0 documentation baseline",
     "M1 clickable prototype and habitpack 1.0.0 format",
     "Alpha 0.1 local vertical slice",
     "Alpha 0.2 real Mac keyboard compatibility and recovery",
-    "Alpha 0.2 cross-platform CI"
+    "Alpha 0.2 cross-platform CI",
+    "v1 RC code, privacy and UX review",
+    "local Rust, frontend, Tauri and format validation",
+    "Windows/macOS CI checks",
+    "HTML and redacted JSON report export",
+    "v1 software whitelist freeze"
   ],
   "failed_or_deferred": [
     "P0-008 real external-device reconnect matrix not complete",
-    "P0-009/P0-010 verified software installation not implemented",
+    "P0-009/P0-010 trusted software installation verification not implemented; official manual entries only",
     "P0-011 Wi-Fi credential path not implemented",
-    "P0-014 updater public key, error log, and signed update path not complete",
+    "P0-014 release updater credentials/public key and signed update path not exercised",
     "four-platform real acceptance not complete",
     "signing and notarization credentials are not available"
   ],
   "evidence": [
-    "commit 26bd7fb on alpha/v0.2-keyboard-compatibility",
-    "docs/product/alpha-0.2-validation.md",
-    "final Alpha CI run 30715143750 succeeded on macos-15 and windows-latest"
+    "commit 093372c on release/v1.0.0",
+    "docs/product/v1-validation.md",
+    "docs/product/evidence.md E-024/E-025",
+    "GitHub Actions run 30738597728 succeeded on macos-15 and windows-latest",
+    "./scripts/validate-m1 and local npm/cargo checks passed"
   ],
-  "next_action": "Implement software/developer install state machine and local redacted error log, then review the Wi-Fi security decision gate.",
+  "next_action": "Complete one-time real Windows 10/11 and Apple Silicon macOS 15/26 acceptance with signing credentials; before that, keep release manifest and whitelist documentation aligned without claiming unsupported installs or Wi-Fi password migration.",
   "human_gates": [
     "Apple Developer ID signing and notarization credentials",
     "Windows code-signing certificate",

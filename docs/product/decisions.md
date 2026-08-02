@@ -147,7 +147,7 @@
 ### D-020：轻量 AI 开发环境与 Homebrew
 
 - 状态：已决定
-- 决定：开发模块仅在检测到相关工具或用户选择时推荐，默认普通用户不安装。候选范围为 Git、GitHub CLI、VS Code 及中文语言支持、Python 与 uv、Node LTS/npm/pnpm、Jupyter、Ruff、常用编辑器扩展和 `Projects` 目录；Docker、Ollama 等重型工具不在默认范围。Homebrew 是 macOS 命令行软件包管理器，只在开发场景按需选择，并在安装前解释用途和影响。
+- 决定：开发模块仅在检测到相关工具或用户选择时推荐，默认普通用户不安装。历史候选范围曾包括 GitHub CLI、uv、Jupyter、Ruff、常用编辑器扩展和 `Projects` 目录；v1.0 首批可识别目录由 D-034 锁定，未列入其中的工具暂不进入正式扫描或迁移包。Docker、Ollama 等重型工具不在默认范围。Homebrew 是 macOS 命令行软件包管理器，只在开发场景按需选择，并在安装前解释用途和影响。
 - 理由：支持轻量 AI 编程，不把 MacWin 变成通用开发机镜像工具。
 - 证据：E-007、E-015
 
@@ -248,6 +248,13 @@
 - 理由：确认原型结论可以继续作为研究输入，同时避免把研究证据误写成生产能力或跳过用量门禁。
 - 证据：E-023
 
+### D-034：v1.0 首批软件识别白名单冻结
+
+- 状态：已决定
+- 决定：v1.0 首批识别白名单严格限定为：浏览器 Google Chrome、Microsoft Edge、Mozilla Firefox；办公 Microsoft 365、WPS Office；开发 Visual Studio Code、Git、Node.js LTS、Python 3、Codex CLI、Claude Code；辅助工具 Karabiner-Elements、LinearMouse 只作为目标端工具知情确认，不作为 Windows 软件扫描结果。LibreOffice、GitHub CLI、uv、Jupyter、Ruff 等历史候选暂不进入 v1 扫描、`.habitpack` 或安装计划。
+- 理由：限制首发范围，减少误匹配、供应链和安装验证负担；后续扩展必须单独补充规则、官方来源、验证和回滚证据。
+- 证据：E-025
+
 ## 已取代的决定
 
 ### D-X01：全局交换 Ctrl 与 Command
@@ -287,9 +294,9 @@
 
 ### OD-003：第一版软件与规则目录
 
-- 状态：未决定
-- 需要拍板：首批浏览器、办公软件、输入法、开发工具和偏好规则的确切白名单。
-- 阻塞范围：扫描器与安装计划的实现及覆盖率验收。
+- 状态：已决定（见 D-034）
+- 决定：v1.0 首批软件白名单按 D-034 执行；新增软件或规则必须另行决策并提供来源、版本、签名/哈希、安装后验证和回滚证据。
+- 阻塞范围：仅阻塞 v1 之后的目录扩展，不阻塞当前首批白名单实现。
 
 ### OD-004：最终视觉 Token 与品牌资产
 

@@ -113,11 +113,8 @@
 
 ### 5.2 候选范围
 
-- Git 与 GitHub CLI；
-- VS Code、中文语言支持及经白名单选择的扩展；
-- Python、uv、Jupyter 和 Ruff；
-- Node.js LTS、npm 和 pnpm；
-- 用户主目录下的 `Projects` 工作目录。[D-020]
+- v1.0 锁定：Visual Studio Code、Git、Node.js LTS、Python 3、Codex CLI、Claude Code；
+- GitHub CLI、uv、Jupyter、Ruff、npm/pnpm、扩展和 `Projects` 工作目录属于后续候选，不进入 v1 首批扫描或迁移包。[D-020、D-034]
 
 具体版本和扩展白名单属于 OD-003。MacWin 不迁移 GitHub/编辑器 Token、SSH 私钥、环境变量秘密、聊天记录、模型凭据或项目文件。[D-002、D-008]
 

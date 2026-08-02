@@ -786,15 +786,10 @@ fn parse_software_label(label: &str, fallback_id: &str) -> SoftwareEvidence {
         "firefox" => "https://www.mozilla.org/firefox/",
         "microsoft365" => "https://www.microsoft.com/microsoft-365",
         "wps" => "https://www.wps.com/",
-        "libreoffice" => "https://www.libreoffice.org/",
         "vscode" => "https://code.visualstudio.com/",
         "git" => "https://git-scm.com/",
-        "github-cli" => "https://cli.github.com/",
         "node" => "https://nodejs.org/",
         "python" => "https://www.python.org/",
-        "uv" => "https://docs.astral.sh/uv/",
-        "jupyter" => "https://jupyter.org/",
-        "ruff" => "https://docs.astral.sh/ruff/",
         "codex-cli" => "https://github.com/openai/codex",
         "claude-code" => "https://docs.anthropic.com/en/docs/claude-code",
         _ => "",
@@ -1024,9 +1019,8 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
                     }
                     let id = string(required(params, "software_id")?)?;
                     if ![
-                        "edge", "chrome", "firefox", "microsoft365", "wps", "libreoffice",
-                        "vscode", "git", "github-cli", "node", "python", "uv", "jupyter",
-                        "ruff", "codex-cli", "claude-code",
+                        "edge", "chrome", "firefox", "microsoft365", "wps",
+                        "vscode", "git", "node", "python", "codex-cli", "claude-code",
                     ]
                     .contains(&id)
                     {
@@ -1046,8 +1040,7 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
                     }
                     let id = string(required(params, "tool_id")?)?;
                     if ![
-                        "vscode", "git", "github-cli", "node", "python", "uv", "jupyter",
-                        "ruff", "codex-cli", "claude-code",
+                        "vscode", "git", "node", "python", "codex-cli", "claude-code",
                     ]
                     .contains(&id)
                     {
@@ -1264,16 +1257,14 @@ fn build_entries(input: &PackageInput) -> Result<PackageEntries> {
         .enumerate()
         .filter(|(_, software)| {
             [
-                "edge", "chrome", "firefox", "microsoft365", "wps", "libreoffice", "vscode",
-                "git", "github-cli", "node", "python", "uv", "jupyter", "ruff", "codex-cli",
-                "claude-code",
+                "edge", "chrome", "firefox", "microsoft365", "wps", "vscode", "git", "node",
+                "python", "codex-cli", "claude-code",
             ]
             .contains(&software.id.as_str())
         })
         .partition::<Vec<_>, _>(|(_index, software)| {
             ![
-                "vscode", "git", "github-cli", "node", "python", "uv", "jupyter", "ruff",
-                "codex-cli", "claude-code",
+                "vscode", "git", "node", "python", "codex-cli", "claude-code",
             ]
             .contains(&software.id.as_str())
         });

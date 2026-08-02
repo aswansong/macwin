@@ -192,19 +192,26 @@ jobs:
           from pathlib import Path
           root = Path("release-assets")
           tag = os.environ["RELEASE_TAG"]
-          platforms = {}
+          candidates = {"darwin-aarch64": [], "windows-x86_64": []}
           for sig in root.rglob("*.sig"):
               artifact = sig.with_suffix("")
               if not artifact.exists():
                   continue
               parent = sig.parent.name
-              target = "darwin-aarch64" if "aarch64" in parent else "windows-x86_64"
+              if "aarch64-apple-darwin" in parent and artifact.name.endswith(".app.tar.gz"):
+                  candidates["darwin-aarch64"].append((artifact, sig))
+              elif "x86_64-pc-windows-msvc" in parent and artifact.name.endswith((".nsis.zip", ".msi.zip")):
+                  candidates["windows-x86_64"].append((artifact, sig))
+          if any(len(items) != 1 for items in candidates.values()):
+              details = ", ".join(f"{target}={len(items)}" for target, items in candidates.items())
+              raise SystemExit(f"exactly one signed updater artifact per target is required ({details})")
+          platforms = {}
+          for target, items in candidates.items():
+              artifact, sig = items[0]
               platforms[target] = {
                   "signature": sig.read_text(encoding="utf-8").strip(),
                   "url": f"https://github.com/aswansong/macwin/releases/download/{tag}/{artifact.name}",
               }
-          if set(platforms) != {"darwin-aarch64", "windows-x86_64"}:
-              raise SystemExit("signed updater artifacts for both targets are required")
           manifest = {"version": tag.removeprefix("v"), "notes": "MacWin v1 release", "platforms": platforms}
           (root / "latest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           PY

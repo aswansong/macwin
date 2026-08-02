@@ -297,13 +297,6 @@ mod windows {
             Some(("microsoft365", "Microsoft 365", "https://www.microsoft.com/microsoft-365", true))
         } else if lower.contains("wps office") || lower == "wps" {
             Some(("wps", "WPS Office", "https://www.wps.com/", true))
-        } else if lower.contains("libreoffice") {
-            Some((
-                "libreoffice",
-                "LibreOffice",
-                "https://www.libreoffice.org/",
-                true,
-            ))
         } else if lower.contains("visual studio code") || lower == "microsoft visual studio code" {
             Some((
                 "vscode",
@@ -313,18 +306,10 @@ mod windows {
             ))
         } else if lower == "git" || lower.starts_with("git version") || lower.contains("git for windows") {
             Some(("git", "Git", "https://git-scm.com/", true))
-        } else if lower.contains("github cli") || lower == "gh" {
-            Some(("github-cli", "GitHub CLI", "https://cli.github.com/", true))
         } else if lower.contains("python") {
             Some(("python", "Python", "https://www.python.org/", true))
         } else if lower.contains("node.js") || lower == "nodejs" || lower.starts_with("node.js ") {
             Some(("node", "Node.js", "https://nodejs.org/", true))
-        } else if lower == "uv" || lower.starts_with("uv ") {
-            Some(("uv", "uv", "https://docs.astral.sh/uv/", true))
-        } else if lower.contains("jupyter") {
-            Some(("jupyter", "Jupyter", "https://jupyter.org/", true))
-        } else if lower.contains("ruff") {
-            Some(("ruff", "Ruff", "https://docs.astral.sh/ruff/", true))
         } else if lower.contains("codex") {
             Some(("codex-cli", "Codex CLI", "https://github.com/openai/codex", true))
         } else if lower.contains("claude code") {
@@ -364,7 +349,7 @@ mod windows {
                     }
                     let category = match id {
                         "edge" | "chrome" | "firefox" => "browser",
-                        "microsoft365" | "wps" | "libreoffice" => "office",
+                        "microsoft365" | "wps" => "office",
                         _ => "developer",
                     };
                     found.push(SoftwareFinding {
@@ -487,16 +472,19 @@ mod windows {
             for name in [
                 "Visual Studio Code",
                 "Git for Windows",
-                "GitHub CLI",
                 "Python 3.12",
                 "Node.js",
-                "uv",
-                "Jupyter",
-                "Ruff",
                 "Codex CLI",
                 "Claude Code",
             ] {
                 assert!(whitelist(name).is_some_and(|entry| entry.3), "{name}");
+            }
+        }
+
+        #[test]
+        fn v1_excludes_deferred_developer_and_office_tools() {
+            for name in ["LibreOffice", "GitHub CLI", "uv", "Jupyter", "Ruff"] {
+                assert!(whitelist(name).is_none(), "{name}");
             }
         }
     }

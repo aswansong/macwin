@@ -180,6 +180,13 @@
 ### E-024：v1 RC 代码与双平台检查完成
 
 - 类型：技术验证、审查记录
-- 摘要：`release/v1.0.0` 的 RC 代码、隐私/安全边界和端到端 UX 走查已完成；报告页提供 HTML 与脱敏 JSON 保存入口，窄屏操作行允许换行。提交 `3fd3c84` 的本地前端、Rust、Clippy、Tauri release 编译和 `./scripts/validate-m1` 均通过；GitHub Actions run `30738169679` 的 Windows latest 与 Apple Silicon macOS 15 双平台检查均通过。
+- 摘要：`release/v1.0.0` 的 RC 代码、隐私/安全边界和端到端 UX 走查已完成；报告页提供 HTML 与脱敏 JSON 保存入口，窄屏操作行允许换行。提交 `3fd3c84`、`093372c` 的本地前端、Rust、Clippy、Tauri release 编译和 `./scripts/validate-m1` 均通过；GitHub Actions run `30738597728` 的 Windows latest 与 Apple Silicon macOS 15 双平台检查均通过。
 - 产品含义：当前分支的自动化与代码级发布准备通过；这不等于真实四平台设备、系统权限、签名、公证、安装/卸载或公开 Release 已验收。
 - 关联决定：D-032、D-033
+
+### E-025：v1 首批软件白名单已冻结
+
+- 类型：负责人授权、规格校准
+- 摘要：v1.0 首批识别范围明确限定为 Chrome、Edge、Firefox、Microsoft 365、WPS Office、Visual Studio Code、Git、Node.js LTS、Python 3、Codex CLI 和 Claude Code；Karabiner-Elements、LinearMouse 仅作为目标端辅助工具的知情确认。LibreOffice、GitHub CLI、uv、Jupyter、Ruff 等历史候选暂不进入 v1 扫描、`.habitpack` 或安装计划。
+- 产品含义：扫描器、格式 parser、计划元数据和演示夹具必须使用同一份首批目录；目录扩展必须另行决策并补齐来源、验证和回滚证据。
+- 关联决定：D-020、D-034、OD-003

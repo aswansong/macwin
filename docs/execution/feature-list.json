@@ -134,7 +134,7 @@
       "decision_refs": ["D-006", "D-009", "D-014"],
       "evidence_refs": ["E-001", "E-007", "E-015", "E-019"],
       "dependencies": ["P0-001"],
-      "human_decisions_required": ["OD-003"],
+      "human_decisions_required": [],
       "acceptance_criteria": [
         {
           "id": "P0-002-AC01",
@@ -391,10 +391,10 @@
       "priority": "P0",
       "status": "specified",
       "owner": "software-module",
-      "decision_refs": ["D-013", "D-016", "D-018"],
+      "decision_refs": ["D-013", "D-016", "D-018", "D-034"],
       "evidence_refs": ["E-004", "E-008"],
       "dependencies": ["P0-002", "P0-005", "P0-006"],
-      "human_decisions_required": ["OD-003", "OD-007"],
+      "human_decisions_required": ["OD-007"],
       "acceptance_criteria": [
         {
           "id": "P0-009-AC01",
@@ -431,10 +431,10 @@
       "priority": "P0",
       "status": "specified",
       "owner": "developer-module",
-      "decision_refs": ["D-020"],
+      "decision_refs": ["D-020", "D-034"],
       "evidence_refs": ["E-007"],
       "dependencies": ["P0-009"],
-      "human_decisions_required": ["OD-003", "OD-007"],
+      "human_decisions_required": ["OD-007"],
       "acceptance_criteria": [
         {
           "id": "P0-010-AC01",
