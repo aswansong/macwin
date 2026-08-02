@@ -33,7 +33,7 @@
   "plugins": {
     "updater": {
       "pubkey": "PENDING_RELEASE_KEY",
-      "endpoints": ["https://github.com/makerzhu/macwin/releases/latest/download/latest.json"]
+      "endpoints": ["https://github.com/aswansong/macwin/releases/latest/download/latest.json"]
     }
   }
 }
