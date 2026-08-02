@@ -90,7 +90,7 @@ const previewDiagnostics: DeviceSelfCheck = {
   runtime: previewRuntime,
   keyboard_devices: previewPlan.keyboard_compatibility.devices,
   karabiner: previewPlan.keyboard_compatibility.karabiner,
-  snapshot: { available: false, version: null, created_at: null },
+  snapshot: { available: false, version: null, created_at: null, error: null },
   recent_modules: [],
   privacy_note: "浏览器演示数据；真实应用只在本机生成，不含用户名、路径、序列号或密码",
 };
@@ -257,7 +257,11 @@ function renderDiagnostics(): string {
   const diagnostics = state.diagnostics;
   if (!diagnostics) return renderShell(`<div class="loading-block"><p class="loading-title">正在生成设备自检</p></div>`, "设备自检", "读取本机兼容状态", "只读取本机信息，不上传。",);
   const devices = diagnostics.keyboard_devices.length ? diagnostics.keyboard_devices.map((device) => `<div class="device-line"><strong>${escapeHtml(device.name)}</strong><small>${device.kind === "built_in" ? "内置键盘" : "外接键盘"} · 脱敏标识 ${escapeHtml(device.redacted_id)} · ${device.recognized ? "可安全匹配" : "不会猜测"}</small></div>`).join("") : `<p class="empty-line">未发现可安全识别的键盘</p>`;
-  const snapshot = diagnostics.snapshot.available ? `已保存${diagnostics.snapshot.created_at ? ` · ${escapeHtml(diagnostics.snapshot.created_at)}` : ""}` : "未找到";
+  const snapshot = diagnostics.snapshot.available
+    ? `已保存${diagnostics.snapshot.created_at ? ` · ${escapeHtml(diagnostics.snapshot.created_at)}` : ""}`
+    : diagnostics.snapshot.error
+      ? `不可用 · ${escapeHtml(friendlyError(diagnostics.snapshot.error))}`
+      : "未找到";
   return renderShell(`<section class="diagnostics-sheet"><div class="diagnostic-grid"><div><span>应用</span><strong>${escapeHtml(diagnostics.app_version)}</strong></div><div><span>规则格式</span><strong>${escapeHtml(diagnostics.format_version)}</strong></div><div><span>系统</span><strong>${escapeHtml(diagnostics.runtime.os_version)} · ${escapeHtml(diagnostics.runtime.architecture)}</strong></div><div><span>Karabiner</span><strong>${diagnostics.karabiner.installed ? "已检测到" : "未检测到"}</strong><small>${escapeHtml(diagnostics.karabiner.permission)}</small></div><div><span>迁移前快照</span><strong>${snapshot}</strong><small>卸载应用不会自动删除</small></div></div><h3>键盘设备</h3>${devices}<h3>最近模块</h3><p class="muted">${diagnostics.recent_modules.length ? escapeHtml(diagnostics.recent_modules.join(" · ")) : "暂无执行记录"}</p><div class="notice soft"><span>i</span><span>${escapeHtml(diagnostics.privacy_note)}</span></div></section><div class="action-row"><button class="secondary-button" data-action="home">返回首页</button></div>`, "设备自检", "这台 Mac 目前能安全做什么", "结果只在本机生成；不会显示用户名、完整路径、序列号或原始配置。");
 }
 

@@ -111,6 +111,7 @@ export interface SnapshotStatus {
   available: boolean;
   version: string | null;
   created_at: string | null;
+  error: string | null;
 }
 
 export interface KeyboardCompatibilityPlan {

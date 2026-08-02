@@ -57,6 +57,7 @@ pub struct SnapshotStatus {
     pub available: bool,
     pub version: Option<String>,
     pub created_at: Option<String>,
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -99,11 +100,15 @@ pub fn device_self_check(app: AppHandle, state: State<'_, MacWinState>) -> Devic
         runtime: platform::runtime_info(),
         keyboard_devices: plan.devices,
         karabiner: plan.karabiner,
-        snapshot: snapshot_status_for(&app).unwrap_or(SnapshotStatus {
-            available: false,
-            version: None,
-            created_at: None,
-        }),
+        snapshot: match snapshot_status_for(&app) {
+            Ok(snapshot) => snapshot,
+            Err(error) => SnapshotStatus {
+                available: false,
+                version: None,
+                created_at: None,
+                error: Some(error),
+            },
+        },
         recent_modules,
         privacy_note: "本地生成；不含用户名、路径、序列号、密码或原始配置".to_owned(),
     }
@@ -471,11 +476,13 @@ fn snapshot_status_for(app: &AppHandle) -> Result<SnapshotStatus, String> {
             available: true,
             version: Some(snapshot.version),
             created_at: Some(snapshot.created_at),
+            error: None,
         },
         None => SnapshotStatus {
             available: false,
             version: None,
             created_at: None,
+            error: None,
         },
     })
 }
