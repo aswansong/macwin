@@ -170,9 +170,9 @@ jobs:
         run: |
           mkdir -p release-assets
           find src-tauri/target/${{ matrix.target }}/release/bundle -type f -maxdepth 4 -print0 | xargs -0 -I{} cp "{}" release-assets/ || true
-          shasum -a 256 release-assets/* > release-assets/SHA256SUMS.txt
           cargo metadata --manifest-path src-tauri/Cargo.toml --locked --format-version 1 > release-assets/sbom-cargo.json
           npm ls --json --omit=dev > release-assets/sbom-npm.json
+          python3 scripts/build-release-checksums.py release-assets
 
       - name: Upload signed artifacts
         uses: actions/upload-artifact@v4
@@ -185,6 +185,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
@@ -204,9 +207,14 @@ jobs:
         run: |
           python3 scripts/validate-release-assets.py "$RELEASE_TAG" release-assets
 
+      - name: Stage public release assets
+        shell: bash
+        run: |
+          python3 scripts/stage-release-assets.py release-assets release-upload docs/releases/v1.0.0.md
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
           generate_release_notes: true
-          files: release-assets/**
+          files: release-upload/**

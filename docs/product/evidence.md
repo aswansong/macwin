@@ -232,3 +232,10 @@
 - 摘要：新增 `scripts/validate-release-assets.py` 及 4 条离线单元测试，并接入 Release publish job。脚本在发布前逐平台校验 `SHA256SUMS.txt`、每个文件的 SHA-256、Cargo/npm SBOM、macOS DMG、Windows 安装包、updater 压缩包及非空签名文本，并确认 `latest.json` 的版本、平台、URL 与实际产物一致。它不签名、不联网、不执行或安装任何产物。
 - 产品含义：即使构建 job 已完成，发布 job 也不会把缺少哈希、SBOM、安装包、签名文本或 updater 目标不一致的资产发布出去；这仍不替代真实凭据、代码签名、公证或设备验收。
 - 关联决定：D-032、D-033、OD-006
+
+### E-032：公开 Release 资产展平与完整哈希
+
+- 类型：技术验证、发布流程审查
+- 摘要：新增 `scripts/build-release-checksums.py`、`scripts/stage-release-assets.py` 及 8 条离线测试。构建阶段先生成 SBOM 再对该平台全部资产计算 SHA-256；发布阶段把两个 artifact 展平为唯一文件名，保留双平台 SBOM 和平台哈希，生成覆盖公开资产（含 `latest.json` 与中文变更说明）的总 `SHA256SUMS.txt`，避免同名资产覆盖或发布清单指向错误文件。
+- 产品含义：正式 Release 的安装包、updater、SBOM、哈希、manifest 和中文说明可以作为同一份无重名资产集合发布；这仍不替代签名、公证、stapling 和真实设备验收。
+- 关联决定：D-032、D-033、OD-006
