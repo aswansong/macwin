@@ -260,3 +260,10 @@
 - 摘要：Release workflow 的 build 和 publish 两个 checkout 步骤现在显式使用 `ref: ${{ inputs.tag || github.ref }}`；手动输入 tag 时不会再默认构建仓库默认分支，push tag 时仍检出触发该 run 的 tag。随后由 `prepare-release.py` 继续校验 tag 与 Cargo/npm/Tauri 版本一致。
 - 产品含义：正式资产的源码、版本号、updater manifest 和 tag 指向同一提交/版本，避免“Release 文件名正确但实际代码来自错误分支”的供应链错误。
 - 关联决定：D-032、D-033、OD-006
+
+### E-036：真实设备验收手册固定四平台与脱敏证据边界
+
+- 类型：执行准备、隐私/发布门槛
+- 摘要：新增 `docs/execution/real-device-acceptance.md`，固定 Windows 10/11 x64 与 Apple 芯片 macOS 15/26 四台目标环境、内置/外接键盘、鼠标/触控板、UAC/TCC 拒绝降级、离线软件待处理、单模块失败、选择性恢复、升级/卸载/重装和签名公证检查。证据只允许短设备 ID、应用版本、状态和脱敏观察，不允许密码、SSID、用户名、序列号、绝对路径、完整日志或迁移包原文。
+- 产品含义：最后的人工作业可以按同一矩阵复现，缺少设备或凭据时明确保持 `blocked`/`not-applicable`，不会把 CI 或开发构建冒充真实验收。
+- 关联决定：D-032、D-033、OD-005、OD-006、OD-007、OD-009、E-021、E-023

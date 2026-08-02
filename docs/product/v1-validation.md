@@ -23,6 +23,7 @@
 | 取消模块与恢复边界 | Rust `cancelled_keyboard_modules_are_reported_as_skipped`；恢复命令只接受本次实际应用或可恢复失败的模块，全部恢复不会触碰未选模块 | 仍需在真实设备验证恢复后的系统值和卸载/重装发现 |
 | 手动 tag 的 Release 路径 | Release workflow 的 macOS DMG 生成与公证校验统一使用 `inputs.tag || github.ref_name`，避免 workflow_dispatch 时把分支名写入资产路径 | 只验证 workflow 表达式与静态路径，不替代真实签名、公证或发布 |
 | 手动 tag 的源码一致性 | Release workflow 的 build/publish checkout 显式使用 `inputs.tag || github.ref`，再由 `prepare-release.py` 校验版本 | 只验证 workflow 配置，不证明真实签名构建已执行 |
+| 真实设备验收准备 | [真实设备验收手册](../execution/real-device-acceptance.md) 固定 W10/W11/M15/M26、权限/外设/失败/恢复/升级卸载矩阵与脱敏证据字段 | 尚未执行；设备、签名凭据、系统弹窗和负责人最终确认仍是发布门槛 |
 
 ## 尚未达到正式发布门槛
 
