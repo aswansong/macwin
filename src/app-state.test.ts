@@ -10,6 +10,7 @@ describe("v1 flow guards", () => {
 
   it("keeps both sides to three visible stages", () => {
     expect(progressFor("scan")).toEqual({ side: "windows", step: 2 });
+    expect(progressFor("export")).toEqual({ side: "windows", step: 3 });
     expect(progressFor("plan")).toEqual({ side: "mac", step: 2 });
     expect(progressFor("complete")).toEqual({ side: "mac", step: 3 });
   });
@@ -22,5 +23,6 @@ describe("v1 flow guards", () => {
 
   it("starts with the safe pointer module selected", () => {
     expect(initialState(true).selection.include_pointer).toBe(true);
+    expect(initialState(true).preview.wifiPasswordSelected).toBe(false);
   });
 });

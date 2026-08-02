@@ -38,6 +38,15 @@ npm run tauri dev
 npm run dev -- --port 4173
 ```
 
+本设计分支的浏览器视觉走查入口：
+
+```text
+http://127.0.0.1:4173/?platform=windows&scenario=normal
+http://127.0.0.1:4173/?platform=macos&scenario=normal
+```
+
+开发预览还可用 `scenario=uac-denied`、`permission-denied`、`offline`、`third-party-declined`、`module-failed` 和 `corrupt-package` 复现异常路径。它们只使用虚构数据，不读取或修改真实系统；本分支的视觉结论记录在 [`docs/product/visual-system-v2.md`](docs/product/visual-system-v2.md)。
+
 自动化检查：
 
 ```bash

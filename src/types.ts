@@ -28,6 +28,7 @@ export interface WindowsScan {
   runtime: RuntimeInfo;
   default_browser: string | null;
   software: SoftwareFinding[];
+  wifi?: WifiFinding[];
   input_languages: string[];
   keyboard_layouts: string[];
   keyboard_repeat_speed: number;
@@ -35,6 +36,13 @@ export interface WindowsScan {
   mouse_scroll_direction: "natural" | "windows_style" | string;
   trackpad_scroll_direction: "natural" | "windows_style" | string;
   scanned_at: string;
+}
+
+export interface WifiFinding {
+  id: string;
+  name: string;
+  security: string;
+  credential_status: "available" | "unavailable" | "not_selected";
 }
 
 export interface ExportSelection {
@@ -76,7 +84,15 @@ export interface ImportPlan {
   confirmation_token: string;
   pointer: PointerEvidence | null;
   pointer_support: PointerSupport;
+  wifi?: WifiPlan;
   selected_module_ids: string[];
+}
+
+export interface WifiPlan {
+  name: string;
+  credential_status: "available" | "credential_unavailable" | "not_selected";
+  contains_secrets: boolean;
+  note: string;
 }
 
 export interface PointerEvidence {
@@ -174,6 +190,7 @@ export type View =
   | "home"
   | "scanning"
   | "scan"
+  | "export"
   | "exported"
   | "plan"
   | "applying"
@@ -195,4 +212,20 @@ export interface AppState {
   busy: boolean;
   error: string | null;
   webPreview: boolean;
+  preview: PreviewState;
+}
+
+export type PreviewScenario =
+  | "normal"
+  | "uac-denied"
+  | "permission-denied"
+  | "offline"
+  | "third-party-declined"
+  | "module-failed"
+  | "corrupt-package";
+
+export interface PreviewState {
+  scenario: PreviewScenario;
+  wifiPasswordSelected: boolean;
+  linearMouseConfirmed: boolean;
 }
