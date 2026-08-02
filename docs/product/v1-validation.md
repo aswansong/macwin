@@ -25,6 +25,7 @@
 | 手动 tag 的源码一致性 | Release workflow 的 build/publish checkout 显式使用 `inputs.tag || github.ref`，再由 `prepare-release.py` 校验版本 | 只验证 workflow 配置，不证明真实签名构建已执行 |
 | 真实设备验收准备 | [真实设备验收手册](../execution/real-device-acceptance.md) 固定 W10/W11/M15/M26、权限/外设/失败/恢复/升级卸载矩阵与脱敏证据字段 | 尚未执行；设备、签名凭据、系统弹窗和负责人最终确认仍是发布门槛 |
 | 本地 macOS App bundle | Tauri `--bundles app` 完成前端、Rust release 编译和 `MacWin.app` 生成；临时关闭 updater 产物并 `--no-sign` 后可重复构建 | 仅未签名构建验证；updater 私钥、Developer ID、公证、stapling 和真实安装仍未完成 |
+| 本地 macOS DMG | Tauri `--bundles dmg` 生成 Apple Silicon DMG，`hdiutil verify` 校验有效 | 产物仍为未签名 `1.0.0-rc.1` 开发包；不替代 Developer ID、公证、stapling 或真实安装验收 |
 
 ## 尚未达到正式发布门槛
 

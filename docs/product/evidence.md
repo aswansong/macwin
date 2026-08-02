@@ -274,3 +274,10 @@
 - 摘要：在 Apple 芯片 Mac 上执行 Tauri `--bundles app`，前端构建、Rust release 编译和 `MacWin.app` bundle 均成功；默认 updater 产物随后因配置为占位公钥且缺少私钥而拒绝签名。使用官方临时 config 覆盖 `bundle.createUpdaterArtifacts=false` 并显式 `--no-sign` 后，本地未签名 `MacWin.app` 可重复生成。临时覆盖不修改正式 `tauri.conf.json`。
 - 产品含义：代码级 macOS bundle 路径已验证；updater 签名、Developer ID、公证、stapling 和面向新手的安装包仍不能由本地未签名构建替代。
 - 关联决定：D-032、D-033、OD-006、E-021、E-023
+
+### E-038：本地未签名 macOS DMG 可生成并通过磁盘映像校验
+
+- 类型：技术验证、发布边界
+- 摘要：在同一临时未签名配置下执行 Tauri `--bundles dmg`，生成 Apple Silicon DMG；`hdiutil verify` 返回有效，磁盘映像内容可读。产物版本仍是 `1.0.0-rc.1`，未完成 Developer ID 签名、公证或 stapling。
+- 产品含义：DMG 编排和磁盘映像完整性已在本机验证；这只是开发构建证据，不能作为 GitHub Releases 正式安装包，也不能替代真实安装/升级/卸载验收。
+- 关联决定：D-032、D-033、OD-006、E-021、E-023
