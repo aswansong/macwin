@@ -202,9 +202,9 @@
       "status": "specified",
       "owner": "core-format",
       "decision_refs": ["D-009", "D-019", "D-027"],
-      "evidence_refs": ["E-002", "E-015", "E-019"],
+      "evidence_refs": ["E-002", "E-015", "E-019", "E-044"],
       "dependencies": ["P0-002", "P0-003"],
-      "human_decisions_required": ["OD-005", "OD-006", "OD-011"],
+      "human_decisions_required": ["OD-005", "OD-006"],
       "acceptance_criteria": [
         {
           "id": "P0-004-AC01",
@@ -592,9 +592,9 @@
       "status": "specified",
       "owner": "product-ui",
       "decision_refs": ["D-008", "D-012", "D-015", "D-016"],
-      "evidence_refs": ["E-015", "E-019", "E-027"],
+      "evidence_refs": ["E-015", "E-019", "E-027", "E-043", "E-044"],
       "dependencies": ["P0-013"],
-      "human_decisions_required": ["OD-001", "OD-006"],
+      "human_decisions_required": ["OD-006"],
       "acceptance_criteria": [
         {
           "id": "P0-014-AC01",
@@ -619,7 +619,7 @@
         {
           "id": "P0-014-AC05",
           "statement": "发生错误时只在本地生成脱敏日志并展示 GitHub 与已拍板支持链接，不自动上传。",
-          "verification": "触发错误并抓取网络流量为 0；日志通过敏感字段扫描；页面链接与 OD-001 最终值一致。"
+          "verification": "触发错误并抓取网络流量为 0；日志通过敏感字段扫描；页面只展示 D-037 确定的 GitHub Issues 入口。"
         }
       ],
       "non_goals": ["常驻教学助手", "自动上传日志", "内置账号和大模型"],

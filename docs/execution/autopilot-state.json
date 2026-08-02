@@ -30,7 +30,8 @@
     "PR-triggered v1 CI run for be737a2 passed before the documentation reconciliation",
     "Windows signing-before-updater packaging guard",
     "Tauri updater downgrade protection documented and guarded",
-    "snapshot lifecycle and report format decisions reconciled"
+    "snapshot lifecycle and report format decisions reconciled",
+    "v1 support entry and same-major habitpack compatibility gate aligned"
   ],
   "failed_or_deferred": [
     "P0-008 real external-device reconnect matrix not complete",
@@ -43,7 +44,7 @@
   "evidence": [
     "commit be737a2 on release/v1.0.0",
     "docs/product/v1-validation.md",
-    "docs/product/evidence.md E-024/E-025/E-026/E-027/E-028/E-029/E-030/E-031/E-032/E-033/E-034/E-035/E-036/E-037/E-038/E-039/E-040/E-041/E-042",
+    "docs/product/evidence.md E-024/E-025/E-026/E-027/E-028/E-029/E-030/E-031/E-032/E-033/E-034/E-035/E-036/E-037/E-038/E-039/E-040/E-041/E-042/E-043/E-044",
     "GitHub Actions run 30762520800 succeeded on macos-15 and windows-latest",
     "release/v1.0.0 documentation reconciliation is clean and pushed",
     "latest completed PR validation passed on macos-15 and windows-latest; current documentation head validation may be queued or in progress",

@@ -656,6 +656,24 @@ fn exact(value: &Value, expected: &str) -> Result<()> {
         Err(error("HP_SCHEMA"))
     }
 }
+fn compatible_schema_version(value: &Value) -> Result<()> {
+    let text = value.as_str().ok_or_else(|| error("HP_SCHEMA_VERSION"))?;
+    let mut parts = text.split('.');
+    let parse_component = |component: Option<&str>| {
+        component.filter(|part| {
+            !part.is_empty()
+                && part.bytes().all(|byte| byte.is_ascii_digit())
+                && (part.len() == 1 || !part.starts_with('0'))
+        })?.parse::<u64>().ok()
+    };
+    let major = parse_component(parts.next());
+    let minor = parse_component(parts.next());
+    let patch = parse_component(parts.next());
+    if parts.next().is_some() || major != Some(1) || minor.is_none() || patch.is_none() {
+        return Err(error("HP_SCHEMA_VERSION"));
+    }
+    Ok(())
+}
 fn nonempty_string(value: &Value, max: usize) -> Result<String> {
     let text = string(value)?;
     if text.is_empty() || text.chars().count() > max {
@@ -824,7 +842,7 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
         ],
     )?;
     exact(required(manifest_object, "format")?, "macwin-habitpack")?;
-    exact(required(manifest_object, "schema_version")?, SCHEMA_VERSION)?;
+    compatible_schema_version(required(manifest_object, "schema_version")?)?;
     let created_at = nonempty_string(required(manifest_object, "created_at")?, 20)?;
     if !valid_datetime(&created_at) {
         return Err(error("HP_SCHEMA"));
@@ -927,7 +945,7 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
             "selected_candidate_ids",
         ],
     )?;
-    exact(required(selections, "schema_version")?, SCHEMA_VERSION)?;
+    compatible_schema_version(required(selections, "schema_version")?)?;
     let guide_requested = bool_value(required(selections, "guide_requested")?)?;
     let selected = array(required(selections, "selected_candidate_ids")?)?;
     let mut selected_ids = HashSet::new();
@@ -950,7 +968,7 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
         let document = strict_json(bytes)?;
         let document = object(&document)?;
         closed(document, &["schema_version", "module", "candidates"])?;
-        exact(required(document, "schema_version")?, SCHEMA_VERSION)?;
+        compatible_schema_version(required(document, "schema_version")?)?;
         exact(required(document, "module")?, module)?;
         let list = array(required(document, "candidates")?)?;
         for candidate in list {
@@ -985,7 +1003,7 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
             if !rule_ok {
                 return Err(error("HP_RULE_UNKNOWN"));
             }
-            exact(required(candidate, "rule_version")?, SCHEMA_VERSION)?;
+            compatible_schema_version(required(candidate, "rule_version")?)?;
             let source = object(required(candidate, "source")?)?;
             closed(source, &["kind", "label"])?;
             let label = nonempty_string(required(source, "label")?, 120)?;
@@ -1516,6 +1534,45 @@ pub fn write_package(path: impl AsRef<Path>, input: PackageInput) -> Result<Pack
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn rewrite_schema_version(value: &mut Value, version: &str) {
+        match value {
+            Value::String(text) if text == SCHEMA_VERSION => *text = version.to_owned(),
+            Value::Array(values) => values
+                .iter_mut()
+                .for_each(|value| rewrite_schema_version(value, version)),
+            Value::Object(values) => values
+                .values_mut()
+                .for_each(|value| rewrite_schema_version(value, version)),
+            _ => {}
+        }
+    }
+
+    fn package_with_schema_version(bytes: &[u8], version: &str) -> Vec<u8> {
+        let mut payloads = parse_zip(bytes).expect("zip");
+        for payload in payloads.values_mut() {
+            let mut value = strict_json(payload).expect("json");
+            rewrite_schema_version(&mut value, version);
+            *payload = json_bytes(&value).expect("json bytes");
+        }
+        let manifest_bytes = payloads.remove("manifest.json").expect("manifest");
+        let mut manifest = strict_json(&manifest_bytes).expect("manifest json");
+        let files = manifest
+            .as_object_mut()
+            .expect("manifest object")
+            .get_mut("files")
+            .expect("files")
+            .as_array_mut()
+            .expect("file list");
+        for file in files {
+            let file = file.as_object_mut().expect("file object");
+            let path = file.get("path").and_then(Value::as_str).expect("path");
+            let bytes = payloads.get(path).expect("payload");
+            file.insert("size".to_owned(), Value::from(bytes.len() as u64));
+            file.insert("sha256".to_owned(), Value::String(sha256(bytes)));
+        }
+        write_stored_zip(payloads, json_bytes(&manifest).expect("manifest bytes")).expect("zip")
+    }
     #[test]
     fn roundtrip_package_is_canonical() {
         let (bytes, receipt) = build_package(PackageInput {
@@ -1604,5 +1661,21 @@ mod tests {
                 .code,
             "HP_JSON_LIMIT"
         );
+    }
+
+    #[test]
+    fn accepts_known_same_major_versions_and_rejects_future_major() {
+        let (bytes, _) = build_package(PackageInput {
+            source_os: "11".to_owned(),
+            keyboard: None,
+            pointer: None,
+            software: vec![],
+            guide_requested: false,
+        })
+        .expect("package");
+        let same_major = package_with_schema_version(&bytes, "1.1.0");
+        assert!(parse_bytes(&same_major).is_ok());
+        let future_major = package_with_schema_version(&bytes, "2.0.0");
+        assert_eq!(parse_bytes(&future_major).unwrap_err().code, "HP_SCHEMA_VERSION");
     }
 }

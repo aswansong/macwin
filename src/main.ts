@@ -111,6 +111,7 @@ function friendlyError(value: unknown): string {
     IMPORT_EXTENSION: "请选择 .habitpack 迁移包。",
     HP_ZIP_STREAM: "迁移包压缩结构不受支持，已拒绝导入。",
     HP_ZIP_LAYOUT: "迁移包结构或完整性不正确，已拒绝导入。",
+    HP_SCHEMA_VERSION: "这个迁移包的格式版本不受支持，请使用同一 major 版本的 MacWin 导出；未知未来 major 不会被导入。",
     KARABINER_JSON: "Karabiner 配置不是有效 JSON，MacWin 没有写入它。",
     KARABINER_STRUCTURE: "Karabiner 配置结构不受支持，MacWin 没有猜测修改。",
     KARABINER_BACKUP: "无法创建 Karabiner 迁移前备份，已跳过写入。",

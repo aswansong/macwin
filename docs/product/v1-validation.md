@@ -7,6 +7,7 @@
 | 能力 | 当前证据 | 边界 |
 | --- | --- | --- |
 | `.habitpack` 1.0.0 严格解析与构建 | Rust 单元测试、`./scripts/validate-m1` | 只收固定白名单；不接受包内命令、脚本或秘密绕过 |
+| `.habitpack` 同 major 版本门 | Rust 测试接受已知闭合结构的 `1.1.0`，拒绝 `2.0.0` 并返回 `HP_SCHEMA_VERSION`；M1 验证档案仍精确为 `1.0.0` | 不接受未知字段或未知规则语义；未来扩展必须补 schema、迁移策略和测试 |
 | Windows → Mac 运行时守卫 | `platform::runtime_info` 与导入/扫描守卫 | 仅 Windows 10/11 x64 → Apple 芯片 macOS 15/26 |
 | 计划确认 | 后端 `confirm_plan` + SHA-256 令牌 | 令牌不是来源签名；正式分发仍需签名更新链路 |
 | 模块选择 | 计划页勾选后只执行已确认模块 | 未选模块会记录为 `skipped` |
