@@ -343,7 +343,7 @@ def feature_checks(root: Path = ROOT) -> int:
     for node in graph: visit(node)
     check(data["current_milestone"] == "v1.0.0-release", "current milestone mismatch")
     check(data["milestone_status"] == "v1_release_in_progress", "unexpected milestone status")
-    check(data.get("last_updated") == "2026-08-02", "last_updated mismatch")
+    check(data.get("last_updated") == "2026-08-03", "last_updated mismatch")
     check(data.get("prototype_authorized") is True, "prototype authorization history must remain true")
     check(data["production_implementation_authorized"] is True, "production implementation authorization is required")
     check(data["system_changes_authorized"] is True, "v1 system-change authorization is required")

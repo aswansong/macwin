@@ -7,7 +7,7 @@
   "prototype_authorized": true,
   "production_implementation_authorized": true,
   "system_changes_authorized": true,
-  "last_updated": "2026-08-02",
+  "last_updated": "2026-08-03",
   "wave0_authorization": {
     "local_fixture": true,
     "parser": true,
@@ -277,9 +277,9 @@
       "status": "implemented",
       "owner": "macos-adapter",
       "decision_refs": ["D-012", "D-019", "D-026"],
-      "evidence_refs": ["E-014", "E-015", "E-019", "E-028"],
+      "evidence_refs": ["E-014", "E-015", "E-019", "E-028", "E-041"],
       "dependencies": ["P0-005"],
-      "human_decisions_required": ["OD-009"],
+      "human_decisions_required": [],
       "acceptance_criteria": [
         {
           "id": "P0-006-AC01",
@@ -552,9 +552,9 @@
       "status": "implemented",
       "owner": "product-ui",
       "decision_refs": ["D-004", "D-015", "D-026"],
-      "evidence_refs": ["E-004", "E-005", "E-008", "E-009", "E-010", "E-019"],
+      "evidence_refs": ["E-004", "E-005", "E-008", "E-009", "E-010", "E-019", "E-042"],
       "dependencies": ["P0-012"],
-      "human_decisions_required": ["OD-010"],
+      "human_decisions_required": [],
       "acceptance_criteria": [
         {
           "id": "P0-013-AC01",
