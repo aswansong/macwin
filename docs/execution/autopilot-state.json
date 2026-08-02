@@ -19,7 +19,8 @@
     "signed updater check and user-confirmed install path",
     "explicit snapshot deletion with confirmation",
     "deterministic updater artifact selection and manifest tests",
-    "complete release asset structure, checksum, SBOM and manifest audit gate"
+    "complete release asset structure, checksum, SBOM and manifest audit gate",
+    "checksummed flat public release asset staging and Chinese release notes"
   ],
   "failed_or_deferred": [
     "P0-008 real external-device reconnect matrix not complete",
@@ -30,11 +31,11 @@
     "signing and notarization credentials are not available"
   ],
   "evidence": [
-    "commit 41ce31e on release/v1.0.0",
+    "commit 6904e8b on release/v1.0.0",
     "docs/product/v1-validation.md",
-    "docs/product/evidence.md E-024/E-025/E-026/E-027/E-028/E-029/E-030/E-031",
-    "GitHub Actions run 30748261577 succeeded on macos-15 and windows-latest",
-    "./scripts/validate-m1 (48 tests), release-preparation, manifest, release-assets, npm and cargo checks passed"
+    "docs/product/evidence.md E-024/E-025/E-026/E-027/E-028/E-029/E-030/E-031/E-032",
+    "GitHub Actions run 30749328980 succeeded on macos-15 and windows-latest",
+    "./scripts/validate-m1 (52 tests), release-preparation, manifest, release-assets, npm and cargo checks passed"
   ],
   "next_action": "Complete one-time real Windows 10/11 and Apple Silicon macOS 15/26 acceptance with signing credentials; before that, keep release manifest and whitelist documentation aligned without claiming unsupported installs or Wi-Fi password migration.",
   "human_gates": [
