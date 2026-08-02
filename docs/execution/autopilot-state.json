@@ -27,7 +27,7 @@
     "real-device acceptance runbook and redacted evidence boundary",
     "draft PR #1 opened for main review",
     "draft PR #1 review checked with no comments or requested changes",
-    "single PR-triggered v1 CI run passed after duplicate-trigger cleanup",
+    "latest PR-triggered v1 CI run passed for ab234f8",
     "Windows signing-before-updater packaging guard"
   ],
   "failed_or_deferred": [
@@ -39,11 +39,11 @@
     "signing and notarization credentials are not available"
   ],
   "evidence": [
-    "commit 85b6e61 on release/v1.0.0",
+    "commit ab234f8 on release/v1.0.0",
     "docs/product/v1-validation.md",
     "docs/product/evidence.md E-024/E-025/E-026/E-027/E-028/E-029/E-030/E-031/E-032/E-033/E-034/E-035/E-036/E-037/E-038/E-039",
-    "GitHub Actions run 30760899729 succeeded on macos-15 and windows-latest",
-    "release/v1.0.0 head 85b6e61 is clean and pushed",
+    "GitHub Actions run 30761380120 succeeded on macos-15 and windows-latest",
+    "release/v1.0.0 head ab234f8 is clean and pushed",
     "draft PR https://github.com/aswansong/macwin/pull/1 targets main and remains open",
     "./scripts/validate-m1 (54 tests), release-preparation, manifest, release-assets, npm and cargo checks passed"
   ],
