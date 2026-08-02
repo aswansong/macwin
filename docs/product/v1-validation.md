@@ -17,6 +17,7 @@
 | 本地报告 | 报告页提供 HTML 与脱敏 JSON 两个保存入口；文件保存后显示本地位置 | 仍需真实安装/卸载后检查报告目录保留策略 |
 | 前端与后端检查 | 本地 `npm test`、`npm run build`、`cargo test`、`cargo clippy`；CI `30744307355` 的 Windows latest 与 macOS 15 均通过 | 仍需真实安装包、权限和外设矩阵 |
 | 正式版本号对齐 | `scripts/prepare-release.py` 单测与本地失败路径测试通过；正式标签构建前校验 `vMAJOR.MINOR.PATCH` 与 Cargo 版本并同步 Tauri/npm lockfile | 只校验版本一致性，不提供签名凭据或正式 Release |
+| updater manifest 选择 | `scripts/build-release-manifest.py` 的 4 条离线夹具测试通过；macOS 只接受一个 `.app.tar.gz`，Windows 优先唯一 `.msi.zip`、否则唯一 `.nsis.zip`，签名为空或候选歧义即拒绝 | 只验证元数据选择，不证明真实签名、安装包内容或 GitHub Release |
 
 ## 尚未达到正式发布门槛
 

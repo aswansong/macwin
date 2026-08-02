@@ -218,3 +218,10 @@
 - 摘要：提交 `8b17550` 新增 `scripts/prepare-release.py` 和单元测试；Release workflow 在构建前强制校验 `vMAJOR.MINOR.PATCH` 标签与 `src-tauri/Cargo.toml` 的包版本一致，并同步 `tauri.conf.json`、`package.json` 与 `package-lock.json`，避免正式包仍携带 `1.0.0-rc.1`。本地 40 项 Python/格式检查、前端/Rust 检查通过；GitHub Actions run `30744307355` 的 Windows latest 与 Apple Silicon macOS 15 检查均成功。
 - 产品含义：正式构建的应用版本、更新清单和运行时版本具备一致性检查；这不等于 Windows 签名、Apple 公证、真实设备验收或公开 Release 已完成。
 - 关联决定：D-032、D-033、OD-006
+
+### E-030：updater 产物选择逻辑具备离线测试
+
+- 类型：技术验证、发布流程审查
+- 摘要：提交 `2419cb8` 将 Release workflow 中的 updater manifest 选择逻辑抽为 `scripts/build-release-manifest.py`，并用 4 条离线夹具覆盖 macOS 唯一产物、Windows MSI 优先、NSIS 回退、空签名和候选歧义拒绝。该脚本不联网、不读取秘密、不执行安装包。
+- 产品含义：正式发布时不会在多个 Windows updater 产物或缺少签名文本时静默选错；这只是元数据选择验证，不等于签名、公证、真实安装或公开 Release 已完成。
+- 关联决定：D-032、D-033、OD-006
