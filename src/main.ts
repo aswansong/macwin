@@ -118,6 +118,7 @@ function friendlyError(value: unknown): string {
     UPDATE_INSTALL_FAILED: "更新下载、签名校验或安装失败；当前版本未被替换。",
     SNAPSHOT_DELETE_CONFIRM_REQUIRED: "删除快照必须经过确认。",
     SNAPSHOT_DELETE: "无法删除迁移前快照；它仍然保留。",
+    MODULE_NOT_RESTORABLE: "这个模块没有在本次迁移中成功修改，不能把它当作需要恢复的设置。",
   };
   return messages[code] ?? (code || "发生未知错误，请查看报告中的错误码。");
 }
@@ -282,8 +283,9 @@ function renderGuide(): string {
 function renderRestore(): string {
   const results = state.outcome?.results ?? [];
   const restorable = new Set(["finder_extensions", "keyboard_repeat", "keyboard_compatibility", "pointer_scroll"]);
-  const restorableRows = results.filter((result) => restorable.has(result.module_id)).map((result) => `<div class="restore-row"><div><strong>${escapeHtml(result.title)}</strong><small>恢复到：${escapeHtml(result.before)}</small></div><button class="small-button" data-rollback="${escapeHtml(result.module_id)}">恢复</button></div>`).join("");
-  const manualRows = results.filter((result) => !restorable.has(result.module_id)).map((result) => `<div class="restore-row"><div><strong>${escapeHtml(result.title)}</strong><small>无需恢复 · 本次未修改系统</small></div><span class="muted">${escapeHtml(statusLabel(result.status))}</span></div>`).join("");
+  const canRestore = (result: ModuleResult) => restorable.has(result.module_id) && ["applied_verified", "failed_recoverable"].includes(result.status);
+  const restorableRows = results.filter(canRestore).map((result) => `<div class="restore-row"><div><strong>${escapeHtml(result.title)}</strong><small>恢复到：${escapeHtml(result.before)}</small></div><button class="small-button" data-rollback="${escapeHtml(result.module_id)}">恢复</button></div>`).join("");
+  const manualRows = results.filter((result) => !canRestore(result)).map((result) => `<div class="restore-row"><div><strong>${escapeHtml(result.title)}</strong><small>${result.status === "rolled_back_verified" ? "已经恢复并验证" : "无需恢复 · 本次未修改系统"}</small></div><span class="muted">${escapeHtml(statusLabel(result.status))}</span></div>`).join("");
   return renderShell(`<section class="restore-list">${restorableRows}${manualRows}</section><div class="notice soft"><span>i</span><span>恢复只针对这次迁移保存的原值，不会恢复出厂，也不会影响其他设置；软件官方入口项目不会显示恢复按钮。</span></div><div class="action-row"><button class="secondary-button" data-action="complete">暂不恢复</button><button class="primary-button" data-action="rollback-all">全部恢复 <span>→</span></button></div>`, "迁移后主页 · 恢复", "想回到迁移前？", "选择一个设置即可单独恢复，其他设置不会被碰到。");
 }
 

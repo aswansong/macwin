@@ -101,7 +101,13 @@ pub fn device_self_check(app: AppHandle, state: State<'_, MacWinState>) -> Devic
         .lock()
         .ok()
         .and_then(|outcome| outcome.clone())
-        .map(|outcome| outcome.results.into_iter().map(|result| format!("{}:{}", result.module_id, result.status)).collect())
+        .map(|outcome| {
+            outcome
+                .results
+                .into_iter()
+                .map(|result| format!("{}:{}", result.module_id, result.status))
+                .collect()
+        })
         .unwrap_or_default();
     let plan = karabiner::plan_for_target();
     DeviceSelfCheck {
@@ -234,7 +240,11 @@ pub fn confirm_plan(
         .items
         .iter()
         .map(|item| item.module_id.clone())
-        .chain(plan.software.iter().map(|item| format!("software.{}", item.id)))
+        .chain(
+            plan.software
+                .iter()
+                .map(|item| format!("software.{}", item.id)),
+        )
         .collect();
     let mut selected = confirmation.selected_module_ids;
     selected.sort();
@@ -295,9 +305,17 @@ pub fn apply_plan(
         return Err("PLAN_NOT_CONFIRMED".to_owned());
     }
     let mut request = karabiner::request_from_plan(&plan.keyboard_compatibility);
-    if let Some(enabled) = keyboard_built_in { request.built_in_enabled = enabled; }
-    if let Some(enabled) = keyboard_external { request.external_enabled = enabled; }
-    let selected = plan.selected_module_ids.iter().cloned().collect::<HashSet<_>>();
+    if let Some(enabled) = keyboard_built_in {
+        request.built_in_enabled = enabled;
+    }
+    if let Some(enabled) = keyboard_external {
+        request.external_enabled = enabled;
+    }
+    let selected = plan
+        .selected_module_ids
+        .iter()
+        .cloned()
+        .collect::<HashSet<_>>();
     let outcome = engine::apply_plan(&mut adapter, &store, &package, &request, &selected)?;
     *state.outcome.lock().map_err(|_| "STATE_LOCK".to_owned())? = Some(outcome.clone());
     Ok(outcome)
@@ -321,6 +339,20 @@ pub fn rollback_module(
         .map_err(|_| "STATE_LOCK".to_owned())?
         .clone()
         .ok_or_else(|| "OUTCOME_MISSING".to_owned())?;
+    let restorable = outcome
+        .results
+        .iter()
+        .find(|result| result.module_id == module_id)
+        .map(|result| {
+            matches!(
+                result.status.as_str(),
+                "applied_verified" | "failed_recoverable"
+            )
+        })
+        .unwrap_or(false);
+    if !restorable {
+        return Err("MODULE_NOT_RESTORABLE".to_owned());
+    }
     engine::rollback_module(&mut adapter, &store, &module_id, &mut outcome.results)?;
     outcome.outcome = "restored".to_owned();
     *state.outcome.lock().map_err(|_| "STATE_LOCK".to_owned())? = Some(outcome.clone());
@@ -345,7 +377,26 @@ pub fn rollback_all(
         .clone()
         .ok_or_else(|| "OUTCOME_MISSING".to_owned())?;
     let mut first_error = None;
-    for module in ["pointer_scroll", "keyboard_compatibility", "keyboard_repeat", "finder_extensions"] {
+    let restorable: HashSet<String> = outcome
+        .results
+        .iter()
+        .filter(|result| {
+            matches!(
+                result.status.as_str(),
+                "applied_verified" | "failed_recoverable"
+            )
+        })
+        .map(|result| result.module_id.clone())
+        .collect();
+    for module in [
+        "pointer_scroll",
+        "keyboard_compatibility",
+        "keyboard_repeat",
+        "finder_extensions",
+    ] {
+        if !restorable.contains(module) {
+            continue;
+        }
         if let Err(error) =
             engine::rollback_module(&mut adapter, &store, module, &mut outcome.results)
         {
@@ -429,7 +480,11 @@ pub fn export_report(
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
     }
-    Ok(ReportExportReceipt { path: path.to_string_lossy().into_owned(), format: normalized, bytes: bytes.len() })
+    Ok(ReportExportReceipt {
+        path: path.to_string_lossy().into_owned(),
+        format: normalized,
+        bytes: bytes.len(),
+    })
 }
 
 #[tauri::command]
@@ -437,9 +492,9 @@ pub fn record_error(app: AppHandle, input: ErrorLogInput) -> Result<(), String> 
     let code = input.code.trim().to_ascii_uppercase();
     if code.is_empty()
         || code.len() > 64
-        || !code
-            .bytes()
-            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_' || byte == b'-')
+        || !code.bytes().all(|byte| {
+            byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_' || byte == b'-'
+        })
     {
         return Err("ERROR_LOG_CODE".to_owned());
     }
@@ -464,8 +519,12 @@ pub fn record_error(app: AppHandle, input: ErrorLogInput) -> Result<(), String> 
         .open(&path)
         .map_err(|_| "ERROR_LOG_WRITE".to_owned())?;
     let line = serde_json::json!({"at": timestamp, "code": code});
-    writeln!(file, "{}", serde_json::to_string(&line).map_err(|_| "ERROR_LOG_SERIALIZE".to_owned())?)
-        .map_err(|_| "ERROR_LOG_WRITE".to_owned())?;
+    writeln!(
+        file,
+        "{}",
+        serde_json::to_string(&line).map_err(|_| "ERROR_LOG_SERIALIZE".to_owned())?
+    )
+    .map_err(|_| "ERROR_LOG_WRITE".to_owned())?;
     file.sync_all().map_err(|_| "ERROR_LOG_WRITE".to_owned())?;
     #[cfg(unix)]
     {
@@ -526,7 +585,9 @@ pub async fn check_update(app: AppHandle) -> Result<UpdateCheckResult, String> {
     if pubkey.is_empty() || pubkey == "PENDING_RELEASE_KEY" {
         return Err("UPDATE_NOT_CONFIGURED".to_owned());
     }
-    let updater = app.updater().map_err(|_| "UPDATE_NOT_CONFIGURED".to_owned())?;
+    let updater = app
+        .updater()
+        .map_err(|_| "UPDATE_NOT_CONFIGURED".to_owned())?;
     let update = updater
         .check()
         .await
@@ -557,20 +618,28 @@ pub async fn install_update(
     if pubkey.is_empty() || pubkey == "PENDING_RELEASE_KEY" {
         return Err("UPDATE_NOT_CONFIGURED".to_owned());
     }
-    let updater = app.updater().map_err(|_| "UPDATE_NOT_CONFIGURED".to_owned())?;
+    let updater = app
+        .updater()
+        .map_err(|_| "UPDATE_NOT_CONFIGURED".to_owned())?;
     let Some(update) = updater
         .check()
         .await
         .map_err(|_| "UPDATE_CHECK_FAILED".to_owned())?
     else {
-        return Ok(UpdateCheckResult { status: "current".to_owned(), version: None });
+        return Ok(UpdateCheckResult {
+            status: "current".to_owned(),
+            version: None,
+        });
     };
     let version = update.version.clone();
     update
         .download_and_install(|_, _| {}, || {})
         .await
         .map_err(|_| "UPDATE_INSTALL_FAILED".to_owned())?;
-    Ok(UpdateCheckResult { status: "installed_restart_required".to_owned(), version: Some(version) })
+    Ok(UpdateCheckResult {
+        status: "installed_restart_required".to_owned(),
+        version: Some(version),
+    })
 }
 
 #[allow(dead_code)]
