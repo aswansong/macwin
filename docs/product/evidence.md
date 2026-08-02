@@ -211,3 +211,10 @@
 - 摘要：迁移前快照仍保存在应用包外，卸载不会自动删除；设备自检页提供明确的“删除迁移前快照”按钮，删除前必须二次确认，删除后返回不可恢复状态。删除实现对不存在文件幂等，Rust 测试覆盖确认边界和删除结果。
 - 产品含义：满足“默认保留到用户主动删除”，同时不把删除应用误当成删除恢复能力。
 - 关联决定：D-012、D-026、OD-009
+
+### E-029：正式构建版本号与标签对齐
+
+- 类型：技术验证、发布流程审查
+- 摘要：提交 `8b17550` 新增 `scripts/prepare-release.py` 和单元测试；Release workflow 在构建前强制校验 `vMAJOR.MINOR.PATCH` 标签与 `src-tauri/Cargo.toml` 的包版本一致，并同步 `tauri.conf.json`、`package.json` 与 `package-lock.json`，避免正式包仍携带 `1.0.0-rc.1`。本地 40 项 Python/格式检查、前端/Rust 检查通过；GitHub Actions run `30744307355` 的 Windows latest 与 Apple Silicon macOS 15 检查均成功。
+- 产品含义：正式构建的应用版本、更新清单和运行时版本具备一致性检查；这不等于 Windows 签名、Apple 公证、真实设备验收或公开 Release 已完成。
+- 关联决定：D-032、D-033、OD-006
