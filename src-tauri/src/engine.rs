@@ -1,8 +1,10 @@
-use crate::habitpack::{ImportedPackage, KeyboardEvidence};
+use crate::habitpack::{ImportedPackage, KeyboardEvidence, PointerEvidence};
 use crate::karabiner::{ApplyReport, KeyboardCompatibilityPlan, KeyboardCompatibilityRequest};
-use crate::platform::{PlatformError, TargetPreferences};
+use crate::platform::{PlatformError, PointerSupport, TargetPreferences};
 use crate::snapshot::{Snapshot, SnapshotStore};
 use serde::Serialize;
+use sha2::{Digest, Sha256};
+use std::collections::HashSet;
 
 pub trait TargetAdapter {
     fn read_preferences(&mut self) -> Result<TargetPreferences, PlatformError>;
@@ -19,6 +21,8 @@ pub trait TargetAdapter {
         request: &KeyboardCompatibilityRequest,
     ) -> Result<ApplyReport, PlatformError>;
     fn restore_keyboard_compatibility(&mut self) -> Result<ApplyReport, PlatformError>;
+    fn set_pointer(&mut self, pointer: &PointerEvidence) -> Result<crate::platform::PointerApplyReport, PlatformError>;
+    fn restore_pointer(&mut self, previous: TargetPreferences) -> Result<crate::platform::PointerApplyReport, PlatformError>;
 }
 
 pub struct NativeAdapter;
@@ -52,6 +56,12 @@ impl TargetAdapter for NativeAdapter {
     fn restore_keyboard_compatibility(&mut self) -> Result<ApplyReport, PlatformError> {
         crate::karabiner::remove(&crate::platform::read_target_preferences()?)
     }
+    fn set_pointer(&mut self, pointer: &PointerEvidence) -> Result<crate::platform::PointerApplyReport, PlatformError> {
+        crate::platform::apply_pointer(pointer)
+    }
+    fn restore_pointer(&mut self, previous: TargetPreferences) -> Result<crate::platform::PointerApplyReport, PlatformError> {
+        crate::platform::restore_pointer(previous)
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -77,6 +87,19 @@ pub struct SoftwarePlanItem {
     pub mac_name: String,
     pub official_url: String,
     pub export_supported: bool,
+    pub category: String,
+    pub install_mode: String,
+    pub requires_homebrew: bool,
+    pub version_policy: String,
+}
+
+fn software_metadata(id: &str) -> (&'static str, &'static str, bool, &'static str) {
+    match id {
+        "edge" | "chrome" | "firefox" => ("browser", "official_manual", false, "最新稳定版"),
+        "microsoft365" | "wps" | "libreoffice" => ("office", "official_manual", false, "最新稳定版"),
+        "vscode" | "git" | "github-cli" | "node" | "python" | "uv" | "jupyter" | "ruff" | "codex-cli" | "claude-code" => ("developer", "official_manual", false, "主版本匹配"),
+        _ => ("other", "official_manual", false, "官方版本"),
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -89,6 +112,10 @@ pub struct ImportPlan {
     pub guide_requested: bool,
     pub contains_secrets: bool,
     pub keyboard_compatibility: KeyboardCompatibilityPlan,
+    pub pointer: Option<PointerEvidence>,
+    pub pointer_support: PointerSupport,
+    pub selected_module_ids: Vec<String>,
+    pub confirmation_token: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -174,21 +201,53 @@ pub fn make_plan(
             recovery: "恢复到迁移前值".to_owned(),
             requires_admin: false,
         });
+        items.push(PlanItem {
+            module_id: "keyboard_compatibility".to_owned(),
+            title: "选择性 Ctrl 兼容".to_owned(),
+            current_value: "未启用".to_owned(),
+            target_value: "普通应用 Ctrl+C/V/X/Z → Command 组合".to_owned(),
+            reason: "降低从 Windows 迁移后的快捷键落差。".to_owned(),
+            benefit: "终端、远程桌面和虚拟机仍保留真实 Ctrl。".to_owned(),
+            verification: "重新读取并验证 MacWin 自己的规则。".to_owned(),
+            recovery: "只移除 MacWin 自己的规则。".to_owned(),
+            requires_admin: false,
+        });
+    }
+    if let Some(pointer) = &package.pointer {
+        items.push(PlanItem {
+            module_id: "pointer_scroll".to_owned(),
+            title: "鼠标与触控板滚动方向".to_owned(),
+            current_value: if current.pointer_scroll_existed { if current.pointer_scroll_reversed { "自然" } else { "Windows 风格" } } else { "系统默认" }.to_owned(),
+            target_value: format!("鼠标={} · 触控板={}", pointer.mouse_direction.as_deref().unwrap_or("未选择"), pointer.trackpad_direction.as_deref().unwrap_or("未选择")),
+            reason: "保留你在 Windows 上熟悉的滚动方向。".to_owned(),
+            benefit: "鼠标与触控板分别说明，目标设备不存在时不会伪报成功。".to_owned(),
+            verification: "写入后重新读取原生状态；需要 LinearMouse 时由用户按官方界面完成并复核。".to_owned(),
+            recovery: "恢复到迁移前值；第三方工具规则不由 MacWin 猜测删除。".to_owned(),
+            requires_admin: false,
+        });
     }
     let software = package
         .software
         .iter()
-        .map(|item| SoftwarePlanItem {
-            id: item.id.clone(),
-            name: item.name.clone(),
-            version: item.version.clone(),
-            installed: true,
-            is_default_browser: item.is_default_browser,
-            mac_name: item.name.clone(),
-            official_url: item.official_url.clone(),
-            export_supported: true,
+        .map(|item| {
+            let (category, install_mode, requires_homebrew, version_policy) = software_metadata(&item.id);
+            SoftwarePlanItem {
+                id: item.id.clone(),
+                name: item.name.clone(),
+                version: item.version.clone(),
+                installed: true,
+                is_default_browser: item.is_default_browser,
+                mac_name: item.name.clone(),
+                official_url: item.official_url.clone(),
+                export_supported: true,
+                category: category.to_owned(),
+                install_mode: install_mode.to_owned(),
+                requires_homebrew,
+                version_policy: version_policy.to_owned(),
+            }
         })
         .collect();
+    let selected_module_ids = items.iter().map(|item| item.module_id.clone()).collect();
     ImportPlan {
         package_name,
         source_summary: format!("Windows {} x64 → Apple 芯片 Mac", package.source_os),
@@ -198,7 +257,26 @@ pub fn make_plan(
         guide_requested: package.guide_requested,
         contains_secrets: package.contains_secrets,
         keyboard_compatibility: crate::karabiner::plan_for_target(),
+        pointer: package.pointer.clone(),
+        pointer_support: crate::platform::pointer_support(),
+        selected_module_ids,
+        confirmation_token: String::new(),
     }
+}
+
+pub fn confirmation_token(plan: &ImportPlan) -> String {
+    let canonical = serde_json::json!({
+        "package_name": plan.package_name,
+        "source_summary": plan.source_summary,
+        "created_at": plan.created_at,
+        "items": plan.items.iter().map(|item| (&item.module_id, &item.target_value)).collect::<Vec<_>>(),
+        "software": plan.software.iter().map(|item| (&item.id, &item.version)).collect::<Vec<_>>(),
+        "keyboard": (&plan.keyboard_compatibility.built_in_enabled, &plan.keyboard_compatibility.external_enabled),
+        "selected_modules": &plan.selected_module_ids,
+    });
+    let mut digest = Sha256::new();
+    digest.update(serde_json::to_vec(&canonical).expect("plan token serialization"));
+    format!("{:x}", digest.finalize())
 }
 
 fn now() -> Result<String, String> {
@@ -251,7 +329,7 @@ fn guide(results: &[ModuleResult], requested: bool) -> Vec<GuideSection> {
     if results.iter().any(|item| item.module_id == "keyboard_compatibility" && item.status == "applied_verified") {
         sections.push(GuideSection { title: "选择性 Ctrl 兼容".to_owned(), body: "普通 Mac 应用中的 Ctrl+C/V/X/Z/Y/A/S/F/P/N/O/W/T/L/R 会转换为对应的 Command 组合；Terminal、iTerm2、Warp、远程桌面、虚拟机和 VS Code 默认保留真实 Ctrl。".to_owned() });
     }
-    sections.push(GuideSection { title: "Command、Option 和 Fn".to_owned(), body: "Command 是 Mac 最常用的编辑修饰键；Option 常表示替代操作或特殊字符；Fn 用于功能键和系统功能。MacWin Alpha 不会重映射它们。".to_owned() });
+    sections.push(GuideSection { title: "Command、Option 和 Fn".to_owned(), body: "Command 是 Mac 最常用的编辑修饰键；Option 常表示替代操作或特殊字符；Fn 用于功能键和系统功能。MacWin 不会全局交换它们。".to_owned() });
     sections.push(GuideSection { title: "Mac 适合你的地方".to_owned(), body: "如果你经常外出，Apple 芯片 MacBook 的能效、触控板和睡眠唤醒整合可能更省心。轻量 AI 编程也可以利用 macOS 的 Unix 工具链。".to_owned() });
     sections.push(GuideSection { title: "Windows 仍然更合适的地方".to_owned(), body: "某些企业系统、专用 Windows 软件、游戏和特殊外设仍可能更适合留在 Windows；这不是一次迁移就能解决的差异。".to_owned() });
     sections
@@ -262,14 +340,16 @@ pub fn apply_plan<A: TargetAdapter>(
     store: &SnapshotStore,
     package: &ImportedPackage,
     keyboard_request: &KeyboardCompatibilityRequest,
+    selected_module_ids: &HashSet<String>,
 ) -> Result<MigrationOutcome, String> {
     let before = adapter
         .read_preferences()
         .map_err(|error| error_code(&error))?;
     let created_at = now()?;
-    let _snapshot: Snapshot = store.save(before.clone(), created_at)?;
+    let _snapshot: Snapshot = store.ensure(before.clone(), created_at)?;
     let mut results = Vec::new();
-    let finder_apply = adapter.set_finder_extensions(true).and_then(|_| {
+    let finder_apply = if selected_module_ids.contains("finder_extensions") {
+        adapter.set_finder_extensions(true).and_then(|_| {
         adapter.read_preferences().and_then(|value| {
             if value.finder_extensions {
                 Ok(())
@@ -277,7 +357,10 @@ pub fn apply_plan<A: TargetAdapter>(
                 Err(PlatformError::Read("FINDER_VERIFY"))
             }
         })
-    });
+        })
+    } else {
+        Err(PlatformError::Read("MODULE_SKIPPED"))
+    };
     match finder_apply {
         Ok(()) => results.push(ModuleResult {
             module_id: "finder_extensions".to_owned(),
@@ -294,14 +377,15 @@ pub fn apply_plan<A: TargetAdapter>(
             module_id: "finder_extensions".to_owned(),
             title: "显示文件扩展名".to_owned(),
             before: finder_before(&before),
-            after: "未改变".to_owned(),
-            reason: "让文件类型一眼可见。".to_owned(),
+            after: if error_code(&error) == "MODULE_SKIPPED" { "已跳过" } else { "未改变" }.to_owned(),
+            reason: if error_code(&error) == "MODULE_SKIPPED" { "用户在计划页取消了此模块。" } else { "让文件类型一眼可见。" }.to_owned(),
             benefit: "减少打开错误文件的机会。".to_owned(),
             recovery: "快照可恢复".to_owned(),
-            status: "failed_recoverable".to_owned(),
-            error_code: Some(error_code(&error)),
+            status: if error_code(&error) == "MODULE_SKIPPED" { "skipped" } else { "failed_recoverable" }.to_owned(),
+            error_code: (error_code(&error) != "MODULE_SKIPPED").then(|| error_code(&error)),
         }),
     }
+    if selected_module_ids.contains("keyboard_repeat") {
     if let Some(keyboard) = &package.keyboard {
         let (key_repeat, initial) = map_keyboard(keyboard);
         let keyboard_apply = adapter
@@ -339,6 +423,22 @@ pub fn apply_plan<A: TargetAdapter>(
                 error_code: Some(error_code(&error)),
             }),
         }
+    } else {
+        results.push(ModuleResult {
+            module_id: "keyboard_repeat".to_owned(),
+            title: "键盘重复速度".to_owned(),
+            before: keyboard_before(&before),
+            after: "已跳过".to_owned(),
+            reason: "用户在计划页取消了此模块。".to_owned(),
+            benefit: "不会修改按键重复节奏。".to_owned(),
+            recovery: "无需恢复。".to_owned(),
+            status: "skipped".to_owned(),
+            error_code: None,
+        });
+    }
+    }
+    if selected_module_ids.contains("keyboard_compatibility") {
+    if package.keyboard.is_some() {
         let compatibility_apply = adapter.set_keyboard_compatibility(keyboard_request);
         match compatibility_apply {
             Ok(report) if report.status == "applied_verified" => results.push(ModuleResult {
@@ -375,8 +475,72 @@ pub fn apply_plan<A: TargetAdapter>(
                 error_code: Some(error_code(&error)),
             }),
         }
+    } else {
+        results.push(ModuleResult {
+            module_id: "keyboard_compatibility".to_owned(),
+            title: "选择性 Ctrl 兼容".to_owned(),
+            before: "未启用".to_owned(),
+            after: "已跳过".to_owned(),
+            reason: "用户在计划页取消了此模块。".to_owned(),
+            benefit: "不会写入键盘兼容规则。".to_owned(),
+            recovery: "无需恢复。".to_owned(),
+            status: "skipped".to_owned(),
+            error_code: None,
+        });
     }
-    let success = results.iter().all(|item| item.status == "applied_verified");
+    }
+    if let Some(pointer) = &package.pointer {
+        if !selected_module_ids.contains("pointer_scroll") {
+            results.push(ModuleResult {
+                module_id: "pointer_scroll".to_owned(),
+                title: "鼠标与触控板滚动方向".to_owned(),
+                before: "迁移前原生方向".to_owned(),
+                after: "已跳过".to_owned(),
+                reason: "用户在计划页取消了此模块。".to_owned(),
+                benefit: "不会修改滚动方向。".to_owned(),
+                recovery: "无需恢复。".to_owned(),
+                status: "skipped".to_owned(),
+                error_code: None,
+            });
+        } else {
+            match adapter.set_pointer(pointer) {
+                Ok(report) if report.status == "applied_verified" => results.push(ModuleResult {
+                    module_id: "pointer_scroll".to_owned(),
+                    title: "鼠标与触控板滚动方向".to_owned(),
+                    before: "迁移前原生方向".to_owned(),
+                    after: "已按设备目标方向应用".to_owned(),
+                    reason: "保留 Windows 的滚动习惯。".to_owned(),
+                    benefit: report.detail,
+                    recovery: "可恢复到迁移前值".to_owned(),
+                    status: "applied_verified".to_owned(),
+                    error_code: None,
+                }),
+                Ok(report) => results.push(ModuleResult {
+                    module_id: "pointer_scroll".to_owned(),
+                    title: "鼠标与触控板滚动方向".to_owned(),
+                    before: "迁移前原生方向".to_owned(),
+                    after: "等待手动完成".to_owned(),
+                    reason: "原生接口不能独立改变两个设备，未猜测第三方配置。".to_owned(),
+                    benefit: report.detail,
+                    recovery: "未写入 MacWin 规则，无需恢复".to_owned(),
+                    status: "manual_action_required".to_owned(),
+                    error_code: None,
+                }),
+                Err(error) => results.push(ModuleResult {
+                    module_id: "pointer_scroll".to_owned(),
+                    title: "鼠标与触控板滚动方向".to_owned(),
+                    before: "迁移前原生方向".to_owned(),
+                    after: "未改变".to_owned(),
+                    reason: "写入或复核失败。".to_owned(),
+                    benefit: "不会把一个设备的结果冒充另一个设备。".to_owned(),
+                    recovery: "保留原状态，可稍后重试".to_owned(),
+                    status: "failed_recoverable".to_owned(),
+                    error_code: Some(error_code(&error)),
+                }),
+            }
+        }
+        }
+    let success = results.iter().all(|item| matches!(item.status.as_str(), "applied_verified" | "skipped"));
     let completed_at = now()?;
     Ok(MigrationOutcome {
         outcome: if success { "completed" } else { "partial" }.to_owned(),
@@ -406,6 +570,9 @@ pub fn rollback_module<A: TargetAdapter>(
                 .restore_keyboard_compatibility()
                 .map_err(|error| error_code(&error))?;
         }
+        "pointer_scroll" => {
+            let _ = adapter.restore_pointer(preferences.clone()).map_err(|error| error_code(&error))?;
+        }
         _ => return Err("MODULE_UNKNOWN".to_owned()),
     }
     let after = adapter
@@ -416,6 +583,9 @@ pub fn rollback_module<A: TargetAdapter>(
     } else if module_id == "keyboard_repeat" {
         after.key_repeat == preferences.key_repeat
             && after.initial_key_repeat == preferences.initial_key_repeat
+    } else if module_id == "pointer_scroll" {
+        after.pointer_scroll_existed == preferences.pointer_scroll_existed
+            && after.pointer_scroll_reversed == preferences.pointer_scroll_reversed
     } else {
         true
     };
@@ -476,6 +646,12 @@ mod tests {
         fn restore_keyboard_compatibility(&mut self) -> Result<ApplyReport, PlatformError> {
             Ok(ApplyReport { status: "rolled_back_verified".to_owned(), detail: "fake".to_owned() })
         }
+        fn set_pointer(&mut self, _pointer: &PointerEvidence) -> Result<crate::platform::PointerApplyReport, PlatformError> {
+            Ok(crate::platform::PointerApplyReport { status: "manual_action_required".to_owned(), detail: "fake".to_owned() })
+        }
+        fn restore_pointer(&mut self, _previous: TargetPreferences) -> Result<crate::platform::PointerApplyReport, PlatformError> {
+            Ok(crate::platform::PointerApplyReport { status: "rolled_back_verified".to_owned(), detail: "fake".to_owned() })
+        }
     }
     #[test]
     fn mapping_stays_in_safe_range() {
@@ -486,6 +662,33 @@ mod tests {
         });
         assert!((2..=24).contains(&key));
         assert_eq!(initial, 60);
+    }
+    #[test]
+    fn confirmation_token_changes_when_module_selection_changes() {
+        let package = ImportedPackage {
+            created_at: "2026-08-02T00:00:00Z".to_owned(),
+            source_os: "11".to_owned(),
+            keyboard: None,
+            pointer: None,
+            software: vec![],
+            guide_requested: false,
+            contains_secrets: false,
+            entries: 1,
+        };
+        let preferences = TargetPreferences {
+            finder_extensions_existed: false,
+            finder_extensions: false,
+            key_repeat_existed: false,
+            key_repeat: 0,
+            initial_key_repeat_existed: false,
+            initial_key_repeat: 0,
+            pointer_scroll_existed: false,
+            pointer_scroll_reversed: false,
+        };
+        let mut first = make_plan(&package, &preferences, "a.habitpack".to_owned());
+        let token = confirmation_token(&first);
+        first.selected_module_ids.clear();
+        assert_ne!(token, confirmation_token(&first));
     }
     #[test]
     fn fake_adapter_applies_and_can_fail_in_isolation() {
@@ -499,6 +702,8 @@ mod tests {
                 key_repeat: 12,
                 initial_key_repeat_existed: true,
                 initial_key_repeat: 30,
+                pointer_scroll_existed: true,
+                pointer_scroll_reversed: false,
             },
             fail_finder: true,
         };
@@ -510,12 +715,17 @@ mod tests {
                 delay: 1,
                 layouts: vec![],
             }),
+            pointer: None,
             software: vec![],
             guide_requested: true,
             contains_secrets: false,
             entries: 2,
         };
-        let outcome = apply_plan(&mut adapter, &store, &package, &KeyboardCompatibilityRequest { built_in_enabled: false, external_enabled: false, devices: vec![] }).expect("outcome");
+        let selected = ["finder_extensions", "keyboard_repeat", "keyboard_compatibility"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect();
+        let outcome = apply_plan(&mut adapter, &store, &package, &KeyboardCompatibilityRequest { built_in_enabled: false, external_enabled: false, devices: vec![] }, &selected).expect("outcome");
         assert_eq!(outcome.outcome, "partial");
         assert_eq!(outcome.results[0].status, "failed_recoverable");
         assert_eq!(outcome.results[1].status, "applied_verified");

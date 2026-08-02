@@ -53,6 +53,20 @@ ALPHA_AUTHORIZATION = {
     "release": False,
 }
 
+RELEASE_AUTHORIZATION = {
+    "production_p0": True,
+    "bundle": True,
+    "windows_x64_installer": True,
+    "macos_arm64_installer": True,
+    "update_check": True,
+    "signed_release_required": True,
+    "apple_notarization_required": True,
+    "pr_merge_main": True,
+    "tag_and_release": True,
+    "real_devices_required": True,
+    "human_signing_gate": True,
+}
+
 FEATURE_LIST_KEYS = frozenset(
     {
         "schema_version",
@@ -66,6 +80,7 @@ FEATURE_LIST_KEYS = frozenset(
         "last_updated",
         "wave0_authorization",
         "alpha_authorization",
+        "release_authorization",
         "milestone_evidence",
         "status_definitions",
         "features",
@@ -73,12 +88,13 @@ FEATURE_LIST_KEYS = frozenset(
 )
 WAVE0_AUTHORIZATION_KEYS = frozenset(WAVE0_AUTHORIZATION)
 ALPHA_AUTHORIZATION_KEYS = frozenset(ALPHA_AUTHORIZATION)
-MILESTONE_EVIDENCE_KEYS = frozenset({"prototype", "format", "wave0", "alpha"})
+MILESTONE_EVIDENCE_KEYS = frozenset({"prototype", "format", "wave0", "alpha", "release"})
 MILESTONE_EVIDENCE_CHILD_KEYS = {
     "prototype": frozenset({"commit", "scope"}),
     "format": frozenset({"schema_version", "scope", "command"}),
     "wave0": frozenset({"scope", "decision_ref", "evidence_ref"}),
     "alpha": frozenset({"branch", "scope", "decision_ref", "evidence_ref"}),
+    "release": frozenset({"branch", "scope", "decision_ref", "evidence_ref"}),
 }
 P0_FEATURE_IDS = frozenset(f"P0-{index:03d}" for index in range(1, 16))
 STATUS_DEFINITIONS = frozenset({"specified", "prototyped", "implemented", "verified", "blocked"})
@@ -325,12 +341,12 @@ def feature_checks(root: Path = ROOT) -> int:
         for dep in graph[node]: visit(dep)
         visiting.remove(node); done.add(node)
     for node in graph: visit(node)
-    check(data["current_milestone"] == "Alpha-0.2-keyboard-compatibility", "current milestone mismatch")
-    check(data["milestone_status"] == "alpha_local_validation_active", "unexpected milestone status")
+    check(data["current_milestone"] == "v1.0.0-release", "current milestone mismatch")
+    check(data["milestone_status"] == "v1_release_in_progress", "unexpected milestone status")
     check(data.get("last_updated") == "2026-08-02", "last_updated mismatch")
     check(data.get("prototype_authorized") is True, "prototype authorization history must remain true")
-    check(data["production_implementation_authorized"] is False, "production implementation must remain unauthorized")
-    check(data["system_changes_authorized"] is True, "Alpha system-change authorization is required")
+    check(data["production_implementation_authorized"] is True, "production implementation authorization is required")
+    check(data["system_changes_authorized"] is True, "v1 system-change authorization is required")
     check("wave0_authorization" in data and isinstance(data["wave0_authorization"], dict), "wave0_authorization is required")
     authorization = data["wave0_authorization"]
     check(isinstance(authorization, dict), "wave0_authorization must be an object")
@@ -346,6 +362,13 @@ def feature_checks(root: Path = ROOT) -> int:
         check(type(alpha_authorization[field]) is bool, f"alpha authorization field must be boolean: {field}")
         check(alpha_authorization[field] is expected, f"alpha authorization mismatch: {field}")
     _check_closed_keys(alpha_authorization, ALPHA_AUTHORIZATION_KEYS, "alpha authorization")
+    release_authorization = data.get("release_authorization")
+    check(isinstance(release_authorization, dict), "release_authorization is required")
+    for field, expected in RELEASE_AUTHORIZATION.items():
+        check(field in release_authorization, f"release authorization field is required: {field}")
+        check(type(release_authorization[field]) is bool, f"release authorization field must be boolean: {field}")
+        check(release_authorization[field] is expected, f"release authorization mismatch: {field}")
+    _check_closed_keys(release_authorization, RELEASE_AUTHORIZATION.keys(), "release authorization")
     check(isinstance(data["milestone_evidence"], dict), "milestone_evidence is required")
     evidence = data["milestone_evidence"]
     check(isinstance(evidence.get("prototype"), dict), "prototype milestone evidence is required")
@@ -366,6 +389,10 @@ def feature_checks(root: Path = ROOT) -> int:
     check(evidence["alpha"].get("scope") == "real_mac_keyboard_compatibility_without_wifi_secrets_or_installers", "alpha evidence scope mismatch")
     check(evidence["alpha"].get("decision_ref") == "D-031", "alpha decision evidence mismatch")
     check(evidence["alpha"].get("evidence_ref") == "E-020", "alpha evidence reference mismatch")
+    check(evidence["release"].get("branch") == "release/v1.0.0", "release evidence branch mismatch")
+    check(evidence["release"].get("scope") == "production_p0_and_release_preparation_in_progress", "release evidence scope mismatch")
+    check(evidence["release"].get("decision_ref") == "D-032", "release decision evidence mismatch")
+    check(evidence["release"].get("evidence_ref") == "E-021", "release evidence reference mismatch")
     return len(features)
 
 

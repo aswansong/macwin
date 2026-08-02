@@ -1,4 +1,5 @@
 use serde::Serialize;
+use crate::habitpack::PointerEvidence;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RuntimeInfo {
@@ -20,6 +21,24 @@ pub struct SoftwareFinding {
     pub mac_name: String,
     pub official_url: String,
     pub export_supported: bool,
+    pub category: String,
+    pub install_mode: String,
+    pub requires_homebrew: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PointerSupport {
+    pub linear_mouse_installed: bool,
+    pub linear_mouse_version: Option<String>,
+    pub native_independent: bool,
+    pub permission: String,
+    pub official_url: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PointerApplyReport {
+    pub status: String,
+    pub detail: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -31,6 +50,8 @@ pub struct WindowsScan {
     pub keyboard_layouts: Vec<String>,
     pub keyboard_repeat_speed: u8,
     pub keyboard_repeat_delay: u8,
+    pub mouse_scroll_direction: String,
+    pub trackpad_scroll_direction: String,
     pub scanned_at: String,
 }
 
@@ -42,6 +63,8 @@ pub struct TargetPreferences {
     pub key_repeat: i64,
     pub initial_key_repeat_existed: bool,
     pub initial_key_repeat: i64,
+    pub pointer_scroll_existed: bool,
+    pub pointer_scroll_reversed: bool,
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -71,8 +94,8 @@ pub fn runtime_info() -> RuntimeInfo {
             os_version: std::env::consts::OS.to_owned(),
             architecture: std::env::consts::ARCH.to_owned(),
             supported: false,
-            support_message: "当前平台不在 Alpha 支持范围内".to_owned(),
-            alpha: true,
+            support_message: "需要 Windows 10/11 x64 → Apple 芯片 macOS 15/26".to_owned(),
+            alpha: false,
         }
     }
 }
@@ -150,6 +173,41 @@ pub fn restore_keyboard_repeat(previous: TargetPreferences) -> Result<(), Platfo
     }
 }
 
+pub fn pointer_support() -> PointerSupport {
+    #[cfg(target_os = "macos")]
+    {
+        macos::pointer_support()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        PointerSupport { linear_mouse_installed: false, linear_mouse_version: None, native_independent: false, permission: "目标 Mac 上检查".to_owned(), official_url: "https://linearmouse.app/".to_owned() }
+    }
+}
+
+pub fn apply_pointer(pointer: &PointerEvidence) -> Result<PointerApplyReport, PlatformError> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::apply_pointer(pointer)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = pointer;
+        Err(PlatformError::Unsupported)
+    }
+}
+
+pub fn restore_pointer(previous: TargetPreferences) -> Result<PointerApplyReport, PlatformError> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::restore_pointer(previous)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = previous;
+        Err(PlatformError::Unsupported)
+    }
+}
+
 #[cfg(windows)]
 mod windows {
     use super::*;
@@ -165,17 +223,32 @@ mod windows {
     use winreg::RegKey;
 
     pub fn runtime_info() -> RuntimeInfo {
-        let build = RegKey::predef(HKEY_LOCAL_MACHINE)
+        let version_key = RegKey::predef(HKEY_LOCAL_MACHINE)
             .open_subkey_with_flags("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", KEY_READ)
-            .ok()
+            .ok();
+        let build = version_key
+            .as_ref()
             .and_then(|key| key.get_value::<String, _>("CurrentBuildNumber").ok())
             .and_then(|value| value.parse::<u32>().ok())
             .unwrap_or(0);
-        let release = if build >= 22000 { "11" } else { "10" };
-        let supported = std::env::consts::ARCH == "x86_64" && build > 0;
+        let product_name = version_key
+            .as_ref()
+            .and_then(|key| key.get_value::<String, _>("ProductName").ok())
+            .unwrap_or_default();
+        let release = if build >= 22000 {
+            Some("11")
+        } else if build >= 10240 {
+            Some("10")
+        } else {
+            None
+        };
+        let supported = std::env::consts::ARCH == "x86_64"
+            && release.is_some()
+            && product_name.contains("Windows")
+            && !product_name.contains("Server");
         RuntimeInfo {
             platform: "windows".to_owned(),
-            os_version: format!("Windows {release}"),
+            os_version: release.map(|value| format!("Windows {value}")).unwrap_or_else(|| product_name.clone()),
             architecture: std::env::consts::ARCH.to_owned(),
             supported,
             support_message: if supported {
@@ -183,7 +256,7 @@ mod windows {
             } else {
                 "需要 Windows 10/11 x64".to_owned()
             },
-            alpha: true,
+            alpha: false,
         }
     }
 
@@ -204,20 +277,26 @@ mod windows {
 
     fn whitelist(name: &str) -> Option<(&'static str, &'static str, &'static str, bool)> {
         let lower = name.to_ascii_lowercase();
-        if lower.contains("chrome") {
+        if lower == "microsoft edge" || lower.starts_with("microsoft edge ") {
+            Some(("edge", "Microsoft Edge", "https://www.microsoft.com/edge", true))
+        } else if lower == "google chrome" || lower.starts_with("google chrome ") {
             Some((
                 "chrome",
                 "Google Chrome",
                 "https://www.google.com/chrome/",
                 true,
             ))
-        } else if lower.contains("firefox") {
+        } else if lower == "mozilla firefox" || lower.starts_with("mozilla firefox ") {
             Some((
                 "firefox",
                 "Mozilla Firefox",
                 "https://www.mozilla.org/firefox/",
                 true,
             ))
+        } else if lower.contains("microsoft 365") || lower.contains("microsoft office") {
+            Some(("microsoft365", "Microsoft 365", "https://www.microsoft.com/microsoft-365", true))
+        } else if lower.contains("wps office") || lower == "wps" {
+            Some(("wps", "WPS Office", "https://www.wps.com/", true))
         } else if lower.contains("libreoffice") {
             Some((
                 "libreoffice",
@@ -232,12 +311,24 @@ mod windows {
                 "https://code.visualstudio.com/",
                 false,
             ))
-        } else if lower == "git" || lower.starts_with("git version") {
+        } else if lower == "git" || lower.starts_with("git version") || lower.contains("git for windows") {
             Some(("git", "Git", "https://git-scm.com/", false))
+        } else if lower.contains("github cli") || lower == "gh" {
+            Some(("github-cli", "GitHub CLI", "https://cli.github.com/", false))
         } else if lower.contains("python") {
             Some(("python", "Python", "https://www.python.org/", false))
-        } else if lower.contains("node.js") || lower == "nodejs" {
+        } else if lower.contains("node.js") || lower == "nodejs" || lower.starts_with("node.js ") {
             Some(("node", "Node.js", "https://nodejs.org/", false))
+        } else if lower == "uv" || lower.starts_with("uv ") {
+            Some(("uv", "uv", "https://docs.astral.sh/uv/", false))
+        } else if lower.contains("jupyter") {
+            Some(("jupyter", "Jupyter", "https://jupyter.org/", false))
+        } else if lower.contains("ruff") {
+            Some(("ruff", "Ruff", "https://docs.astral.sh/ruff/", false))
+        } else if lower.contains("codex") {
+            Some(("codex-cli", "Codex CLI", "https://github.com/openai/codex", false))
+        } else if lower.contains("claude code") {
+            Some(("claude-code", "Claude Code", "https://docs.anthropic.com/en/docs/claude-code", false))
         } else {
             None
         }
@@ -271,6 +362,11 @@ mod windows {
                     if found.iter().any(|item| item.id == id) {
                         continue;
                     }
+                    let category = match id {
+                        "edge" | "chrome" | "firefox" => "browser",
+                        "microsoft365" | "wps" | "libreoffice" => "office",
+                        _ => "developer",
+                    };
                     found.push(SoftwareFinding {
                         id: id.to_owned(),
                         name: friendly.to_owned(),
@@ -280,6 +376,9 @@ mod windows {
                         mac_name: friendly.to_owned(),
                         official_url: official_url.to_owned(),
                         export_supported,
+                        category: category.to_owned(),
+                        install_mode: "official_manual".to_owned(),
+                        requires_homebrew: false,
                     });
                 }
             }
@@ -373,6 +472,8 @@ mod windows {
             keyboard_layouts,
             keyboard_repeat_speed: speed,
             keyboard_repeat_delay: delay,
+            mouse_scroll_direction: "windows_style".to_owned(),
+            trackpad_scroll_direction: "windows_style".to_owned(),
             scanned_at,
         })
     }
@@ -382,6 +483,7 @@ mod windows {
 mod macos {
     use super::*;
     use std::process::Command;
+    use crate::habitpack::PointerEvidence;
 
     pub fn runtime_info() -> RuntimeInfo {
         let version = Command::new("/usr/bin/sw_vers")
@@ -407,7 +509,7 @@ mod macos {
             } else {
                 "需要 Apple 芯片 Mac · macOS 15/26".to_owned()
             },
-            alpha: true,
+            alpha: false,
         }
     }
 
@@ -449,6 +551,8 @@ mod macos {
             parse_number(defaults_read("NSGlobalDomain", "KeyRepeat")?);
         let (initial_key_repeat_existed, initial_key_repeat) =
             parse_number(defaults_read("NSGlobalDomain", "InitialKeyRepeat")?);
+        let (pointer_scroll_existed, pointer_scroll_reversed) =
+            parse_bool(defaults_read("NSGlobalDomain", "com.apple.swipescrolldirection")?);
         Ok(TargetPreferences {
             finder_extensions_existed,
             finder_extensions,
@@ -456,6 +560,8 @@ mod macos {
             key_repeat,
             initial_key_repeat_existed,
             initial_key_repeat,
+            pointer_scroll_existed,
+            pointer_scroll_reversed,
         })
     }
 
@@ -520,5 +626,71 @@ mod macos {
         } else {
             write_defaults(&["delete", "NSGlobalDomain", "InitialKeyRepeat"])
         }
+    }
+
+    pub fn apply_pointer_scroll(reversed: bool) -> Result<(), PlatformError> {
+        write_defaults(&[
+            "write",
+            "NSGlobalDomain",
+            "com.apple.swipescrolldirection",
+            "-bool",
+            if reversed { "true" } else { "false" },
+        ])
+    }
+
+    pub fn restore_pointer_scroll(previous: TargetPreferences) -> Result<(), PlatformError> {
+        if previous.pointer_scroll_existed {
+            apply_pointer_scroll(previous.pointer_scroll_reversed)
+        } else {
+            write_defaults(&["delete", "NSGlobalDomain", "com.apple.swipescrolldirection"])
+        }
+    }
+
+    fn linear_mouse_version() -> Option<String> {
+        let output = Command::new("/usr/bin/defaults")
+            .args(["read", "/Applications/LinearMouse.app/Contents/Info", "CFBundleShortVersionString"])
+            .output()
+            .ok()?;
+        if !output.status.success() { return None; }
+        String::from_utf8(output.stdout).ok().map(|value| value.trim().to_owned()).filter(|value| !value.is_empty())
+    }
+
+    pub fn pointer_support() -> PointerSupport {
+        let installed = std::path::Path::new("/Applications/LinearMouse.app").exists();
+        PointerSupport {
+            linear_mouse_installed: installed,
+            linear_mouse_version: if installed { linear_mouse_version() } else { None },
+            native_independent: false,
+            permission: if installed { "LinearMouse 首次使用需要系统辅助功能授权；它会常驻菜单栏，可随时退出和卸载".to_owned() } else { "原生 macOS 只能同时改变全局滚动方向；需要独立设置时请先确认 LinearMouse 的来源、权限、常驻与卸载影响".to_owned() },
+            official_url: "https://linearmouse.app/".to_owned(),
+        }
+    }
+
+    pub fn apply_pointer(pointer: &PointerEvidence) -> Result<PointerApplyReport, PlatformError> {
+        let mouse = pointer.mouse_direction.as_deref();
+        let trackpad = pointer.trackpad_direction.as_deref();
+        if mouse.is_none() && trackpad.is_none() {
+            return Ok(PointerApplyReport { status: "unchanged".to_owned(), detail: "未选择鼠标或触控板".to_owned() });
+        }
+        if mouse == trackpad && mouse.is_some() {
+            let reversed = mouse == Some("natural");
+            apply_pointer_scroll(reversed)?;
+            let current = read_preferences()?;
+            if current.pointer_scroll_reversed != reversed {
+                return Err(PlatformError::Read("POINTER_VERIFY"));
+            }
+            return Ok(PointerApplyReport { status: "applied_verified".to_owned(), detail: "鼠标与触控板使用相同方向，已用 macOS 原生设置写入并复核".to_owned() });
+        }
+        let support = pointer_support();
+        Ok(PointerApplyReport { status: "manual_action_required".to_owned(), detail: if support.linear_mouse_installed { "鼠标与触控板方向不同；LinearMouse 已安装，但 MacWin 不会猜测其配置格式，请在计划确认后按官方界面完成并回到 MacWin 复核".to_owned() } else { "鼠标与触控板方向不同；macOS 原生设置无法独立处理，请先从官方入口安装并授权 LinearMouse，再回到 MacWin 重试".to_owned() } })
+    }
+
+    pub fn restore_pointer(previous: TargetPreferences) -> Result<PointerApplyReport, PlatformError> {
+        restore_pointer_scroll(previous.clone())?;
+        let current = read_preferences()?;
+        if current.pointer_scroll_existed != previous.pointer_scroll_existed || current.pointer_scroll_reversed != previous.pointer_scroll_reversed {
+            return Err(PlatformError::Read("POINTER_ROLLBACK_VERIFY"));
+        }
+        Ok(PointerApplyReport { status: "rolled_back_verified".to_owned(), detail: "已恢复迁移前的原生滚动方向".to_owned() })
     }
 }

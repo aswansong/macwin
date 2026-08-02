@@ -6,16 +6,18 @@ MacWin 帮助 Windows 10/11 x64 用户把使用习惯迁移到运行 macOS 15/26
 
 ## Current phase
 
-- M0 文档基线和 M1“完整可点击原型＋迁移格式规范”均已完成并接受；当前状态为 `Alpha-0.2-keyboard-compatibility` / `alpha_local_validation_active`。[D-031、E-020]
-- 负责人已授权在独立分支 `alpha/v0.2-keyboard-compatibility` 实现 Alpha 0.2 的真实 Mac 闭环与选择性 Ctrl 兼容；不得直接在 `main` 开发、不得合并、不得创建 Release。
-- 冻结交互原型位于独立的 `prototype/ui-flow-v2-hardening` 分支与提交 `37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75`，只使用虚构数据；原型代码不得合入 `main` 或被当作正式实现。[D-028]
-- 既往 M2 Wave 0 研究边界保留为历史记录；本轮 Alpha 0.2 只新增选择性 Ctrl 规则、Karabiner 非破坏配置合并、真实 Apple 芯片 Mac 偏好闭环和本地自检；仍不做 Wi‑Fi、密码、个人文件、软件自动安装、Homebrew、更新、签名分发或 Release。[D-029、D-031、E-020]
+- M0、M1 和 Alpha 0.1/0.2 已收口；当前状态为 `release/v1.0.0` / `v1_release_in_progress`。[D-032、E-021]
+- 负责人已授权推进面向普通 Windows 新手的 v1.0.0：允许实现剩余 P0、加入经过审查的生产依赖与 Tauri 插件、启用 bundle、构建安装包、创建 PR、合并 `main`、打标签和创建 GitHub Release。[D-032]
+- Alpha 0.2 的代码和真实 Mac 证据仍保留在 `alpha/v0.2-keyboard-compatibility`；原型仍位于独立 `prototype/ui-flow-v2-hardening` 分支，只使用虚构数据，不作为正式实现。[D-028、D-031、E-020]
+- v1.0 仍坚持 Windows 10/11 x64 → Apple 芯片 macOS 15/26、习惯与环境迁移、默认本地离线、无账号、无聊天、无常驻和零个人文件迁移。未签名构建不得作为正式版本发布。[D-032、E-021]
 
-## Alpha 0.2 授权边界
+## v1.0 执行边界
 
-负责人本次明确授权：保留 Alpha 0.1 能力，并在 Apple 芯片 Mac 上真实验证 Finder 扩展名、键盘重复速率、一次快照、按模块恢复；检测内置/外接键盘，应用固定白名单的选择性 Ctrl 规则，接入 Karabiner-Elements 的非破坏结构化合并与恢复，并提供本地设备自检、报告和指南。允许安装锁定版本的开发依赖；不静默安装第三方工具。迁移数据只限习惯与环境，不搬运个人文件。[D-031、E-020]
+负责人明确授权完成 P0-001 至 P0-015 的正式实现和验收，包括鼠标/触控板、白名单软件与轻量开发环境、个人 Wi‑Fi、报告导出、更新检查、bundle 安装包和发布流程。生产软件只允许官方来源、可验证签名/哈希和用户确认；普通用户不依赖 Homebrew，需使用时必须单独解释并确认。[D-032、E-021]
 
-负责人明确不授权 Wi‑Fi 或密码、全局 Ctrl/Command 交换、第三方工具静默安装、软件自动安装、Homebrew、真实秘密、个人文件、更新、签名/公证、公开 Release；不绕过 Karabiner 或 macOS 权限。浏览器与软件只做白名单检测和官方入口提示。[D-031、E-020]
+明确非目标：个人文件、浏览器书签/历史/密码/Cookie/登录状态、账号、Token、SSH 私钥、环境变量秘密、项目代码、聊天记录、全局 Ctrl/Command 交换、企业/证书 Wi‑Fi、绕过 UAC/TCC/SIP/Gatekeeper/SmartScreen、未签名正式分发。Wi‑Fi 密码仅在安全不变量和负责人确认同时满足时实现，否则集中停在决策门。[D-032、E-021]
+
+签名凭据、真实四平台设备、UAC/TCC/Karabiner 系统弹窗和公开 Release 最终确认是集中人类门槛；先完成所有不受影响的代码、测试、文档、CI 和草稿 Release，不伪造或绕过安全提示。
 
 主控可见可用额度低于 20% 时停止派发新任务并保留目标；这是执行门禁，不是产品功能状态，不得用 `goal complete` 或 `blocked` 伪装暂停。[D-030、E-019]
 

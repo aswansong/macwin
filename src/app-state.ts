@@ -13,6 +13,7 @@ export const initialState = (webPreview: boolean): AppState => ({
   webPreview,
   selection: {
     include_keyboard: true,
+    include_pointer: true,
     software_ids: [],
     guide_requested: true,
   },
@@ -53,6 +54,7 @@ export function statusLabel(status: string): string {
     skipped_permission: "已跳过（权限）",
     unknown_requires_review: "状态未知，需要检查",
     unchanged: "未更改",
+    skipped: "已跳过（按计划）",
   };
   return labels[status] ?? "需要检查";
 }

@@ -46,6 +46,12 @@ pub struct KeyboardEvidence {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, DeriveDeserialize)]
+pub struct PointerEvidence {
+    pub mouse_direction: Option<String>,
+    pub trackpad_direction: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, DeriveDeserialize)]
 pub struct SoftwareEvidence {
     pub id: String,
     pub name: String,
@@ -59,6 +65,7 @@ pub struct ImportedPackage {
     pub created_at: String,
     pub source_os: String,
     pub keyboard: Option<KeyboardEvidence>,
+    pub pointer: Option<PointerEvidence>,
     pub software: Vec<SoftwareEvidence>,
     pub guide_requested: bool,
     pub contains_secrets: bool,
@@ -738,12 +745,25 @@ fn parse_keyboard_label(label: &str) -> Option<KeyboardEvidence> {
     })
 }
 
+fn parse_pointer_parameters(parameters: &Map<String, Value>) -> Result<(String, String)> {
+    closed(parameters, &["device", "scroll_direction"])?;
+    let device = string(required(parameters, "device")?)?;
+    let direction = string(required(parameters, "scroll_direction")?)?;
+    if !["mouse", "trackpad"].contains(&device) || !["natural", "windows_style"].contains(&direction) {
+        return Err(error("HP_SCHEMA"));
+    }
+    Ok((device.to_owned(), direction.to_owned()))
+}
+
 fn parse_software_label(label: &str, fallback_id: &str) -> SoftwareEvidence {
     let mut id = fallback_id.to_owned();
     let mut name = fallback_id.to_owned();
     let mut version = None;
     let mut is_default_browser = false;
-    if let Some(rest) = label.strip_prefix("alpha.software:") {
+    if let Some(rest) = label
+        .strip_prefix("v1.software:")
+        .or_else(|| label.strip_prefix("alpha.software:"))
+    {
         for part in rest.split(';') {
             if let Some((key, value)) = part.split_once('=') {
                 match key {
@@ -761,9 +781,22 @@ fn parse_software_label(label: &str, fallback_id: &str) -> SoftwareEvidence {
         }
     }
     let official_url = match id.as_str() {
+        "edge" => "https://www.microsoft.com/edge",
         "chrome" => "https://www.google.com/chrome/",
         "firefox" => "https://www.mozilla.org/firefox/",
+        "microsoft365" => "https://www.microsoft.com/microsoft-365",
+        "wps" => "https://www.wps.com/",
         "libreoffice" => "https://www.libreoffice.org/",
+        "vscode" => "https://code.visualstudio.com/",
+        "git" => "https://git-scm.com/",
+        "github-cli" => "https://cli.github.com/",
+        "node" => "https://nodejs.org/",
+        "python" => "https://www.python.org/",
+        "uv" => "https://docs.astral.sh/uv/",
+        "jupyter" => "https://jupyter.org/",
+        "ruff" => "https://docs.astral.sh/ruff/",
+        "codex-cli" => "https://github.com/openai/codex",
+        "claude-code" => "https://docs.anthropic.com/en/docs/claude-code",
         _ => "",
     };
     SoftwareEvidence {
@@ -853,8 +886,7 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
         return Err(error("HP_MANIFEST_FILE_MISMATCH"));
     }
     if payloads.keys().any(|path| {
-        path == "modules/pointer.json"
-            || path == "modules/developer.json"
+        path == "modules/developer.json"
             || path == "modules/wifi.json"
             || path.starts_with("secrets/")
     }) {
@@ -913,6 +945,8 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
     }
     let mut candidates = HashSet::new();
     let mut keyboard = None;
+    let mut pointer_mouse = None;
+    let mut pointer_trackpad = None;
     let mut software = Vec::new();
     for module in ["keyboard", "pointer", "software", "developer", "wifi"] {
         let path = format!("modules/{module}.json");
@@ -950,6 +984,7 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
                     | ("keyboard", "fixture.keyboard.external_windows")
                     | ("pointer", "fixture.pointer.scroll")
                     | ("software", "fixture.software.browser")
+                    | ("software", "fixture.software.application")
                     | ("developer", "fixture.developer.lightweight")
                     | ("wifi", "fixture.wifi.personal")
             );
@@ -972,6 +1007,14 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
                         keyboard = Some(evidence);
                     }
                 }
+                "pointer" => {
+                    let (device, direction) = parse_pointer_parameters(params)?;
+                    if device == "mouse" {
+                        pointer_mouse = Some(direction);
+                    } else {
+                        pointer_trackpad = Some(direction);
+                    }
+                }
                 "software" => {
                     if !params
                         .keys()
@@ -981,7 +1024,13 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
                         return Err(error("HP_SCHEMA"));
                     }
                     let id = string(required(params, "software_id")?)?;
-                    if !["chrome", "firefox", "libreoffice"].contains(&id) {
+                    if ![
+                        "edge", "chrome", "firefox", "microsoft365", "wps", "libreoffice",
+                        "vscode", "git", "github-cli", "node", "python", "uv", "jupyter",
+                        "ruff", "codex-cli", "claude-code",
+                    ]
+                    .contains(&id)
+                    {
                         return Err(error("HP_SCHEMA"));
                     }
                     let evidence = parse_software_label(&label, id);
@@ -1015,6 +1064,11 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
         created_at,
         source_os,
         keyboard,
+        pointer: if pointer_mouse.is_some() || pointer_trackpad.is_some() {
+            Some(PointerEvidence { mouse_direction: pointer_mouse, trackpad_direction: pointer_trackpad })
+        } else {
+            None
+        },
         software,
         guide_requested,
         contains_secrets,
@@ -1035,6 +1089,7 @@ pub fn parse_file(path: impl AsRef<Path>) -> Result<ImportedPackage> {
 pub struct PackageInput {
     pub source_os: String,
     pub keyboard: Option<KeyboardEvidence>,
+    pub pointer: Option<PointerEvidence>,
     pub software: Vec<SoftwareEvidence>,
     pub guide_requested: bool,
 }
@@ -1154,37 +1209,82 @@ fn build_entries(input: &PackageInput) -> Result<PackageEntries> {
         );
         selected.push("keyboard.1".to_owned());
     }
-    for (index, software) in input.software.iter().enumerate() {
-        if !["chrome", "firefox", "libreoffice"].contains(&software.id.as_str()) {
-            continue;
+    if let Some(pointer) = &input.pointer {
+        let mut candidates = Vec::new();
+        for (index, (device, direction)) in [
+            ("mouse", pointer.mouse_direction.as_deref()),
+            ("trackpad", pointer.trackpad_direction.as_deref()),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let Some(direction) = direction else { continue };
+            let label = format!("v1.pointer:device={device};direction={direction}");
+            candidates.push(Candidate {
+                candidate_id: format!("pointer.{}", index + 1),
+                rule_id: "fixture.pointer.scroll",
+                rule_version: SCHEMA_VERSION,
+                source: CandidateSource { kind: "fixture_detected", label },
+                status: "detected",
+                exclusion_reason: None,
+                parameters: serde_json::json!({"device": device, "scroll_direction": direction}),
+            });
+            selected.push(format!("pointer.{}", index + 1));
         }
-        let label = format!(
-            "alpha.software:id={};name={};version={};default={}",
-            software.id,
-            software.name,
-            software.version.clone().unwrap_or_default(),
-            if software.is_default_browser { 1 } else { 0 }
-        );
-        let candidate = Candidate {
-            candidate_id: format!("software.{}", index + 1),
-            rule_id: "fixture.software.browser",
-            rule_version: SCHEMA_VERSION,
-            source: CandidateSource {
-                kind: "fixture_detected",
-                label,
-            },
-            status: "detected",
-            exclusion_reason: None,
-            parameters: serde_json::json!({"software_id":software.id,"confirmation_stage":"mac_plan"}),
-        };
+        if !candidates.is_empty() {
+            entries.insert(
+                "modules/pointer.json".to_owned(),
+                json_bytes(&Module { schema_version: SCHEMA_VERSION, module: "pointer", candidates })?,
+            );
+        }
+    }
+    let software_candidates = input
+        .software
+        .iter()
+        .enumerate()
+        .filter(|(_, software)| {
+            [
+                "edge", "chrome", "firefox", "microsoft365", "wps", "libreoffice", "vscode",
+                "git", "github-cli", "node", "python", "uv", "jupyter", "ruff", "codex-cli",
+                "claude-code",
+            ]
+            .contains(&software.id.as_str())
+        })
+        .map(|(index, software)| {
+            let label = format!(
+                "v1.software:id={};name={};version={};default={}",
+                software.id,
+                software.name,
+                software.version.clone().unwrap_or_default(),
+                if software.is_default_browser { 1 } else { 0 }
+            );
+            let rule_id = if ["edge", "chrome", "firefox", "microsoft365", "wps", "libreoffice"]
+                .contains(&software.id.as_str())
+            {
+                "fixture.software.browser"
+            } else {
+                "fixture.software.application"
+            };
+            let candidate_id = format!("software.{}", index + 1);
+            selected.push(candidate_id.clone());
+            Candidate {
+                candidate_id,
+                rule_id,
+                rule_version: SCHEMA_VERSION,
+                source: CandidateSource { kind: "fixture_detected", label },
+                status: "detected",
+                exclusion_reason: None,
+                parameters: serde_json::json!({"software_id":software.id,"confirmation_stage":"mac_plan"}),
+            }
+        })
+        .collect::<Vec<_>>();
+    if !software_candidates.is_empty() {
         let document = Module {
             schema_version: SCHEMA_VERSION,
             module: "software",
-            candidates: vec![candidate],
+            candidates: software_candidates,
         };
         entries.insert("modules/software.json".to_owned(), json_bytes(&document)?);
-        selected.push(format!("software.{}", index + 1));
-        break;
     }
     entries.insert(
         "selections.json".to_owned(),
@@ -1295,8 +1395,8 @@ pub fn build_package(input: PackageInput) -> Result<(Vec<u8>, PackageReceipt)> {
         schema_version: SCHEMA_VERSION,
         created_at: &created_at,
         created_by: CreatedBy {
-            app_version: "0.1.0-alpha.1",
-            ruleset_version: "fixture.m1-alpha.1",
+            app_version: env!("CARGO_PKG_VERSION"),
+            ruleset_version: "macwin.v1.0.0",
         },
         source: Source {
             os_family: "windows",
@@ -1320,6 +1420,9 @@ pub fn build_package(input: PackageInput) -> Result<(Vec<u8>, PackageReceipt)> {
     if !parsed.software.is_empty() {
         modules.push("software".to_owned());
     }
+    if parsed.pointer.is_some() {
+        modules.push("pointer".to_owned());
+    }
     Ok((
         bytes.clone(),
         PackageReceipt {
@@ -1332,7 +1435,33 @@ pub fn build_package(input: PackageInput) -> Result<(Vec<u8>, PackageReceipt)> {
 
 pub fn write_package(path: impl AsRef<Path>, input: PackageInput) -> Result<PackageReceipt> {
     let (bytes, receipt) = build_package(input)?;
-    std::fs::write(path, &bytes).map_err(|_| error("HP_EXPORT_WRITE"))?;
+    let path = path.as_ref();
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    std::fs::create_dir_all(parent).map_err(|_| error("HP_EXPORT_WRITE"))?;
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| error("HP_EXPORT_WRITE"))?;
+    let temp_path = parent.join(format!(".{file_name}.{}.tmp", std::process::id()));
+    let write_result = (|| {
+        use std::io::Write;
+        let mut file = std::fs::OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&temp_path)
+            .map_err(|_| error("HP_EXPORT_WRITE"))?;
+        file.write_all(&bytes).map_err(|_| error("HP_EXPORT_WRITE"))?;
+        file.sync_all().map_err(|_| error("HP_EXPORT_WRITE"))?;
+        drop(file);
+        let on_disk = std::fs::read(&temp_path).map_err(|_| error("HP_EXPORT_WRITE"))?;
+        parse_bytes(&on_disk)?;
+        std::fs::rename(&temp_path, path).map_err(|_| error("HP_EXPORT_WRITE"))?;
+        Ok::<(), HabitpackError>(())
+    })();
+    if let Err(error) = write_result {
+        let _ = std::fs::remove_file(&temp_path);
+        return Err(error);
+    }
     Ok(receipt)
 }
 
@@ -1348,6 +1477,7 @@ mod tests {
                 delay: 1,
                 layouts: vec!["00000804".to_owned()],
             }),
+            pointer: None,
             software: vec![],
             guide_requested: true,
         })
@@ -1358,10 +1488,34 @@ mod tests {
         assert!(!parsed.contains_secrets);
     }
     #[test]
+    fn pointer_roundtrip_is_explicit_and_atomic() {
+        let directory = tempfile::tempdir().expect("temp");
+        let path = directory.path().join("move.habitpack");
+        let receipt = write_package(
+            &path,
+            PackageInput {
+                source_os: "11".to_owned(),
+                keyboard: None,
+                pointer: Some(PointerEvidence {
+                    mouse_direction: Some("windows_style".to_owned()),
+                    trackpad_direction: Some("natural".to_owned()),
+                }),
+                software: vec![],
+                guide_requested: false,
+            },
+        )
+        .expect("write");
+        assert!(receipt.modules.iter().any(|module| module == "pointer"));
+        let parsed = parse_file(&path).expect("parse on disk");
+        assert_eq!(parsed.pointer.unwrap().trackpad_direction.as_deref(), Some("natural"));
+        assert!(!directory.path().join(".move.habitpack.tmp").exists());
+    }
+    #[test]
     fn rejects_command_fields_and_trailing_bytes() {
         let (bytes, _) = build_package(PackageInput {
             source_os: "10".to_owned(),
             keyboard: None,
+            pointer: None,
             software: vec![],
             guide_requested: false,
         })

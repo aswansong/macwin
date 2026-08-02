@@ -2,10 +2,10 @@
   "schema_version": "1.0.0",
   "product": "MacWin",
   "direction": "windows_to_macos",
-  "current_milestone": "Alpha-0.2-keyboard-compatibility",
-  "milestone_status": "alpha_local_validation_active",
+  "current_milestone": "v1.0.0-release",
+  "milestone_status": "v1_release_in_progress",
   "prototype_authorized": true,
-  "production_implementation_authorized": false,
+  "production_implementation_authorized": true,
   "system_changes_authorized": true,
   "last_updated": "2026-08-02",
   "wave0_authorization": {
@@ -45,6 +45,19 @@
     "merge_main": false,
     "release": false
   },
+  "release_authorization": {
+    "production_p0": true,
+    "bundle": true,
+    "windows_x64_installer": true,
+    "macos_arm64_installer": true,
+    "update_check": true,
+    "signed_release_required": true,
+    "apple_notarization_required": true,
+    "pr_merge_main": true,
+    "tag_and_release": true,
+    "real_devices_required": true,
+    "human_signing_gate": true
+  },
   "milestone_evidence": {
     "prototype": {
       "commit": "37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75",
@@ -65,6 +78,12 @@
       "scope": "real_mac_keyboard_compatibility_without_wifi_secrets_or_installers",
       "decision_ref": "D-031",
       "evidence_ref": "E-020"
+    },
+    "release": {
+      "branch": "release/v1.0.0",
+      "scope": "production_p0_and_release_preparation_in_progress",
+      "decision_ref": "D-032",
+      "evidence_ref": "E-021"
     }
   },
   "status_definitions": {
@@ -179,7 +198,7 @@
       "id": "P0-004",
       "name": ".habitpack 生成与安全校验",
       "priority": "P0",
-      "status": "implemented",
+      "status": "specified",
       "owner": "core-format",
       "decision_refs": ["D-009", "D-019", "D-027"],
       "evidence_refs": ["E-002", "E-015", "E-019"],
@@ -294,7 +313,7 @@
       "id": "P0-007",
       "name": "选择性 Ctrl 与键盘兼容",
       "priority": "P0",
-      "status": "specified",
+      "status": "implemented",
       "owner": "keyboard-module",
       "decision_refs": ["D-007", "D-011", "D-027"],
       "evidence_refs": ["E-001", "E-002"],
@@ -569,7 +588,7 @@
       "id": "P0-014",
       "name": "迁移后主页、更新与错误入口",
       "priority": "P0",
-      "status": "implemented",
+      "status": "specified",
       "owner": "product-ui",
       "decision_refs": ["D-008", "D-012", "D-015", "D-016"],
       "evidence_refs": ["E-015", "E-019"],

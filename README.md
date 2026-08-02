@@ -4,18 +4,19 @@
 
 MacWin 是一个面向 Windows 迁移用户的本地桌面工具。它计划读取经过用户允许的 Windows 使用习惯，生成 `.habitpack` 迁移包，并在 Apple 芯片 Mac 上把这些习惯转换为安全、可解释、可回滚的配置。
 
-> 当前状态：**Alpha 0.2 真实 Mac 闭环**。本分支用于明确知情的本地测试，验证真实 Mac 偏好、选择性 Ctrl 兼容、非破坏 Karabiner 合并、恢复与设备自检；不等于签名发布。[D-031、E-020]
+> 当前状态：**v1.0.0 release 分支开发中**。本分支正在把 Alpha 0.2 的真实 Mac 闭环推进为可签名、可验证的 Windows → Mac 产品；当前构建仍不是面向普通用户的正式发布，签名、公证和真实四设备矩阵尚未完成。[D-032、E-021]
 
 ## 第一版范围
 
 - 来源：Windows 10/11 x64
 - 目标：Apple 芯片 Mac，macOS 15/26
-- 迁移：白名单键盘重复习惯、浏览器/软件白名单检测、Finder 扩展名偏好、个性化使用指南
+- 迁移：白名单键盘重复习惯、选择性 Ctrl、鼠标/触控板滚动方向、浏览器与开发软件白名单检测、Finder 扩展名偏好、个性化使用指南
 - 不迁移：个人文件、浏览器历史/密码/Cookie、账号会话、完整系统、企业受管理配置
-- Alpha 暂不实现：Wi‑Fi/密码、全局 Ctrl/Command 交换、第三方工具或 Homebrew 静默安装、软件自动安装、真实秘密、更新和签名分发
+- 尚在验证或需要发布门槛：Wi‑Fi 密码安全链路、可信软件自动安装、第三方工具授权、签名更新、公证和正式 Release
+- 明确不做：全局 Ctrl/Command 交换、个人文件、浏览器历史/密码/Cookie、账号会话、项目代码和任何迁移包内命令
 - 运行原则：核心能力本地、离线、无账号、无大模型
 
-## Alpha 运行
+## 开发运行
 
 ### 开发依赖
 
@@ -52,9 +53,9 @@ cargo test --manifest-path src-tauri/Cargo.toml --locked
 npm run tauri build -- --no-bundle
 ```
 
-Windows 端在扫描页使用普通权限读取白名单注册表、键盘布局和重复速率；导出包后将 `.habitpack` 以用户自选方式带到 Mac。Mac 端导入后必须先确认计划，才会按固定规则写入 Finder 扩展名、键盘重复速率和选择性 Ctrl 规则。Karabiner-Elements 不由 MacWin 静默安装；缺失或授权未就绪时降级为官方入口。任何模块失败都单独记录，恢复使用迁移前的一份快照。
+Windows 端在扫描页使用普通权限读取白名单注册表、键盘布局、重复速率和滚动习惯；导出包后将 `.habitpack` 以用户自选方式带到 Mac。Mac 端导入后必须先确认计划，后端令牌会锁定用户勾选的模块，才会按固定规则写入 Finder 扩展名、键盘重复速率、选择性 Ctrl 和可安全支持的滚动方向。Karabiner-Elements 与 LinearMouse 不由 MacWin 静默安装；缺失或授权未就绪时降级为官方入口。任何模块失败都单独记录，恢复使用迁移前的一份快照。
 
-Alpha 明确不会执行迁移包中的命令、脚本或路径；不会上传扫描数据。软件条目只提供匹配和官方入口提示，不自动下载或安装。
+MacWin 明确不会执行迁移包中的命令、脚本或路径；不会上传扫描数据。软件条目只接受固定白名单和官方入口，无法在当前版本完成签名/哈希验证的安装会明确降级为手动入口。报告可在本地导出 HTML 或脱敏 JSON。
 
 ## 文档入口
 
@@ -67,14 +68,15 @@ Alpha 明确不会执行迁移包中的命令、脚本或路径；不会上传�
 - [冻结原型结论](docs/product/prototype-conclusions.md)
 - [Alpha 0.1 验证记录](docs/product/alpha-0.1-validation.md)
 - [Alpha 0.2 验证记录](docs/product/alpha-0.2-validation.md)
+- [v1 验证矩阵](docs/product/v1-validation.md)
 - [仓库协作规则](AGENTS.md)
 - [安全政策](SECURITY.md)
 
 ## 当前里程碑
 
-交互原型已冻结在独立分支 `prototype/ui-flow-v2-hardening` 的提交 `37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75`；`.habitpack` 的 M1 `1.0.0` 严格验证档案已完成。当前 Alpha 实现在 `alpha/v0.2-keyboard-compatibility`，不得合入 `main`、创建 Release 或被当作签名产品。[D-028、D-031、E-020]
+交互原型已冻结在独立分支 `prototype/ui-flow-v2-hardening`；当前生产推进分支为 `release/v1.0.0`，起点为 Alpha 0.2 提交 `26bd7fbc4a74ecfc8999e638c7e179068de00f59`。在签名、公证、真实设备矩阵和负责人最终确认完成前，不得把本分支构建称为正式 Release。[D-032、E-021]
 
-M1 格式资产使用精确的 `1.0.0` 验证档案。开发者可运行 `./scripts/validate-m1` 校验 schema、虚构夹具、仓库 JSON、文档引用、依赖图和 Alpha 授权边界；首次运行需要联网安装锁定的开发验证依赖。这不是产品运行命令或公开兼容性承诺。
+M1 格式资产使用精确的 `1.0.0` 验证档案。开发者可运行 `./scripts/validate-m1` 校验 schema、虚构夹具、仓库 JSON、文档引用、依赖图和当前 v1 授权边界；首次运行需要联网安装锁定的开发验证依赖。这不是产品运行命令或公开兼容性承诺。
 
 ## 名称
 

@@ -5,7 +5,7 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-const SNAPSHOT_VERSION: &str = "alpha-0.1";
+const SNAPSHOT_VERSION: &str = "v1.0.0";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Snapshot {
@@ -23,6 +23,10 @@ pub struct TargetPreferencesWire {
     pub key_repeat: i64,
     pub initial_key_repeat_existed: bool,
     pub initial_key_repeat: i64,
+    #[serde(default)]
+    pub pointer_scroll_existed: bool,
+    #[serde(default)]
+    pub pointer_scroll_reversed: bool,
 }
 
 impl From<TargetPreferences> for TargetPreferencesWire {
@@ -34,6 +38,8 @@ impl From<TargetPreferences> for TargetPreferencesWire {
             key_repeat: value.key_repeat,
             initial_key_repeat_existed: value.initial_key_repeat_existed,
             initial_key_repeat: value.initial_key_repeat,
+            pointer_scroll_existed: value.pointer_scroll_existed,
+            pointer_scroll_reversed: value.pointer_scroll_reversed,
         }
     }
 }
@@ -47,6 +53,8 @@ impl From<TargetPreferencesWire> for TargetPreferences {
             key_repeat: value.key_repeat,
             initial_key_repeat_existed: value.initial_key_repeat_existed,
             initial_key_repeat: value.initial_key_repeat,
+            pointer_scroll_existed: value.pointer_scroll_existed,
+            pointer_scroll_reversed: value.pointer_scroll_reversed,
         }
     }
 }
@@ -61,7 +69,7 @@ impl SnapshotStore {
         Self { base: base.into() }
     }
     pub fn path(&self) -> PathBuf {
-        self.base.join("macwin-alpha-snapshot.json")
+        self.base.join("macwin-snapshot.json")
     }
 
     pub fn save(
@@ -83,7 +91,7 @@ impl SnapshotStore {
         };
         let bytes =
             serde_json::to_vec_pretty(&snapshot).map_err(|_| "SNAPSHOT_SERIALIZE".to_owned())?;
-        let temp = self.base.join(".macwin-alpha-snapshot.tmp");
+        let temp = self.base.join(".macwin-snapshot.tmp");
         let mut file = OpenOptions::new()
             .create(true)
             .truncate(true)
@@ -101,6 +109,17 @@ impl SnapshotStore {
             let _ = fs::set_permissions(self.path(), fs::Permissions::from_mode(0o600));
         }
         Ok(snapshot)
+    }
+
+    pub fn ensure(
+        &self,
+        preferences: TargetPreferences,
+        created_at: String,
+    ) -> Result<Snapshot, String> {
+        if let Some(existing) = self.load()? {
+            return Ok(existing);
+        }
+        self.save(preferences, created_at)
     }
 
     pub fn load(&self) -> Result<Option<Snapshot>, String> {
@@ -148,6 +167,8 @@ mod tests {
             key_repeat: 6,
             initial_key_repeat_existed: true,
             initial_key_repeat: 30,
+            pointer_scroll_existed: true,
+            pointer_scroll_reversed: false,
         };
         let _ = store
             .save(preferences.clone(), "2026-08-02T00:00:00Z".to_owned())
@@ -173,6 +194,8 @@ mod tests {
                     key_repeat: 6,
                     initial_key_repeat_existed: true,
                     initial_key_repeat: 30,
+                    pointer_scroll_existed: true,
+                    pointer_scroll_reversed: false,
                 },
                 "2026-08-02T00:00:00Z".to_owned(),
             )

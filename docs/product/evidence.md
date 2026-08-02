@@ -153,3 +153,18 @@
 - 负责人确认在独立分支 `alpha/v0.2-keyboard-compatibility` 继续研究型 M2 Wave 0，允许真实 Apple 芯片 Mac 偏好闭环、内置/外接键盘检测、选择性 Ctrl 白名单、Karabiner 非破坏规则合并、按模块恢复、本地自检和 CI 构建产物。
 - 仍保持本地离线、无账号、默认零上传；不搬个人文件，不处理 Wi‑Fi/密码，不静默安装第三方工具，不做全局 Ctrl/Command 交换，不创建 Release 或合并 `main`。
 - Alpha 0.2 的“真实”结论仅针对实际运行过的 Apple 芯片 Mac 与固定 macOS 版本；未测试的设备和应用矩阵不得宣称通过。
+
+### E-021：负责人授权 v1.0.0 正式实现与发布准备
+
+- 类型：负责人确认、执行授权
+- 摘要：负责人授权 MacWin 从 Alpha 0.2 持续推进到 v1.0.0 正式成品。授权覆盖剩余 P0 的真实实现、生产依赖审查、Tauri bundle、Windows x64 与 Apple Silicon macOS 安装包、CI 草稿 Release、PR、合并 `main`、标签和 GitHub Release；正式 Release 必须可信签名，macOS 必须完成 Developer ID 签名、公证和 stapling。
+- 边界：仍不搬运个人文件、浏览器书签/历史/密码/Cookie/登录状态、账号、Token、SSH 私钥、项目代码或聊天记录；不绕过 UAC/TCC/SIP/Gatekeeper/SmartScreen。Wi‑Fi 密码、第三方工具安装、更新签名和 `.habitpack` major 兼容必须满足各自安全不变量并经过对应决策门。签名凭据、真实四平台设备、系统弹窗和公开 Release 最终确认是集中人类门槛。
+- 关联决定：D-032
+
+### E-022：M2 Wave 0 v1 安全研究进展
+
+- 类型：技术研究、官方文档核对
+- 摘要：Windows `WlanGetProfile` 的明文 key 读取需要显式的 plaintext-key 标志和受保护的 WLAN 读取权限；默认通常只允许管理员。Apple `NEHotspotConfiguration` 能配置 WPA/WPA2 Personal 的 SSID/口令，但需要相应网络能力与 entitlement；它不是“读取旧密码”的接口。LinearMouse 官方说明确认其需要 Accessibility 权限，并且是独立的常驻鼠标/触控板工具。
+- 产品含义：Wi‑Fi 密码链路必须继续停在 OD-005 决策门，不能用命令行回显、剪贴板或未验证的跨平台配置文件冒充安全实现；鼠标/触控板独立方向在原生接口不足时必须明确降级并要求官方工具授权。当前实现已采用这两个安全降级原则。
+- 参考： [Microsoft WlanGetProfile](https://learn.microsoft.com/en-us/windows/win32/api/wlanapi/nf-wlanapi-wlangetprofile)、[Apple NEHotspotConfiguration](https://developer.apple.com/documentation/networkextension/nehotspotconfiguration)、[LinearMouse 辅助功能说明](https://github.com/linearmouse/linearmouse/blob/main/ACCESSIBILITY.md)
+- 关联决定：D-019、D-032、OD-005、OD-007

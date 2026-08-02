@@ -1,4 +1,4 @@
-//! Selective Ctrl compatibility for MacWin Alpha 0.2.
+//! Selective Ctrl compatibility for MacWin v1.
 //!
 //! This module deliberately owns a tiny, fixed rule set.  It never accepts
 //! commands, paths, conditions, or arbitrary JSON from a migration package.
@@ -31,13 +31,13 @@ pub const EXCEPTION_BUNDLES: &[&str] = &[
     "com.parallels.desktop.console",
     "com.vmware.fusion",
     "com.utmapp.UTM",
-    // VS Code is excluded as a whole in Alpha: the integrated terminal is
+    // VS Code is excluded as a whole in v1: the integrated terminal is
     // not exposed as a separate frontmost bundle by Karabiner.
     "com.microsoft.VSCode",
 ];
 
-const INTERNAL_DESCRIPTION: &str = "MacWin Alpha 0.2 · Ctrl 兼容 · 内置键盘";
-const EXTERNAL_DESCRIPTION: &str = "MacWin Alpha 0.2 · Ctrl 兼容 · 外接键盘";
+const INTERNAL_DESCRIPTION: &str = "MacWin v1 · Ctrl 兼容 · 内置键盘";
+const EXTERNAL_DESCRIPTION: &str = "MacWin v1 · Ctrl 兼容 · 外接键盘";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct KeyboardDevice {
@@ -96,7 +96,7 @@ pub fn plan_for_target() -> KeyboardCompatibilityPlan {
         shortcuts: SHORTCUTS.iter().map(|value| format!("Ctrl+{} → Command+{}", value.to_uppercase(), value.to_uppercase())).collect(),
         exceptions: EXCEPTION_BUNDLES.iter().map(|value| (*value).to_owned()).collect(),
         karabiner: detect_status(),
-        recovery: "恢复时只移除 MacWin Alpha 0.2 自己的规则，不覆盖你的其他 Karabiner 规则".to_owned(),
+        recovery: "恢复时只移除 MacWin v1 自己的规则，不覆盖你的其他 Karabiner 规则".to_owned(),
     }
 }
 
@@ -160,7 +160,7 @@ pub fn remove(_preferences: &TargetPreferences) -> Result<ApplyReport, PlatformE
         if managed_descriptions().iter().any(|description| has_managed_description(&verified, description)) {
             return Err(PlatformError::Read("KARABINER_VERIFY"));
         }
-        Ok(ApplyReport { status: "rolled_back_verified".to_owned(), detail: "只移除了 MacWin Alpha 0.2 规则".to_owned() })
+        Ok(ApplyReport { status: "rolled_back_verified".to_owned(), detail: "只移除了 MacWin v1 规则".to_owned() })
     }
     #[cfg(not(target_os = "macos"))]
     {

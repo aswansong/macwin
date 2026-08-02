@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.m1.fixtures import MATRIX, _json, _manifest, _write_zip, build_fixture, package_source
-from tools.m1.repo_checks import WAVE0_AUTHORIZATION, ROOT, feature_checks, json_checks, markdown_checks, traceability_checks
+from tools.m1.repo_checks import RELEASE_AUTHORIZATION, WAVE0_AUTHORIZATION, ROOT, feature_checks, json_checks, markdown_checks, traceability_checks
 from tools.m1.validator import MAX_JSON, MAX_JSON_INTEGER_DIGITS, MAX_JSON_NESTING, MAX_MANIFEST, MAX_SECRET, HabitpackError, _load_schemas, _schema_validate, _validate_deflate_stream, strict_json, validate_habitpack
 
 
@@ -468,14 +468,14 @@ class M1ValidatorTests(unittest.TestCase):
             with self.assertRaisesRegex(AssertionError, message):
                 feature_checks(root)
 
-    def test_alpha_governance_rejects_invalid_authorization_combinations(self) -> None:
+    def test_release_governance_rejects_invalid_authorization_combinations(self) -> None:
         self._assert_feature_policy_rejected(
-            lambda data: data.__setitem__("production_implementation_authorized", True),
-            "production implementation must remain unauthorized",
+            lambda data: data.__setitem__("production_implementation_authorized", False),
+            "production implementation authorization is required",
         )
         self._assert_feature_policy_rejected(
             lambda data: data.__setitem__("system_changes_authorized", False),
-            "Alpha system-change authorization is required",
+            "v1 system-change authorization is required",
         )
         self._assert_feature_policy_rejected(
             lambda data: data["features"][0].__setitem__("status", "verified"),
@@ -507,6 +507,12 @@ class M1ValidatorTests(unittest.TestCase):
                     lambda data, field=field: data["alpha_authorization"].__setitem__(field, True),
                     f"alpha authorization mismatch: {field}",
                 )
+        for field in RELEASE_AUTHORIZATION:
+            with self.subTest(release_forbidden=field):
+                self._assert_feature_policy_rejected(
+                    lambda data, field=field: data["release_authorization"].__setitem__(field, False),
+                    f"release authorization mismatch: {field}",
+                )
 
     def test_governance_rejects_unknown_closed_set_keys(self) -> None:
         for value in (True, False):
@@ -525,7 +531,7 @@ class M1ValidatorTests(unittest.TestCase):
                     lambda data, value=value: data["milestone_evidence"].__setitem__("unknown", value),
                     "milestone evidence has unknown keys",
                 )
-        for child in ("prototype", "format", "wave0"):
+        for child in ("prototype", "format", "wave0", "release"):
             with self.subTest(location=f"milestone_evidence.{child}"):
                 self._assert_feature_policy_rejected(
                     lambda data, child=child: data["milestone_evidence"][child].__setitem__("unknown", True),

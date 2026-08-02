@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canNavigate, initialState, progressFor, setView, statusLabel } from "./app-state";
 
-describe("Alpha flow guards", () => {
+describe("v1 flow guards", () => {
   it("does not allow bypassing the migration plan", () => {
     const state = initialState(false);
     expect(canNavigate(state, "complete")).toBe(false);

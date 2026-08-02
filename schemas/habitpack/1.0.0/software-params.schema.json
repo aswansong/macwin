@@ -9,9 +9,22 @@
   "properties": {
     "software_id": {
       "enum": [
+        "edge",
         "chrome",
         "firefox",
-        "libreoffice"
+        "microsoft365",
+        "wps",
+        "libreoffice",
+        "vscode",
+        "git",
+        "github-cli",
+        "node",
+        "python",
+        "uv",
+        "jupyter",
+        "ruff",
+        "codex-cli",
+        "claude-code"
       ]
     },
     "confirmation_stage": {

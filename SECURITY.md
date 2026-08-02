@@ -16,4 +16,4 @@ MacWin 计划处理系统偏好，并可在用户明确选择时迁移 Wi‑Fi �
 
 ## 当前状态
 
-仓库当前包含 `alpha/v0.1-vertical-slice` 的未签名本地 Alpha。它只处理白名单习惯与环境，明确不处理 Wi‑Fi/密码、真实秘密、个人文件、第三方安装或更新；请勿把 Alpha 用于生产设备或公开分发。安全承诺、威胁模型和验收要求记录在 [隐私与安全规格](docs/product/specs/privacy-security.md) 中。[D-030、E-019]
+仓库当前处于 `release/v1.0.0` 开发阶段，包含 Alpha 0.2 的历史验证和未签名的开发构建。正式 Release 必须完成可信签名、Apple 公证/stapling、更新公钥注入和真实设备矩阵；在此之前请勿把构建用于普通用户分发。安全承诺、威胁模型和验收要求记录在 [隐私与安全规格](docs/product/specs/privacy-security.md) 与 [v1 验证矩阵](docs/product/v1-validation.md) 中。[D-032、E-021]

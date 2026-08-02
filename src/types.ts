@@ -18,6 +18,10 @@ export interface SoftwareFinding {
   mac_name: string;
   official_url: string;
   export_supported: boolean;
+  category: string;
+  install_mode: string;
+  requires_homebrew: boolean;
+  version_policy: string;
 }
 
 export interface WindowsScan {
@@ -28,11 +32,14 @@ export interface WindowsScan {
   keyboard_layouts: string[];
   keyboard_repeat_speed: number;
   keyboard_repeat_delay: number;
+  mouse_scroll_direction: "natural" | "windows_style" | string;
+  trackpad_scroll_direction: "natural" | "windows_style" | string;
   scanned_at: string;
 }
 
 export interface ExportSelection {
   include_keyboard: boolean;
+  include_pointer: boolean;
   software_ids: string[];
   guide_requested: boolean;
 }
@@ -46,7 +53,7 @@ export interface ExportReceipt {
 }
 
 export interface PlanItem {
-  module_id: "finder_extensions" | "keyboard_repeat" | "keyboard_compatibility";
+  module_id: "finder_extensions" | "keyboard_repeat" | "keyboard_compatibility" | "pointer_scroll";
   title: string;
   current_value: string;
   target_value: string;
@@ -66,6 +73,23 @@ export interface ImportPlan {
   guide_requested: boolean;
   contains_secrets: boolean;
   keyboard_compatibility: KeyboardCompatibilityPlan;
+  confirmation_token: string;
+  pointer: PointerEvidence | null;
+  pointer_support: PointerSupport;
+  selected_module_ids: string[];
+}
+
+export interface PointerEvidence {
+  mouse_direction: string | null;
+  trackpad_direction: string | null;
+}
+
+export interface PointerSupport {
+  linear_mouse_installed: boolean;
+  linear_mouse_version: string | null;
+  native_independent: boolean;
+  permission: string;
+  official_url: string;
 }
 
 export interface KeyboardDevice {
@@ -113,7 +137,7 @@ export type ModuleStatus =
   | "unchanged";
 
 export interface ModuleResult {
-  module_id: "finder_extensions" | "keyboard_repeat" | "keyboard_compatibility";
+  module_id: "finder_extensions" | "keyboard_repeat" | "keyboard_compatibility" | "pointer_scroll";
   title: string;
   before: string;
   after: string;

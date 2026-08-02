@@ -8,21 +8,25 @@
 
 ### R1：可丢弃交互原型与格式规范（已完成）
 
-交互原型已冻结在 `prototype/ui-flow-v2-hardening` 的提交 `37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75` 并获接受；M1 `.habitpack` 格式规范和虚构夹具也已闭合。当前 Alpha 0.1 在 `alpha/v0.1-vertical-slice` 验证真实本地纵向切片，但仍是未签名知情测试构建，不直接合入 `main`。[D-028、D-030、E-019]
+交互原型已冻结在 `prototype/ui-flow-v2-hardening` 的提交 `37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75` 并获接受；M1 `.habitpack` 格式规范和虚构夹具也已闭合。Alpha 0.1/0.2 在 `alpha/*` 分支验证了真实本地纵向切片，但仍是未签名知情测试构建；证据已归档，不直接合入 `main`。[D-028、D-030、D-031、E-020]
 
 ### R2：技术预研（Wave 0 历史记录）
 
 Wave 0 当时只允许以下四个隔离研究流：M1 `.habitpack` `1.0.0` 独立 parser；一次性 Tauri 2 最小壳与 mock bridge；synthetic snapshot/恢复；离线签名与 fictional supply-chain fixture。其研究代码只能在 `codex/m2-*` 分支，不能创建 PR、合并 `main` 或 Release。[D-022、D-029、E-018、OD-005、OD-006、OD-007]
 
-### Alpha 0.1：当前纵向切片
+### Alpha 0.1：历史纵向切片
 
 Alpha 只允许 Windows 10/11 x64 白名单扫描、现有格式的导出/导入、强制计划、macOS Finder 扩展名和键盘重复速率的声明式应用、一次快照、按模块恢复、报告和指南。不得实现 Wi‑Fi/密码、Ctrl/Command 兼容层、第三方工具或 Homebrew 安装、软件自动安装、UAC/TCC、真实秘密、个人文件、更新、签名/公证或 Release。[D-030、E-019]
 
-### R3：知情 Alpha（未授权）
+### R3：知情 Alpha（历史阶段）
 
 允许未签名构建，但只分发给明确知道风险、愿意使用测试设备/可恢复环境并按测试协议反馈的人。[D-023]
 
-### R4：公开新手版本（未授权）
+### R4：v1.0.0 release 准备（当前）
+
+`release/v1.0.0` 已获 D-032 授权实现剩余 P0、Tauri bundle、更新草稿和 CI。当前构建仍需通过本文件第 6 节的所有阻断门，未签名构建只供明确知情测试者。
+
+### R5：公开新手版本（尚未通过）
 
 必须满足本文件的发布门槛、签名公证和真实设备矩阵，不要求新手绕过系统安全警告。[D-023]
 
