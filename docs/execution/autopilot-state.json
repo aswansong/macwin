@@ -54,7 +54,7 @@
     "draft PR https://github.com/aswansong/macwin/pull/1 targets main and remains open",
     "./scripts/validate-m1 (55 tests), release-preparation, manifest, release-assets, npm and cargo checks passed"
   ],
-  "next_action": "等待负责人提供真实 Windows 10/11 与 Apple Silicon macOS 15/26 设备、签名凭据和一次性人工验收。在此之前保持发布清单与白名单文档对齐，不宣称未支持的软件自动安装或 Wi-Fi 密码迁移。",
+  "next_action": "按 D-039 生成并发布 v1.0.0-rc.1 双平台未签名 GitHub Pre-release；不合并 main。随后等待负责人用真实 Windows/Mac 设备下载安装并按验收手册测试。",
   "human_gates": [
     "Apple Developer ID signing and notarization credentials",
     "Windows code-signing certificate",

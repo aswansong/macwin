@@ -35,7 +35,7 @@
 
 ## 当前下一动作
 
-下一动作：草稿 PR [#1](https://github.com/aswansong/macwin/pull/1) 当前无评论或请求修改；本次审计观察到提交 `ec09475` 的 PR CI run `30765236861` 已在 macOS 15 与 Windows latest 通过，后续任何提交都必须重新核对最新 head。随后等待负责人提供真实 Windows 10/11 与 Apple 芯片 macOS 15/26 设备、签名凭据和一次性人工验收，完成权限/外设/安装卸载矩阵；OD-005/OD-007 未关闭前不新增真实 Wi‑Fi 密码或自动安装实现。
+下一动作：按 D-039 从当前分支生成 Windows x64 NSIS 与 Apple Silicon macOS DMG，发布为明确标记的 `v1.0.0-rc.1` 未签名 GitHub Pre-release 并附 SHA-256；不合并 `main`。随后由负责人在真实 Windows/Mac 设备下载验收，再进入正式签名、公证和 v1.0.0 发布门。OD-005/OD-007 未关闭前不新增真实 Wi‑Fi 密码或自动安装实现。
 
 ## 阻塞项与门槛
 

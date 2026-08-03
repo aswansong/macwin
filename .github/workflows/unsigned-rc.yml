@@ -1,0 +1,83 @@
+name: unsigned RC packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-15
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out RC source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@1.97.1
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: |
+          npm test
+          npm run build
+          cargo test --manifest-path src-tauri/Cargo.toml --locked
+
+      - name: Build unsigned Windows NSIS installer
+        if: matrix.os == 'windows-latest'
+        run: npm run tauri build -- --target ${{ matrix.target }} --bundles nsis --no-sign --config src-tauri/tauri.unsigned.conf.json
+
+      - name: Build unsigned macOS DMG
+        if: matrix.os == 'macos-15'
+        run: npm run tauri build -- --target ${{ matrix.target }} --bundles dmg --no-sign --config src-tauri/tauri.unsigned.conf.json
+
+      - name: Stage Windows package
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force unsigned-rc | Out-Null
+          $packages = Get-ChildItem "src-tauri/target/${{ matrix.target }}/release/bundle/nsis" -File -Filter *.exe
+          if ($packages.Count -ne 1) { throw "Expected exactly one NSIS installer, found $($packages.Count)" }
+          Copy-Item $packages[0].FullName unsigned-rc/
+          $hash = Get-FileHash "unsigned-rc/$($packages[0].Name)" -Algorithm SHA256
+          "$($hash.Hash.ToLower())  $($packages[0].Name)" | Set-Content unsigned-rc/SHA256SUMS-Windows.txt -Encoding utf8
+          Copy-Item docs/releases/v1.0.0-rc.1.md unsigned-rc/README-TESTING.md
+
+      - name: Stage macOS package
+        if: matrix.os == 'macos-15'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p unsigned-rc
+          packages=(src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg)
+          test "${#packages[@]}" -eq 1
+          cp "${packages[0]}" unsigned-rc/
+          cd unsigned-rc
+          shasum -a 256 "$(basename "${packages[0]}")" > SHA256SUMS-macOS.txt
+          cp ../docs/releases/v1.0.0-rc.1.md README-TESTING.md
+
+      - name: Upload unsigned RC package
+        uses: actions/upload-artifact@v6
+        with:
+          name: macwin-v1.0.0-rc.1-${{ runner.os }}
+          path: unsigned-rc
+          if-no-files-found: error
+          retention-days: 30
