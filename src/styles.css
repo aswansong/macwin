@@ -233,6 +233,37 @@ p { margin: 0; }
 .plan-summary { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 18px 0 22px; color: var(--muted); font-family: var(--mono); font-size: 9px; }
 .plan-summary b { color: var(--ink); }
 .module-list { border-top: 1px solid var(--line); }
+.plan-group { border-bottom: 1px solid var(--line); }
+.plan-group-row { display: flex; min-height: 78px; gap: 16px; align-items: center; justify-content: space-between; }
+.plan-group-choice { display: flex; min-width: 0; flex: 1; gap: 13px; align-items: center; cursor: pointer; }
+.plan-group-choice input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--blue); }
+.plan-group-choice span { display: grid; gap: 5px; min-width: 0; }
+.plan-group-choice strong { color: var(--ink); font-size: 15px; }
+.plan-group-choice small { color: var(--muted); font-size: 11px; }
+.group-toggle { display: inline-flex; gap: 7px; align-items: center; padding: 8px 0 8px 12px; border: 0; color: var(--blue); background: transparent; font-size: 11px; }
+.group-toggle span { display: grid; width: 19px; height: 19px; place-items: center; border: 1px solid #cfe0ff; border-radius: 50%; color: var(--blue); background: var(--blue-soft); font-size: 14px; line-height: 1; }
+.plan-group-items { padding: 0 0 13px 31px; }
+.plan-choice-row { display: flex; min-height: 54px; gap: 11px; align-items: center; border-top: 1px solid var(--line); }
+.plan-choice-row > input { width: 17px; height: 17px; flex: 0 0 auto; accent-color: var(--blue); }
+.plan-choice-name { display: grid; min-width: 0; flex: 1; gap: 4px; padding: 11px 0; border: 0; color: var(--ink); background: transparent; text-align: left; }
+.plan-choice-name strong { font-size: 12px; }
+.plan-choice-name small { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.plan-choice-name:hover strong { color: var(--blue); }
+.detail-modal-backdrop { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 24px; background: rgba(32, 50, 75, .22); }
+.detail-modal { position: relative; width: min(500px, 100%); max-height: min(640px, calc(100vh - 48px)); overflow: auto; padding: 30px 30px 28px; border: 1px solid #d6e0e0; border-radius: 18px; background: var(--white); box-shadow: 0 20px 60px rgba(32, 50, 75, .18); }
+.detail-modal h2 { margin-top: 10px; font-size: clamp(26px, 4vw, 36px); }
+.detail-modal-subtitle { margin-top: 7px; color: var(--muted); font-family: var(--mono); font-size: 10px; }
+.detail-modal-section { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
+.detail-modal-section strong { color: var(--ink); font-size: 11px; }
+.detail-modal-section p { margin-top: 7px; color: var(--muted); font-size: 12px; line-height: 1.75; }
+.detail-modal-close { position: absolute; top: 18px; right: 20px; width: 28px; height: 28px; border: 0; border-radius: 50%; color: var(--muted); background: #f1f5f4; font-size: 18px; line-height: 1; }
+.detail-modal-close:hover { color: var(--ink); background: var(--blue-soft); }
+.detail-consent { display: flex; gap: 10px; align-items: flex-start; margin-top: 22px; padding: 12px; border: 1px solid #f0d8d2; border-radius: 8px; background: #fffaf8; cursor: pointer; }
+.detail-consent input { width: 17px; height: 17px; flex: 0 0 auto; accent-color: var(--blue); }
+.detail-consent span { display: grid; gap: 4px; }
+.detail-consent strong { font-size: 11px; }
+.detail-consent small { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.detail-link { display: inline-block; margin-top: 13px; font-size: 10px; }
 .map-module-row, .software-plan-row { display: flex; gap: 12px; align-items: flex-start; padding: 16px 3px; border-bottom: 1px solid var(--line); cursor: pointer; }
 .map-module-row > input, .software-plan-row > input { margin-top: 3px; }
 .module-copy { display: grid; min-width: 0; flex: 1; gap: 7px; }
@@ -385,6 +416,11 @@ summary { width: max-content; color: var(--blue); cursor: pointer; font-size: 10
   .selection-row { align-items: flex-start; padding-block: 13px; }
   .risk-badge { margin-left: 29px; }
   .selection-row:not(.nested) .risk-badge { margin-left: 0; }
+  .plan-group-row { min-height: 70px; }
+  .plan-group-items { padding-left: 30px; }
+  .plan-choice-row { min-height: 58px; }
+  .detail-modal-backdrop { padding: 16px; }
+  .detail-modal { padding: 27px 22px 23px; }
   .action-row { justify-content: stretch; }
   .action-row > button { flex: 1 1 auto; }
   .primary-cta { min-width: 0; }

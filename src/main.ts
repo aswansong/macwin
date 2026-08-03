@@ -68,7 +68,6 @@ const previewPlanBase: ImportPlan = {
   software: previewScan.software,
   items: [
     { module_id: "finder_extensions", title: "显示文件扩展名", current_value: "隐藏（当前）", target_value: "显示", reason: "Windows 用户通常直接看到文件扩展名。", benefit: "打开文件时更容易确认真实类型。", verification: "重新读取 Finder 偏好", recovery: "恢复到迁移前值", requires_admin: false },
-    { module_id: "keyboard_repeat", title: "键盘重复速度", current_value: "读取 Mac 当前值", target_value: "按 Windows 节奏匹配", reason: "保留你熟悉的按键响应节奏。", benefit: "长按删除和移动光标时更接近原来的手感。", verification: "重新读取系统键盘偏好", recovery: "恢复迁移前值", requires_admin: false },
     { module_id: "keyboard_compatibility", title: "选择性 Ctrl 兼容", current_value: "未启用", target_value: "普通应用转换为对应 Command", reason: "降低从 Windows 迁移后的快捷键落差。", benefit: "终端、远程桌面和虚拟机仍保留真实 Ctrl。", verification: "验证 MacWin 自己的规则", recovery: "只移除 MacWin 自己的规则", requires_admin: false },
     { module_id: "pointer_scroll", title: "鼠标与触控板滚动方向", current_value: "读取 Mac 当前值", target_value: "按来源设备分别处理", reason: "保留鼠标和触控板在 Windows 上的使用习惯。", benefit: "两个设备的方向分别说明，不互相覆盖。", verification: "分别读取鼠标与触控板结果", recovery: "恢复迁移前值", requires_admin: false },
   ],
@@ -88,7 +87,7 @@ const previewPlanBase: ImportPlan = {
   pointer: { mouse_direction: "windows_style", trackpad_direction: "windows_style" },
   pointer_support: { linear_mouse_installed: false, linear_mouse_version: null, native_independent: false, permission: "浏览器演示数据；实际 Mac 按系统要求检查", official_url: "https://linearmouse.app/" },
   wifi: { name: "Home Wi‑Fi", credential_status: "not_selected", contains_secrets: false, note: "当前只带网络名；密码需要再次明确选择。" },
-  selected_module_ids: ["finder_extensions", "keyboard_repeat", "keyboard_compatibility", "pointer_scroll", "software.chrome", "software.vscode", "software.wps"],
+  selected_module_ids: ["finder_extensions", "keyboard_compatibility", "pointer_scroll", "software.chrome", "software.vscode", "software.wps"],
 };
 
 const previewDiagnostics: DeviceSelfCheck = {
@@ -133,7 +132,7 @@ function previewPlanForState(): ImportPlan {
   const handoff = Boolean(state.receipt);
   const selected = handoff ? new Set<string>() : new Set(previewPlanBase.selected_module_ids);
   if (handoff) {
-    if (state.selection.include_keyboard) ["finder_extensions", "keyboard_repeat", "keyboard_compatibility"].forEach((id) => selected.add(id));
+    if (state.selection.include_keyboard) ["finder_extensions", "keyboard_compatibility"].forEach((id) => selected.add(id));
     if (state.selection.include_pointer) selected.add("pointer_scroll");
     state.selection.software_ids.forEach((id) => selected.add(`software.${id}`));
   }
@@ -239,7 +238,7 @@ function renderPreviewToolbar(): string {
 
 function renderShell(content: string, eyebrow: string, title: string, description = "", journey: string = ""): string {
   const platform = state.runtime?.platform === "windows" ? "Windows → Mac" : state.runtime?.platform === "macos" ? "Mac 目标端" : "离线、本地、可恢复";
-  return `<div class="app-shell"><header class="topbar"><button class="brand-button" data-action="home" aria-label="回到首页"><span class="brand-mark">MW</span><span><strong>MacWin</strong><small>把 Windows 习惯带到 Mac</small></span></button><div class="topbar-meta"><span class="platform-chip">${escapeHtml(platform)}</span><span class="version-chip">v1.0</span></div></header><main class="main-content"><div class="content-column">${journey}${renderErrorPanel()}<div class="eyebrow">${escapeHtml(eyebrow)}</div><h1>${escapeHtml(title)}</h1>${description ? `<p class="lead">${escapeHtml(description)}</p>` : ""}${content}</div></main><footer class="privacy-footer"><span class="privacy-dot"></span><span>${state.webPreview ? "浏览器演示数据 · 不会修改系统" : "全程本地处理 · 不搬个人文件 · 不上传扫描结果"}</span><span class="footer-spacer"></span><button class="text-button" data-action="diagnostics">设备自检</button><button class="text-button" data-action="check-update">检查更新</button><a class="text-button" href="https://github.com/aswansong/macwin/issues" target="_blank" rel="noreferrer">反馈问题 ↗</a><button class="text-button" data-action="privacy">隐私与支持</button></footer>${renderPreviewToolbar()}</div>`;
+  return `<div class="app-shell"><header class="topbar"><button class="brand-button" data-action="home" aria-label="回到首页"><span class="brand-mark">MW</span><span><strong>MacWin</strong><small>双持 Mac 和 Windows 的好帮手</small></span></button><div class="topbar-meta"><span class="platform-chip">${escapeHtml(platform)}</span><span class="version-chip">v1.0</span></div></header><main class="main-content"><div class="content-column">${journey}${renderErrorPanel()}<div class="eyebrow">${escapeHtml(eyebrow)}</div><h1>${escapeHtml(title)}</h1>${description ? `<p class="lead">${escapeHtml(description)}</p>` : ""}${content}</div></main><footer class="privacy-footer"><span class="privacy-dot"></span><span>${state.webPreview ? "浏览器演示数据 · 不会修改系统" : "全程本地处理 · 不搬个人文件 · 不上传扫描结果"}</span><span class="footer-spacer"></span><button class="text-button" data-action="diagnostics">设备自检</button><button class="text-button" data-action="check-update">检查更新</button><a class="text-button" href="https://github.com/aswansong/macwin/issues" target="_blank" rel="noreferrer">反馈问题 ↗</a><button class="text-button" data-action="privacy">隐私与支持</button></footer>${renderPreviewToolbar()}</div>`;
 }
 
 function passportModules(): string {
@@ -281,7 +280,7 @@ function renderHome(): string {
 }
 
 function renderScanning(): string {
-  return renderShell(`<section class="activity-panel"><div class="activity-icon blue">⌁</div><h2>正在读取白名单设置</h2><p>只读取系统版本、输入设置和已知软件。不会访问个人文件。</p><div class="activity-list"><div class="activity-row done"><span>✓</span><strong>平台兼容性</strong><small>Windows 10/11 x64</small></div><div class="activity-row active"><span>•</span><strong>输入与键盘节奏</strong><small>当前阶段</small></div><div class="activity-row"><span>○</span><strong>软件与开发</strong><small>等待读取</small></div></div></section>`, "Windows 端 · 检测", "正在检测", "完成后只展示你能选择的变化。", renderJourney("windows", 1, "windows"));
+  return renderShell(`<section class="activity-panel"><div class="activity-icon blue">⌁</div><h2>正在读取白名单设置</h2><p>只读取系统版本、输入设置和已知软件。不会访问个人文件。</p><div class="activity-list"><div class="activity-row done"><span>✓</span><strong>平台兼容性</strong><small>Windows 10/11 x64</small></div><div class="activity-row active"><span>•</span><strong>输入设置</strong><small>当前阶段</small></div><div class="activity-row"><span>○</span><strong>软件与开发</strong><small>等待读取</small></div></div></section>`, "Windows 端 · 检测", "正在检测", "完成后只展示你能选择的变化。", renderJourney("windows", 1, "windows"));
 }
 
 function renderWindowsSelectionRow(input: string, title: string, description: string, checked: boolean, badge = ""): string {
@@ -293,7 +292,7 @@ function renderScan(): string {
   if (!scan) return renderHome();
   const installed = scan.software.filter((item) => item.installed);
   const wifi = scan.wifi?.[0];
-  return renderShell(`<div class="windows-workspace"><section class="selection-panel"><div class="section-title"><span class="section-index blue">W2</span><div><h2>选择要带到 Mac 的内容</h2><p>复选框就是选择状态。常用软件在 Mac 计划中只确认一次。</p></div></div><div class="discovery-list"><div class="list-heading"><span>操作习惯</span><small>可以分别恢复</small></div>${renderWindowsSelectionRow("data-keyboard", "键盘重复速度与选择性 Ctrl", "普通应用支持 Ctrl+C/V/X/Z；终端和远程桌面保留真实 Ctrl。", state.selection.include_keyboard)}${renderWindowsSelectionRow("data-pointer", "鼠标与触控板滚动方向", "两个设备分开记录，Mac 端按结果验证。", state.selection.include_pointer)}<div class="list-heading"><span>软件与开发</span><small>Mac 计划中一次确认</small></div>${installed.map((item) => `<div class="finding-row"><span class="scope-icon coral">□</span><span><strong>${escapeHtml(item.name)}</strong><small>${item.category === "developer" ? "开发工具" : "白名单软件"} · ${escapeHtml(item.version_policy)} · Mac 端再确认</small></span></div>`).join("")}<div class="list-heading"><span>系统设置</span><small>只加入指南内容</small></div>${renderWindowsSelectionRow("data-guide", "个性化 Mac 使用指南", "只解释这次实际选择、Command、Option、Fn 和恢复方式。", state.selection.guide_requested)}<div class="list-heading"><span>个人 Wi‑Fi</span><small>逐项选择，密码另行同意</small></div>${wifi ? `<div class="wifi-choice"><div class="wifi-network"><span class="scope-icon yellow">⌁</span><div><strong>${escapeHtml(wifi.name)}</strong><small>${escapeHtml(wifi.security)} · 只保留网络名也可以</small></div></div><label class="selection-row nested"><input type="checkbox" data-wifi-password ${state.preview.wifiPasswordSelected ? "checked" : ""}/><span class="selection-copy"><strong>同时带上 Wi‑Fi 密码</strong><small>迁移包第一版不加密；选择后可能触发一次 UAC。</small></span><span class="risk-badge sensitive">敏感信息</span></label></div>` : `<p class="empty-line">没有发现可处理的个人 Wi‑Fi</p>`}</div><div class="notice-line"><span class="status-glyph good">i</span><span>不会读取浏览器书签、历史、密码、Cookie、账号或项目文件。</span></div><div class="action-row"><button class="secondary-button" data-action="home">返回</button><button class="primary-cta dark" data-action="export-review"><span><b>查看迁移包</b><small>确认选择与敏感信息提示</small></span><i>→</i></button></div></section><aside class="passport-dock"><div class="dock-heading"><span>实时预览</span><small>.habitpack</small></div>${renderPassport()}<div class="passport-dock-note"><span class="status-glyph good">✓</span><span>你每次勾选，票面都会同步更新。</span></div></aside></div>`, "Windows 端 · 选择", "", "", renderJourney("windows", 2, "windows"));
+  return renderShell(`<div class="windows-workspace"><section class="selection-panel"><div class="section-title"><span class="section-index blue">W2</span><div><h2>选择要带到 Mac 的内容</h2><p>复选框就是选择状态。常用软件在 Mac 计划中只确认一次。</p></div></div><div class="discovery-list"><div class="list-heading"><span>操作习惯</span><small>可以分别恢复</small></div>${renderWindowsSelectionRow("data-keyboard", "选择性 Ctrl 兼容", "普通应用支持 Ctrl+C/V/X/Z；终端和远程桌面保留真实 Ctrl。", state.selection.include_keyboard)}${renderWindowsSelectionRow("data-pointer", "鼠标与触控板滚动方向", "两个设备分开记录，Mac 端按结果验证。", state.selection.include_pointer)}<div class="list-heading"><span>软件与开发</span><small>Mac 计划中一次确认</small></div>${installed.map((item) => `<div class="finding-row"><span class="scope-icon coral">□</span><span><strong>${escapeHtml(item.name)}</strong><small>${item.category === "developer" ? "开发工具" : "白名单软件"} · ${escapeHtml(item.version_policy)} · Mac 端再确认</small></span></div>`).join("")}<div class="list-heading"><span>系统设置</span><small>只加入指南内容</small></div>${renderWindowsSelectionRow("data-guide", "个性化 Mac 使用指南", "只解释这次实际选择、Command、Option、Fn 和恢复方式。", state.selection.guide_requested)}<div class="list-heading"><span>个人 Wi‑Fi</span><small>逐项选择，密码另行同意</small></div>${wifi ? `<div class="wifi-choice"><div class="wifi-network"><span class="scope-icon yellow">⌁</span><div><strong>${escapeHtml(wifi.name)}</strong><small>${escapeHtml(wifi.security)} · 只保留网络名也可以</small></div></div><label class="selection-row nested"><input type="checkbox" data-wifi-password ${state.preview.wifiPasswordSelected ? "checked" : ""}/><span class="selection-copy"><strong>同时带上 Wi‑Fi 密码</strong><small>迁移包第一版不加密；选择后可能触发一次 UAC。</small></span><span class="risk-badge sensitive">敏感信息</span></label></div>` : `<p class="empty-line">没有发现可处理的个人 Wi‑Fi</p>`}</div><div class="notice-line"><span class="status-glyph good">i</span><span>不会读取浏览器书签、历史、密码、Cookie、账号或项目文件。</span></div><div class="action-row"><button class="secondary-button" data-action="home">返回</button><button class="primary-cta dark" data-action="export-review"><span><b>查看迁移包</b><small>确认选择与敏感信息提示</small></span><i>→</i></button></div></section><aside class="passport-dock"><div class="dock-heading"><span>实时预览</span><small>.habitpack</small></div>${renderPassport()}<div class="passport-dock-note"><span class="status-glyph good">✓</span><span>你每次勾选，票面都会同步更新。</span></div></aside></div>`, "Windows 端 · 选择", "", "", renderJourney("windows", 2, "windows"));
 }
 
 function renderExportReview(): string {
@@ -308,26 +307,100 @@ function renderExported(): string {
   return renderShell(`<section class="handoff-panel"><div class="handoff-status"><span class="status-glyph good">✓</span><div><span class="home-marker">W3 / 已验证</span><h2>迁移包已准备好</h2><p>${escapeHtml(receipt?.path ?? "浏览器预览，不会写入文件")}</p></div></div><div class="handoff-route"><div class="handoff-stop blue"><span>W</span><strong>Windows</strong><small>生成并验证</small></div><div class="handoff-line"></div><div class="handoff-stop coral"><span>M</span><strong>Mac</strong><small>导入后先看计划</small></div></div><div class="handoff-copy"><strong>下一步</strong><p>用 U 盘或你信任的本地方式把文件带到 Mac。MacWin 不会替你上传。</p>${receipt?.contains_secrets ? `<p class="accent-danger">此包包含 Wi‑Fi 密码；导入成功后删除不再需要的副本。</p>` : ""}</div><div class="action-row"><button class="secondary-button" data-action="home">回到首页</button><button class="primary-cta coral" data-action="handoff"><span><b>交给 Mac 预览</b><small>继续打开导入入口</small></span><i>→</i></button></div></section>`, "Windows 端 · 导出", "准备交给 Mac", "生成和验证都完成了。", renderJourney("windows", 3, "windows"));
 }
 
-function badgeForItem(item: ImportPlan["items"][number]): string {
-  return item.requires_admin ? `<span class="risk-badge sensitive">需要授权</span>` : `<span class="risk-badge recoverable">可恢复</span>`;
+const hiddenPlanModuleIds = new Set(["keyboard_repeat"]);
+let expandedPlanGroups = new Set<string>();
+let activeDetailModuleId: string | null = null;
+
+function normalizePlan(plan: ImportPlan): ImportPlan {
+  const items = plan.items.filter((item) => !hiddenPlanModuleIds.has(item.module_id));
+  const selected_module_ids = plan.selected_module_ids.filter((moduleId) => !hiddenPlanModuleIds.has(moduleId));
+  return { ...plan, items, selected_module_ids };
 }
 
-function renderPlanItem(item: ImportPlan["items"][number], plan: ImportPlan): string {
-  const selected = plan.selected_module_ids.includes(item.module_id);
-  return `<label class="map-module-row ${selected ? "selected" : ""}"><input type="checkbox" data-module="${escapeHtml(item.module_id)}" ${selected ? "checked" : ""}/><span class="module-copy"><span class="module-title"><strong>${escapeHtml(item.title)}</strong>${badgeForItem(item)}</span><span class="module-change"><b>改变</b>${escapeHtml(item.current_value)} <i>→</i> ${escapeHtml(item.target_value)}</span><details><summary>查看动作说明</summary><span class="detail-grid"><span><b>为什么</b>${escapeHtml(item.reason)}</span><span><b>如何确认</b>${escapeHtml(item.verification)}</span><span><b>如何恢复</b>${escapeHtml(item.recovery)}</span></span></details></span></label>`;
+function visiblePlanItems(plan: ImportPlan): ImportPlan["items"] {
+  return plan.items.filter((item) => !hiddenPlanModuleIds.has(item.module_id));
+}
+
+function planGroupModuleIds(plan: ImportPlan, group: "habits" | "software"): string[] {
+  if (group === "software") return plan.software.filter((item) => item.installed).map((item) => `software.${item.id}`);
+  return visiblePlanItems(plan).map((item) => item.module_id);
+}
+
+function groupSelectedState(plan: ImportPlan, group: "habits" | "software"): { selected: number; total: number; checked: boolean } {
+  const ids = planGroupModuleIds(plan, group);
+  const selected = ids.filter((moduleId) => plan.selected_module_ids.includes(moduleId)).length;
+  return { selected, total: ids.length, checked: ids.length > 0 && selected === ids.length };
+}
+
+function renderPlanChoice(moduleId: string, title: string, subtitle: string, checked: boolean, inputAttributes: string): string {
+  const moduleAttribute = inputAttributes.includes("data-software-plan") ? "" : `data-module="${escapeHtml(moduleId)}"`;
+  return `<div class="plan-choice-row"><input type="checkbox" aria-label="选择 ${escapeHtml(title)}" ${moduleAttribute} ${inputAttributes} ${checked ? "checked" : ""}/><button class="plan-choice-name" type="button" data-detail-id="${escapeHtml(moduleId)}"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(subtitle)}</small></button></div>`;
+}
+
+function renderPlanGroup(plan: ImportPlan, group: "habits" | "software", title: string, subtitle: string, children: string): string {
+  const stateForGroup = groupSelectedState(plan, group);
+  const expanded = expandedPlanGroups.has(group);
+  return `<section class="plan-group ${expanded ? "expanded" : ""}"><div class="plan-group-row"><label class="plan-group-choice"><input type="checkbox" data-group-toggle="${group}" ${stateForGroup.checked ? "checked" : ""}/><span><strong>${title}</strong><small>${subtitle}</small></span></label><button class="group-toggle" type="button" data-group-expand="${group}" aria-expanded="${expanded ? "true" : "false"}">${expanded ? "收起" : "展开"}<span aria-hidden="true">${expanded ? "−" : "+"}</span></button></div><div class="plan-group-items" data-group-items="${group}" ${expanded ? "" : "hidden"}>${children}</div></section>`;
+}
+
+function renderDetailModal(plan: ImportPlan): string {
+  if (!activeDetailModuleId) return "";
+  const moduleId = activeDetailModuleId;
+  const item = plan.items.find((candidate) => candidate.module_id === moduleId);
+  const software = plan.software.find((candidate) => `software.${candidate.id}` === moduleId);
+  let title = "这项设置";
+  let subtitle = "";
+  let body = "";
+  let result = "";
+  let recovery = "";
+  let extra = "";
+  if (item && !["pointer_scroll", "keyboard_compatibility"].includes(moduleId)) {
+    title = item.title;
+    subtitle = item.current_value;
+    body = item.reason;
+    result = `${item.target_value}。${item.benefit}`;
+    recovery = item.recovery;
+  } else if (software) {
+    title = software.name;
+    subtitle = "软件与开发";
+    body = "MacWin 只记录你选择的软件，不搬运账号、许可证、项目文件、浏览器数据或登录状态。";
+    result = "之后可以从软件自己的入口完成安装；MacWin 不会静默安装。";
+    recovery = "软件没有被 MacWin 修改，不需要恢复。";
+  } else if (moduleId === "wifi.personal" && plan.wifi) {
+    title = plan.wifi.name;
+    subtitle = "个人 Wi‑Fi";
+    body = "带上这条网络记录，方便你在 Mac 上继续使用。";
+    result = plan.wifi.contains_secrets ? "你主动选择的密码会随迁移包带走，但不会写进报告或迁移前快照。" : "当前只带网络名，密码仍由你单独决定。";
+    recovery = "只恢复本次迁移记录，不影响其他网络。";
+  } else if (moduleId === "pointer_scroll") {
+    title = "鼠标与触控板滚动方向";
+    subtitle = "系统与习惯";
+    body = "鼠标和触控板分别处理，不会把一个设备的方向强行套到另一个设备上。";
+    result = state.preview.linearMouseConfirmed ? "已确认从官方入口完成辅助功能授权，执行后回到 MacWin 验证。" : "需要从官方入口完成 LinearMouse 和辅助功能授权；拒绝后仍可继续其他项目。";
+    recovery = "恢复迁移前的滚动方向记录。";
+    extra = `<label class="detail-consent"><input type="checkbox" data-linear-mouse ${state.preview.linearMouseConfirmed ? "checked" : ""} ${state.webPreview ? "" : "disabled"}/><span><strong>我已阅读用途和权限</strong><small>${state.preview.linearMouseConfirmed ? "已确认" : "未确认时，指针方向会保留为手动完成"}</small></span></label><a class="detail-link" href="${escapeHtml(plan.pointer_support.official_url)}" target="_blank" rel="noreferrer">查看官方说明 ↗</a>`;
+  } else if (moduleId === "keyboard_compatibility") {
+    title = "选择性 Ctrl 兼容";
+    subtitle = "系统与习惯";
+    body = "普通应用里的 Ctrl+C/V/X/Z 等组合会对应到 Command。Terminal、远程桌面、虚拟机和 VS Code 集成终端保留真实 Ctrl。";
+    result = "复制、粘贴和撤销更接近 Windows 的手感，同时不影响需要真实 Ctrl 的场景。";
+    recovery = plan.keyboard_compatibility.recovery;
+  }
+  return `<div class="detail-modal-backdrop" data-detail-backdrop><section class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title"><button class="detail-modal-close" type="button" data-action="close-detail" aria-label="关闭详情">×</button><span class="home-marker blue-text">选项说明</span><h2 id="detail-modal-title">${escapeHtml(title)}</h2><p class="detail-modal-subtitle">${escapeHtml(subtitle)}</p><div class="detail-modal-section"><strong>会做什么</strong><p>${escapeHtml(body)}</p></div><div class="detail-modal-section"><strong>你会看到的结果</strong><p>${escapeHtml(result)}</p></div><div class="detail-modal-section"><strong>如何恢复</strong><p>${escapeHtml(recovery)}</p></div>${extra}</section></div>`;
 }
 
 function renderPlan(): string {
   const plan = state.plan;
   if (!plan) return renderHome();
-  const software = plan.software.filter((item) => item.installed).map((item) => { const moduleId = `software.${item.id}`; const selected = plan.selected_module_ids.includes(moduleId); return `<label class="software-plan-row"><input type="checkbox" data-software-plan="${escapeHtml(item.id)}" ${selected ? "checked" : ""}/><span class="module-copy"><span class="module-title"><strong>${escapeHtml(item.name)}</strong><span class="risk-badge manual">需手动完成</span></span><span class="module-change"><b>结果</b>从官方入口安装 ${escapeHtml(item.version_policy)}</span><details><summary>查看边界</summary><span class="detail-grid"><span><b>来源</b>官方入口：<a href="${escapeHtml(item.official_url)}" target="_blank" rel="noreferrer">打开链接 ↗</a></span><span><b>不搬运</b>账号、许可证、项目文件和浏览器数据</span><span><b>恢复</b>无需恢复</span></span></details></span></label>`; }).join("");
-  const keyboard = plan.keyboard_compatibility;
-  const devices = keyboard.devices.map((device) => `<div class="device-line"><label><input type="checkbox" data-keyboard-kind="${escapeHtml(device.kind)}" ${device.kind === "built_in" ? (keyboard.built_in_enabled ? "checked" : "") : (keyboard.external_enabled ? "checked" : "")} ${device.recognized ? "" : "disabled"}/><span><strong>${escapeHtml(device.name)}</strong><small>${device.kind === "built_in" ? "内置键盘" : "外接键盘"} · ${device.recognized ? "仅使用脱敏标识" : "未能安全识别，不会猜测"}</small></span></label></div>`).join("");
-  const linearDisabled = !state.webPreview;
-  const thirdParty = `<section class="third-party-panel"><div class="panel-heading"><div><span class="home-marker coral-text">第三方工具</span><h3>LinearMouse</h3></div><span class="risk-badge third-party">需单独确认</span></div><p>用于分别处理鼠标与触控板滚动方向。当前不会静默安装；需要你从官方入口完成安装和辅助功能授权。</p><label class="consent-row"><input type="checkbox" data-linear-mouse ${state.preview.linearMouseConfirmed ? "checked" : ""} ${linearDisabled ? "disabled" : ""}/><span><strong>我已阅读用途、权限、常驻和卸载影响</strong><small>${state.preview.linearMouseConfirmed ? "已确认候选；执行后仍需按官方界面完成" : "未确认时，指针模块会保留为需要手动完成"}</small></span></label><div class="third-party-facts"><span>来源：官方入口</span><span>权限：辅助功能</span><span>影响：可能常驻</span><a href="${escapeHtml(plan.pointer_support.official_url)}" target="_blank" rel="noreferrer">查看官方说明 ↗</a></div></section>`;
-  const wifi = plan.wifi ? `<label class="wifi-plan-line"><input type="checkbox" data-module="wifi.personal" ${plan.selected_module_ids.includes("wifi.personal") ? "checked" : ""}/><span><span class="module-title"><strong>${escapeHtml(plan.wifi.name)}</strong><span class="risk-badge sensitive">${plan.wifi.contains_secrets ? "含敏感信息" : "不含密码"}</span></span><small>${escapeHtml(plan.wifi.note)}</small></span><span class="status-text">${plan.wifi.contains_secrets ? "需一次 UAC" : "只带网络名"}</span></label>` : "";
+  const systemItems = visiblePlanItems(plan);
+  const softwareItems = plan.software.filter((item) => item.installed);
+  const systemChildren = systemItems.map((item) => renderPlanChoice(item.module_id, item.title, item.module_id === "keyboard_compatibility" ? "普通应用使用对应 Command" : item.module_id === "pointer_scroll" ? "鼠标与触控板分别处理" : "按 Windows 习惯调整", plan.selected_module_ids.includes(item.module_id), "")).join("");
+  const wifiChoice = plan.wifi ? renderPlanChoice("wifi.personal", plan.wifi.name, plan.wifi.contains_secrets ? "已选择密码 · 敏感信息" : "只带网络名", plan.selected_module_ids.includes("wifi.personal"), "") : "";
+  const softwareChildren = softwareItems.map((item) => renderPlanChoice(`software.${item.id}`, item.name, "点击查看说明", plan.selected_module_ids.includes(`software.${item.id}`), `data-software-plan="${escapeHtml(item.id)}"`)).join("");
+  const habitsGroup = renderPlanGroup(plan, "habits", "系统与习惯", "键盘、鼠标、Finder 与 Wi‑Fi", `${systemChildren}${wifiChoice}` || `<p class="empty-line">没有可迁移的系统习惯</p>`);
+  const softwareGroup = renderPlanGroup(plan, "software", "软件与开发", "浏览器、开发工具与办公软件", softwareChildren || `<p class="empty-line">没有选择软件</p>`);
   const count = plan.selected_module_ids.length;
-  return renderShell(`<div class="mac-map"><div>${renderMapRail(2)}</div><section class="plan-content"><div class="section-title"><span class="section-index coral">C2</span><div><h2>确认迁移计划</h2><p>这一步不能跳过。取消一个模块只影响它和依赖它的动作。</p></div></div><div class="plan-summary"><span><b>${count}</b> 个已选动作</span><span><b>${plan.contains_secrets ? "含" : "不含"}</b> Wi‑Fi 密码</span><span><b>${keyboard.karabiner.installed ? "已检测" : "未检测"}</b> Karabiner</span></div><section class="module-list"><div class="list-heading"><span>系统与习惯</span><small>逐项确认</small></div>${plan.items.map((item) => renderPlanItem(item, plan)).join("")}${wifi}<div class="list-heading"><span>软件与开发</span><small>不自动安装</small></div>${software || `<p class="empty-line">没有选择软件模块</p>`}</section><section class="compat-panel"><div class="panel-heading"><div><span class="home-marker blue-text">设备范围</span><h3>选择性 Ctrl 兼容</h3></div><span class="risk-badge recoverable">可恢复</span></div><p>普通应用中的 Ctrl+C/V/X/Z/Y/A/S/F/P/N/O/W/T/L/R 转换为对应 Command；Terminal、远程桌面、虚拟机和 VS Code 集成终端保留真实 Ctrl。</p>${devices}<div class="compat-facts"><span>恢复：${escapeHtml(keyboard.recovery)}</span><span>授权：${escapeHtml(keyboard.karabiner.permission)}</span></div></section>${thirdParty}<div class="plan-safety"><span class="status-glyph good">✓</span><span>确认后先保存迁移前快照，再逐项执行和验证。快照不包含 Wi‑Fi 密码。</span></div><div class="action-row"><button class="secondary-button" data-action="home">取消计划</button><button class="primary-cta dark" data-action="apply" ${count ? "" : "disabled"}><span><b>确认并应用</b><small>${count} 个动作 · 先保存快照</small></span><i>→</i></button></div></section></div>`, "Mac 端 · 计划", "", "", "");
+  return renderShell(`<div class="mac-map"><div>${renderMapRail(2)}</div><section class="plan-content"><div class="section-title"><span class="section-index coral">C2</span><div><h2>确认迁移计划</h2><p>默认只显示两类内容。点开选项名称，可以查看它会做什么。</p></div></div><div class="plan-summary"><span><b>${count}</b> 项已选</span><span><b>${plan.contains_secrets ? "含" : "不含"}</b> Wi‑Fi 密码</span></div><section class="module-list">${habitsGroup}${softwareGroup}</section><div class="plan-safety"><span class="status-glyph good">✓</span><span>确认后先保存迁移前快照；只处理你勾选的内容。</span></div><div class="action-row"><button class="secondary-button" data-action="home">取消计划</button><button class="primary-cta dark" data-action="apply" ${count ? "" : "disabled"}><span><b>确认并应用</b><small>${count} 项 · 先保存快照</small></span><i>→</i></button></div></section></div>${renderDetailModal(plan)}`, "Mac 端 · 计划", "", "", "");
 }
 
 function renderApplying(): string {
@@ -427,7 +500,10 @@ async function importPackage(): Promise<void> {
     const path = isTauri ? await open({ multiple: false, directory: false, filters: [{ name: "MacWin 迁移包", extensions: ["habitpack"] }] }) : "preview.habitpack";
     if (!path && isTauri) return;
     setBusy(true);
-    const plan = await invokeOrPreview<ImportPlan>("import_habitpack", { path });
+    const importedPlan = await invokeOrPreview<ImportPlan>("import_habitpack", { path });
+    const plan = normalizePlan(importedPlan);
+    expandedPlanGroups = new Set();
+    activeDetailModuleId = null;
     state = { ...state, plan, runtime: isTauri ? state.runtime : runtimeFor("macos"), view: "plan", busy: false, error: null };
   } catch (error) { recordError(error); state = { ...state, view: "home", busy: false, error: String(error) }; }
   render();
@@ -439,7 +515,9 @@ async function applyPlan(): Promise<void> {
   state = { ...state, view: "applying", busy: true, error: null }; render();
   try {
     const keyboard = plan.keyboard_compatibility;
-    const confirmed = await invokeOrPreview<ImportPlan>("confirm_plan", { selected_module_ids: plan.selected_module_ids, keyboard_built_in: keyboard.built_in_enabled, keyboard_external: keyboard.external_enabled });
+    const selectedModuleIds = plan.selected_module_ids.filter((moduleId) => !hiddenPlanModuleIds.has(moduleId));
+    const confirmedRaw = await invokeOrPreview<ImportPlan>("confirm_plan", { selected_module_ids: selectedModuleIds, keyboard_built_in: keyboard.built_in_enabled, keyboard_external: keyboard.external_enabled });
+    const confirmed = normalizePlan({ ...confirmedRaw, selected_module_ids: selectedModuleIds });
     state = { ...state, plan: confirmed };
     const outcome = await invokeOrPreview<MigrationOutcome>("apply_plan", { keyboard_built_in: confirmed.keyboard_compatibility.built_in_enabled, keyboard_external: confirmed.keyboard_compatibility.external_enabled, selected_module_ids: confirmed.selected_module_ids, confirmation_token: confirmed.confirmation_token });
     state = { ...state, outcome, view: "complete", busy: false };
@@ -488,6 +566,7 @@ function bindEvents(): void {
     const action = element.dataset.action;
     if (action === "home") goHome();
     else if (action === "clear-error") { state = { ...state, error: null }; render(); }
+    else if (action === "close-detail") { activeDetailModuleId = null; render(); }
     else if (action === "start-scan") void runScan();
     else if (action === "import") void importPackage();
     else if (action === "export-review") updateView("export");
@@ -515,10 +594,31 @@ function bindEvents(): void {
   appRoot.querySelectorAll<HTMLInputElement>("input[data-module]").forEach((input) => input.addEventListener("change", () => { if (!state.plan) return; const moduleId = input.dataset.module ?? ""; const selected = input.checked ? [...state.plan.selected_module_ids, moduleId] : state.plan.selected_module_ids.filter((value) => value !== moduleId); state = { ...state, plan: { ...state.plan, selected_module_ids: [...new Set(selected)] } }; render(); }));
   appRoot.querySelectorAll<HTMLInputElement>("input[data-software]").forEach((input) => input.addEventListener("change", () => { const id = input.dataset.software ?? ""; const ids = input.checked ? [...state.selection.software_ids, id] : state.selection.software_ids.filter((value) => value !== id); state = { ...state, selection: { ...state.selection, software_ids: [...new Set(ids)] } }; render(); }));
   appRoot.querySelectorAll<HTMLInputElement>("input[data-software-plan]").forEach((input) => input.addEventListener("change", () => { if (!state.plan) return; const moduleId = `software.${input.dataset.softwarePlan ?? ""}`; const selected = input.checked ? [...state.plan.selected_module_ids, moduleId] : state.plan.selected_module_ids.filter((value) => value !== moduleId); state = { ...state, plan: { ...state.plan, selected_module_ids: [...new Set(selected)] } }; render(); }));
+  appRoot.querySelectorAll<HTMLInputElement>("input[data-group-toggle]").forEach((input) => input.addEventListener("change", () => {
+    if (!state.plan) return;
+    const group = input.dataset.groupToggle as "habits" | "software";
+    const ids = planGroupModuleIds(state.plan, group);
+    const selected = input.checked ? [...state.plan.selected_module_ids, ...ids] : state.plan.selected_module_ids.filter((value) => !ids.includes(value));
+    state = { ...state, plan: { ...state.plan, selected_module_ids: [...new Set(selected)] } };
+    render();
+  }));
+  appRoot.querySelectorAll<HTMLButtonElement>("button[data-group-expand]").forEach((button) => button.addEventListener("click", () => {
+    const group = button.dataset.groupExpand ?? "";
+    if (expandedPlanGroups.has(group)) expandedPlanGroups.delete(group); else expandedPlanGroups.add(group);
+    render();
+  }));
+  appRoot.querySelectorAll<HTMLButtonElement>("button[data-detail-id]").forEach((button) => button.addEventListener("click", () => { activeDetailModuleId = button.dataset.detailId ?? null; render(); }));
+  appRoot.querySelectorAll<HTMLElement>("[data-detail-backdrop]").forEach((backdrop) => backdrop.addEventListener("click", (event) => { if (event.target === backdrop) { activeDetailModuleId = null; render(); } }));
   appRoot.querySelectorAll<HTMLInputElement>("input[data-linear-mouse]").forEach((input) => input.addEventListener("change", () => { state = { ...state, preview: { ...state.preview, linearMouseConfirmed: input.checked } }; render(); }));
   appRoot.querySelectorAll<HTMLElement>("[data-rollback]").forEach((element) => element.addEventListener("click", () => void rollback(element.dataset.rollback)));
   appRoot.querySelectorAll<HTMLElement>("[data-preview-platform]").forEach((element) => element.addEventListener("click", () => updatePreviewQuery("platform", element.dataset.previewPlatform ?? "macos")));
   appRoot.querySelectorAll<HTMLSelectElement>("[data-preview-scenario]").forEach((select) => select.addEventListener("change", () => updatePreviewQuery("scenario", select.value)));
+  appRoot.querySelectorAll<HTMLInputElement>("input[data-group-toggle]").forEach((input) => {
+    if (!state.plan) return;
+    const group = input.dataset.groupToggle as "habits" | "software";
+    const groupState = groupSelectedState(state.plan, group);
+    input.indeterminate = groupState.selected > 0 && !groupState.checked;
+  });
 }
 
 async function saveReport(format: "html" | "json"): Promise<void> {
