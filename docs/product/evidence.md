@@ -346,3 +346,11 @@
 - 摘要：负责人授权从 `origin/integration/v1.0.0-visual-fidelity-v6` 的 `da64e77` 创建 `release/v1.0.1`，对齐前端、Tauri 和 Cargo 版本，运行真实 Windows x64 NSIS 与 Apple Silicon macOS DMG 的 GitHub Actions 打包，并创建 `v1.0.1-rc.1` Pre-release。授权不包括签名、公证、正式 `v1.0.1` Release、合并 `main` 或绕过 SmartScreen/Gatekeeper。
 - 产品含义：候选包是可复查、可下载的知情测试入口；`.habitpack` schema/ruleset 和快照格式仍保持 `1.0.0`，不会因为应用 RC 版本变化而扩大迁移数据范围。
 - 关联决定：D-039、D-040、OD-002、OD-006、OD-007
+
+### E-048：v1.0.1-rc.1 双平台未签名 Pre-release 已核验
+
+- 类型：GitHub Actions 构建、发布资产与哈希核验
+- 摘要：`release/v1.0.1` 提交 `26ec53f95def65e4be9847a74b8b3e2fa7eb2653` 的 v1 validation run `30824474914` 与 unsigned RC run `30824474842` 均成功；Windows job `91722419458` 生成一个 x64 NSIS 安装器，macOS job `91722419549` 在 Apple Silicon `macos-15` 生成一个 DMG，publish job `91725073580` 成功完成。Pre-release [`v1.0.1-rc.1`](https://github.com/aswansong/macwin/releases/tag/v1.0.1-rc.1) 为非 draft、prerelease，tag HEAD 与构建提交一致，资产恰好为 `MacWin_1.0.1-rc.1_x64-setup.exe`、`MacWin_1.0.1-rc.1_aarch64.dmg`、`SHA256SUMS.txt` 和 `README-TESTING.md`。
+- 哈希：Windows `8ac208babe263615011ad12457bed0b4d933cd966fee15e00e750ca5178b50b0`；macOS `7c81c91e6013e17a83cb7f36b37d57a75571efbb4ddf0a79f216dd0cbae3f605`。下载后重新计算的 SHA-256 与总清单一致。
+- 产品含义：负责人现在可以直接下载当前原生 App RC 进行真实设备验收；这仍是未签名知情测试包，不满足 Windows 可信签名、Apple Developer ID/公证、SmartScreen/Gatekeeper 可信分发或正式 v1.0.1 Release 门槛。
+- 关联决定：D-040、OD-002、OD-005、OD-006、OD-007

@@ -35,7 +35,7 @@
 
 ## 当前下一动作
 
-下一动作：完成本地验证并推送 `release/v1.0.1`，等待 GitHub Actions 生成 `v1.0.1-rc.1` 双平台包；核对 Pre-release 的 tag、HEAD、资产数量和 SHA-256 后写入证据。之后才交给负责人做真实设备验收；不合并 `main`，不创建正式 `v1.0.1` Release。OD-005/OD-007 未关闭前不新增真实 Wi‑Fi 密码或自动安装实现。
+下一动作：`v1.0.1-rc.1` Pre-release 已由 Actions run `30824474842` 发布并完成 tag/HEAD、资产数量和 SHA-256 核验。[E-048] 负责人下一步从 [GitHub Pre-release](https://github.com/aswansong/macwin/releases/tag/v1.0.1-rc.1) 在真实 Windows 10/11 与 Apple Silicon macOS 15/26 下载验收；不合并 `main`，不创建正式 `v1.0.1` Release。OD-005/OD-007 未关闭前不新增真实 Wi‑Fi 密码或自动安装实现。
 
 ## 阻塞项与门槛
 

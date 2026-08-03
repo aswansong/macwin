@@ -36,7 +36,8 @@
     "snapshot lifecycle and report format decisions reconciled",
     "v1 support entry and same-major habitpack compatibility gate aligned",
     "unsigned v1.0.0-rc.1 Windows NSIS and Apple Silicon DMG published as a GitHub Pre-release",
-    "v1.0.1-rc.1 version, native app metadata, release docs and unsigned dual-platform workflow aligned"
+    "v1.0.1-rc.1 version, native app metadata, release docs and unsigned dual-platform workflow aligned",
+    "v1.0.1-rc.1 dual-platform unsigned Pre-release published and SHA-256 verified"
   ],
   "failed_or_deferred": [
     "P0-008 real external-device reconnect matrix not complete",
@@ -56,9 +57,10 @@
     "draft PR https://github.com/aswansong/macwin/pull/1 targets main and remains open",
     "./scripts/validate-m1 (55 tests), release-preparation, manifest, release-assets, npm and cargo checks passed",
     "GitHub Actions run 30785408954 generated both unsigned RC packages; Pre-release https://github.com/aswansong/macwin/releases/tag/v1.0.0-rc.1 (historical)",
-    "D-040/E-047 authorize release/v1.0.1 and unsigned v1.0.1-rc.1 candidate"
+    "D-040/E-047 authorize release/v1.0.1 and unsigned v1.0.1-rc.1 candidate",
+    "Actions 30824474914/30824474842 passed; tag HEAD 26ec53f; E-048 records assets and SHA-256"
   ],
-  "next_action": "完成 release/v1.0.1 本地验证并推送，等待 v1-ci 与 unsigned-rc workflow；核对 v1.0.1-rc.1 Pre-release 的 tag HEAD、双平台资产和 SHA-256 后，再交给负责人做真实设备验收。",
+  "next_action": "负责人从 GitHub Pre-release v1.0.1-rc.1 在真实 Windows 10/11 与 Apple Silicon macOS 15/26 下载并按验收手册测试；记录脱敏结果后再处理免费 Windows 签名申请与正式 macOS Developer ID 门槛。",
   "human_gates": [
     "Apple Developer ID signing and notarization credentials",
     "Windows code-signing certificate",
