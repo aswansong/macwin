@@ -16,4 +16,4 @@ MacWin 计划处理系统偏好，并可在用户明确选择时迁移 Wi‑Fi �
 
 ## 当前状态
 
-仓库当前处于 `release/v1.0.0` 开发阶段，包含 Alpha 0.2 的历史验证和未签名的开发构建。正式 Release 必须完成可信签名、Apple 公证/stapling、更新公钥注入和真实设备矩阵；在此之前请勿把构建用于普通用户分发。安全承诺、威胁模型和验收要求记录在 [隐私与安全规格](docs/product/specs/privacy-security.md) 与 [v1 验证矩阵](docs/product/v1-validation.md) 中。[D-032、E-021]
+仓库当前处于 `release/v1.0.1` RC 收口阶段，`v1.0.1-rc.1` 只允许负责人和明确知情测试者使用。它不提供 Windows 可信签名或 Apple Developer ID/公证；不要关闭 SmartScreen、Gatekeeper、SIP 或其他系统安全能力来运行它。正式 Release 仍必须完成可信签名、公证/stapling、更新公钥注入和真实设备矩阵；在此之前请勿把构建用于普通用户分发。安全承诺、威胁模型和验收要求记录在 [隐私与安全规格](docs/product/specs/privacy-security.md) 与 [v1 验证矩阵](docs/product/v1-validation.md) 中。[D-040、E-047]

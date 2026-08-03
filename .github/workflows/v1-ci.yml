@@ -2,9 +2,10 @@ name: v1 validation
 
 on:
   push:
-    branches: ["main"]
+    branches: ["release/v1.0.1", "main"]
   pull_request:
-    branches: ["release/v1.0.0", "main"]
+    branches: ["release/v1.0.1", "main"]
+  workflow_dispatch:
 
 permissions:
   contents: read

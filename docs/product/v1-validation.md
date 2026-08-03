@@ -1,6 +1,10 @@
 # MacWin v1 验证矩阵（开发中）
 
-状态：`integration/v1.0.0-visual-fidelity-v6`（基于 `release/v1.0.0`）。这份记录区分“代码已具备”“本地验证通过”和“仍需真实设备/凭据门槛”，不把开发构建当作正式 Release。[D-032、E-021]
+状态：`release/v1.0.1`（基于 `integration/v1.0.0-visual-fidelity-v6` 的 `da64e77`）。这份记录区分“代码已具备”“本地验证通过”和“仍需真实设备/凭据门槛”，`v1.0.1-rc.1` 仍是不签名知情测试版，不是正式 Release。[D-040、E-047]
+
+## v1.0.1-rc.1 候选验证（待 Actions 完成）
+
+候选版本目标为前端/Tauri `1.0.1-rc.1`、Cargo `1.0.1`；`.habitpack` schema、ruleset 与 snapshot 继续保持 `1.0.0`。GitHub Actions 必须在 `windows-latest` 生成恰好一个 x64 NSIS `.exe`，在 Apple Silicon `macos-15` 生成恰好一个 `.dmg`，两者写入同一 `BUILD_COMMIT.txt`，发布前统一生成 `SHA256SUMS.txt`。成功后才可记录 `v1.0.1-rc.1` Pre-release 的 URL、tag HEAD、Actions run ID 和哈希。[D-040、E-047]
 
 ## integration/v1.0.0-visual-fidelity-v6 视觉整合补充
 
@@ -41,8 +45,8 @@
 | 手动 tag 的源码一致性 | Release workflow 的 build/publish checkout 显式使用 `inputs.tag || github.ref`，再由 `prepare-release.py` 校验版本 | 只验证 workflow 配置，不证明真实签名构建已执行 |
 | 真实设备验收准备 | [真实设备验收手册](../execution/real-device-acceptance.md) 固定 W10/W11/M15/M26、权限/外设/失败/恢复/升级卸载矩阵与脱敏证据字段 | 尚未执行；设备、签名凭据、系统弹窗和负责人最终确认仍是发布门槛 |
 | 本地 macOS App bundle | Tauri `--bundles app` 完成前端、Rust release 编译和 `MacWin.app` 生成；临时关闭 updater 产物并 `--no-sign` 后可重复构建 | 仅未签名构建验证；updater 私钥、Developer ID、公证、stapling 和真实安装仍未完成 |
-| 本地 macOS DMG | Tauri `--bundles dmg` 生成 Apple Silicon DMG，`hdiutil verify` 校验有效 | 产物仍为未签名 `1.0.0-rc.1` 开发包；不替代 Developer ID、公证、stapling 或真实安装验收 |
-| GitHub 未签名 RC | Actions run `30785408954` 生成 Windows x64 NSIS 与 Apple Silicon DMG；[`v1.0.0-rc.1` Pre-release](https://github.com/aswansong/macwin/releases/tag/v1.0.0-rc.1) 附双平台 SHA-256 | 只供负责人和知情测试者；不合并 `main`，不替代正式签名、公证或真实设备验收 |
+| 本地 macOS DMG | Tauri `--bundles dmg` 生成 Apple Silicon DMG，`hdiutil verify` 校验有效 | 产物仍为未签名 `1.0.1-rc.1` 开发包；不替代 Developer ID、公证、stapling 或真实安装验收 |
+| GitHub 未签名 RC | `release/v1.0.1` 的 `unsigned-rc` workflow 生成 Windows x64 NSIS 与 Apple Silicon DMG；成功后链接 [`v1.0.1-rc.1` Pre-release](https://github.com/aswansong/macwin/releases/tag/v1.0.1-rc.1) 并附总 SHA-256 | 待 Actions 完成后填入 run ID、tag HEAD 和哈希；只供负责人和知情测试者，不替代正式签名、公证或真实设备验收 |
 
 ## 尚未达到正式发布门槛
 
@@ -63,4 +67,4 @@ LinearMouse 是独立的 Mac 鼠标/触控板工具；MacWin 只检测其是否�
 1. 配置 Tauri updater 公钥和签名私钥，并在隔离环境完成签名验证。
 2. 提供真实 Windows 10/11 与 macOS 15/26 设备，完成 UAC、TCC、Karabiner/LinearMouse 授权和拒绝路径。
 3. 在安装、升级、回滚和卸载后检查快照、报告、日志及敏感信息探针。
-4. 负责人确认 Release 内容后，才允许合并 `main`、创建 `v1.0.0` 标签和 GitHub Release。
+4. 负责人确认 Release 内容后，才允许合并 `main`、创建 `v1.0.1` 标签和 GitHub Release；`v1.0.1-rc.1` 不满足这些门槛。

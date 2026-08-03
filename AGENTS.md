@@ -6,10 +6,10 @@ MacWin 帮助 Windows 10/11 x64 用户把使用习惯迁移到运行 macOS 15/26
 
 ## Current phase
 
-- M0、M1 和 Alpha 0.1/0.2 已收口；当前状态为 `release/v1.0.0` / `v1_release_in_progress`。[D-032、E-021]
-- 负责人已授权推进面向普通 Windows 新手的 v1.0.0：允许实现剩余 P0、加入经过审查的生产依赖与 Tauri 插件、启用 bundle、构建安装包、创建 PR、合并 `main`、打标签和创建 GitHub Release。[D-032]
+- M0、M1、Alpha 0.1/0.2 和 v1.0.0 历史 RC 已收口；当前状态为 `release/v1.0.1` / `v1_release_candidate`。[D-039、D-040、E-046、E-047]
+- 负责人已授权从 v1.0.0 RC 基线创建 `v1.0.1-rc.1` 未签名测试版：允许对版本、文档、CI 和真实双平台打包路径做收口，并创建 GitHub Pre-release；不得把它称为正式签名版本。[D-040、E-047]
 - Alpha 0.2 的代码和真实 Mac 证据仍保留在 `alpha/v0.2-keyboard-compatibility`；原型仍位于独立 `prototype/ui-flow-v2-hardening` 分支，只使用虚构数据，不作为正式实现。[D-028、D-031、E-020]
-- v1.0 仍坚持 Windows 10/11 x64 → Apple 芯片 macOS 15/26、习惯与环境迁移、默认本地离线、无账号、无聊天、无常驻和零个人文件迁移。未签名构建不得作为正式版本发布。[D-032、E-021]
+- v1.0 仍坚持 Windows 10/11 x64 → Apple 芯片 macOS 15/26、习惯与环境迁移、默认本地离线、无账号、无聊天、无常驻和零个人文件迁移。`v1.0.1-rc.1` 仍是未签名知情测试构建，不得作为正式版本发布。[D-032、D-040、E-047]
 
 ## v1.0 执行边界
 

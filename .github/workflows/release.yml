@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   build:
+    if: ${{ !contains(inputs.tag || github.ref_name, '-rc.') }}
     strategy:
       fail-fast: false
       matrix:
@@ -200,6 +201,7 @@ jobs:
           if-no-files-found: error
 
   publish:
+    if: ${{ !contains(inputs.tag || github.ref_name, '-rc.') }}
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -230,7 +232,7 @@ jobs:
       - name: Stage public release assets
         shell: bash
         run: |
-          python3 scripts/stage-release-assets.py release-assets release-upload docs/releases/v1.0.0.md
+          python3 scripts/stage-release-assets.py release-assets release-upload "docs/releases/${{ inputs.tag || github.ref_name }}.md"
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

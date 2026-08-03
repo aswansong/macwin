@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import packageMetadata from "../package.json";
 import { initialState, setView, statusLabel } from "./app-state";
 import {
   canRestoreModule,
@@ -32,6 +33,7 @@ import "./styles.css";
 const root = document.querySelector<HTMLDivElement>("#app");
 if (!root) throw new Error("MacWin root not found");
 const appRoot = root;
+const APP_VERSION = packageMetadata.version;
 
 const isTauri = Boolean((window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
 const previewEnabled = isPreviewEnvironment(isTauri, import.meta.env.DEV);
@@ -106,7 +108,7 @@ const previewPlanBase: ImportPlan = {
 };
 
 const previewDiagnostics: DeviceSelfCheck = {
-  app_version: "1.0.0-rc.1",
+  app_version: APP_VERSION,
   format_version: "1.0.0",
   runtime: runtimeFor("macos"),
   keyboard_devices: previewPlanBase.keyboard_compatibility.devices,
@@ -256,7 +258,7 @@ function renderHabitTicket(orientation: "horizontal" | "vertical", variant: "hom
   return `<article class="habit-ticket ${vertical ? "habit-ticket-vertical" : "habit-ticket-horizontal"} ${variant === "empty" ? "ticket-empty" : ""}">
     <div class="ticket-strap" aria-hidden="true"><span class="ticket-ring"></span></div>
     <div class="ticket-paper"><div class="ticket-paper-inner">
-      <div class="ticket-masthead"><span>MACWIN / HABIT PASS</span><span>1.0.0</span></div>
+      <div class="ticket-masthead"><span>MACWIN / HABIT PASS</span><span>${escapeHtml(APP_VERSION)}</span></div>
       <div class="ticket-heading"><strong>.habitpack</strong><span class="ticket-stamp">MACWIN<br/>HABIT PASS</span></div>
       <div class="ticket-rule"></div>
       ${vertical ? `<div class="ticket-file-placeholder">${renderModuleGlyph("file")}<span>MacWin 迁移包</span></div><div class="ticket-safe-line">${renderModuleGlyph("system")}<span>受保护的迁移数据</span></div>` : `<div class="ticket-modules">${renderTicketSlot("habit", "操作习惯", habits, "未选择")}${renderTicketSlot("software", "软件与开发", software, "空位")}${renderTicketSlot("system", "系统设置", system, "未选择")}${renderTicketSlot("wifi", "Wi‑Fi", wifi, "未选择")}</div><div class="ticket-route"><span>Windows</span><i>→</i><span>Mac</span></div>`}
@@ -488,7 +490,7 @@ function renderComplete(): string {
 function renderReport(): string {
   const outcome = state.outcome;
   if (!outcome) return renderHome();
-  return renderShell(`<div class="mac-map subpage-map"><div>${renderMapRail(4)}</div><section class="report-content"><div class="section-title"><span class="section-index mint">R</span><div><h2>迁移变更报告</h2><p>只记录用户可理解的变化，不展示原始配置或秘密。</p></div></div><section class="report-sheet"><div class="report-meta"><span>MacWin v1.0.0</span><span>${escapeHtml(outcome.completed_at)}</span></div>${outcome.results.map((result) => `<div class="report-line"><div class="result-title"><strong>${escapeHtml(result.title)}</strong><span class="status-text">${escapeHtml(statusLabel(result.status))}</span></div><span>${escapeHtml(result.before)} <i>→</i> ${escapeHtml(result.after)}</span><small>原因：${escapeHtml(result.reason)}　收益：${escapeHtml(result.benefit)}${result.error_code ? `　错误码：${escapeHtml(result.error_code)}` : ""}</small></div>`).join("")}<div class="report-footnote">快照：${outcome.snapshot_available ? "已保存，可按模块恢复" : "未找到"} · 报告不包含 Wi‑Fi 密码、账号、路径、Token 或个人文件。</div></section><div class="action-row"><button class="secondary-button" data-action="complete">返回结果</button><button class="primary-cta dark" data-action="download-report"><span><b>保存 HTML 报告</b><small>本地文件</small></span><i>↗</i></button><button class="secondary-button" data-action="download-report-json">保存脱敏 JSON</button></div></section></div>`, "迁移后主页 · 报告", "", "", "");
+  return renderShell(`<div class="mac-map subpage-map"><div>${renderMapRail(4)}</div><section class="report-content"><div class="section-title"><span class="section-index mint">R</span><div><h2>迁移变更报告</h2><p>只记录用户可理解的变化，不展示原始配置或秘密。</p></div></div><section class="report-sheet"><div class="report-meta"><span>MacWin ${escapeHtml(APP_VERSION)}</span><span>${escapeHtml(outcome.completed_at)}</span></div>${outcome.results.map((result) => `<div class="report-line"><div class="result-title"><strong>${escapeHtml(result.title)}</strong><span class="status-text">${escapeHtml(statusLabel(result.status))}</span></div><span>${escapeHtml(result.before)} <i>→</i> ${escapeHtml(result.after)}</span><small>原因：${escapeHtml(result.reason)}　收益：${escapeHtml(result.benefit)}${result.error_code ? `　错误码：${escapeHtml(result.error_code)}` : ""}</small></div>`).join("")}<div class="report-footnote">快照：${outcome.snapshot_available ? "已保存，可按模块恢复" : "未找到"} · 报告不包含 Wi‑Fi 密码、账号、路径、Token 或个人文件。</div></section><div class="action-row"><button class="secondary-button" data-action="complete">返回结果</button><button class="primary-cta dark" data-action="download-report"><span><b>保存 HTML 报告</b><small>本地文件</small></span><i>↗</i></button><button class="secondary-button" data-action="download-report-json">保存脱敏 JSON</button></div></section></div>`, "迁移后主页 · 报告", "", "", "");
 }
 
 function renderGuide(): string {

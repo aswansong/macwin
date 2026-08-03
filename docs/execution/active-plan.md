@@ -1,8 +1,8 @@
 # 当前执行计划
 
-计划 ID：`v1.0.0-release`
+计划 ID：`v1.0.1-rc-release`
 
-状态：**release/v1.0.0 实现与发布准备中**
+状态：**release/v1.0.1 未签名 RC 收口中**
 
 最后更新：2026-08-03
 
@@ -10,7 +10,7 @@
 
 ## 当前授权
 
-负责人已授权从 Alpha 0.2 推进到可供普通 Windows 新手使用的 v1.0.0：允许在本分支实现剩余 P0、加入经过审查的生产依赖与 Tauri 插件、构建安装包、创建 PR、合并 `main`、打标签和创建 GitHub Release。未签名构建不得作为正式版本发布。[D-032、E-021]
+负责人已授权从 v1.0.0 RC 基线创建 `release/v1.0.1`，对齐 `1.0.1-rc.1` 应用版本，运行真实 Windows x64 NSIS 与 Apple Silicon macOS DMG 的 Actions 打包，并创建未签名 `v1.0.1-rc.1` Pre-release。未授权签名、公证、正式 `v1.0.1` Release、合并 `main` 或绕过系统安全提示。[D-040、E-047]
 
 负责人同时再次确认 M2 Wave 0 研究授权，但该研究授权不扩大本分支的发布边界：新增研究代码、虚构夹具和研究报告必须放在 `codex/m2-*` 独立分支，不创建 PR、不合并 `main`、不创建 Release。[D-033、E-023]
 
@@ -31,11 +31,11 @@
 5. P0-013 已加入本地 HTML/脱敏 JSON 报告；P0-014 已加入本地错误日志、GitHub 入口、updater 依赖和签名 Release 草稿，公钥注入仍只在正式发布工作流中进行。
 6. 启用 Tauri bundle，完善 Windows x64/macOS arm64 安装、升级、卸载和 CI 草稿 Release；Release workflow 的 build/publish job 会检出输入 tag，`scripts/prepare-release.py` 会在正式标签构建前校验并同步 Tauri/npm 版本，`scripts/build-release-manifest.py` 会对 updater 产物做确定性选择，`scripts/validate-release-assets.py` 会在发布前校验双平台安装包、哈希、SBOM、签名文本和 manifest 一致性，`scripts/stage-release-assets.py` 会展平公开资产并生成总 SHA-256，手动 tag 输入也会用于 macOS DMG 的生成和公证路径；不把未签名包标为正式版。
 7. RC 阶段的一次完整代码审查、安全/隐私审查和端到端 UX 审查已完成；报告双格式入口、快照完整性错误态、开发工具白名单和取消模块/恢复边界已修复。完整本地测试矩阵与双平台 CI 均已通过，P2 留在 backlog。
-8. 按 [真实设备验收手册](./real-device-acceptance.md) 收集 Windows 10/11、macOS 15/26 设备证据，完成签名、公证、stapling、哈希、SBOM、发布说明后，走一次最终人类确认，再合并 `main`、打 `v1.0.0` 标签和发布。
+8. 在本分支完成版本/文档/CI 对齐，推送后等待 `v1-ci` 与 `unsigned-rc`；仅在两个包、提交一致性、哈希和 Pre-release 资产核验通过后记录证据。真实设备、签名、公证和正式 v1.0.1 发布继续留给后续人类门槛。
 
 ## 当前下一动作
 
-下一动作：未签名 [`v1.0.0-rc.1` GitHub Pre-release](https://github.com/aswansong/macwin/releases/tag/v1.0.0-rc.1) 已包含 Windows x64 NSIS、Apple Silicon macOS DMG 和双平台 SHA-256。[E-046] 负责人下一步在真实 Windows 10/11 与 Apple Silicon macOS 15/26 下载验收；不合并 `main`，验收后再进入免费 Windows 签名申请、正式 macOS Developer ID 和 v1.0.0 发布门。OD-005/OD-007 未关闭前不新增真实 Wi‑Fi 密码或自动安装实现。
+下一动作：完成本地验证并推送 `release/v1.0.1`，等待 GitHub Actions 生成 `v1.0.1-rc.1` 双平台包；核对 Pre-release 的 tag、HEAD、资产数量和 SHA-256 后写入证据。之后才交给负责人做真实设备验收；不合并 `main`，不创建正式 `v1.0.1` Release。OD-005/OD-007 未关闭前不新增真实 Wi‑Fi 密码或自动安装实现。
 
 ## 阻塞项与门槛
 

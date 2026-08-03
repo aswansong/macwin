@@ -4,7 +4,7 @@
 
 MacWin 是一个面向 Windows 迁移用户的本地桌面工具。它计划读取经过用户允许的 Windows 使用习惯，生成 `.habitpack` 迁移包，并在 Apple 芯片 Mac 上把这些习惯转换为安全、可解释、可回滚的配置。
 
-> 当前状态：**v1.0.0 release 分支开发中**。本分支正在把 Alpha 0.2 的真实 Mac 闭环推进为可签名、可验证的 Windows → Mac 产品；当前构建仍不是面向普通用户的正式发布，签名、公证和真实四设备矩阵尚未完成。[D-032、E-021]
+> 当前状态：**v1.0.1-rc.1 未签名测试版准备中**。`release/v1.0.1` 基于 v1.0.0 RC 的视觉整合基线，正在验证原生 Tauri 双平台打包；当前构建只供负责人和明确知情测试者使用，不是面向普通用户的正式发布。[D-039、D-040、E-047]
 
 ## 第一版范围
 
@@ -75,7 +75,7 @@ MacWin 明确不会执行迁移包中的命令、脚本或路径；不会上传�
 
 ## 普通用户使用（正式 Release 后）
 
-正式版本发布后，唯一下载入口是 [GitHub Releases](https://github.com/aswansong/macwin/releases/latest)。请只下载标记为 Windows x64 的签名安装包，或 Apple Silicon 的已签名、公证 DMG；当前 `release/v1.0.0` 仍未达到正式发布门槛，因此这里暂不提供可供新手使用的安装包。
+正式版本发布后，唯一下载入口是 [GitHub Releases](https://github.com/aswansong/macwin/releases/latest)。请只下载标记为 Windows x64 的签名安装包，或 Apple Silicon 的已签名、公证 DMG；`v1.0.1-rc.1` 未签名 Pre-release 仅供知情测试，不应让普通新手绕过 SmartScreen 或 Gatekeeper。
 
 1. 在 Windows 上安装 MacWin，点击“开始检测”，确认要带走的项目后保存 `.habitpack`。迁移包只用 U 盘或你信任的本地方式带到 Mac，不会自动上传。
 2. 在 Apple 芯片 Mac 上安装 MacWin，点击“导入迁移包”。逐项查看迁移计划；在确认之前不会修改系统。确认后，MacWin 保存一份迁移前快照并逐项验证结果。
@@ -101,7 +101,7 @@ MacWin 明确不会执行迁移包中的命令、脚本或路径；不会上传�
 
 ## 当前里程碑
 
-交互原型已冻结在独立分支 `prototype/ui-flow-v2-hardening`；当前生产推进分支为 `release/v1.0.0`，起点为 Alpha 0.2 提交 `26bd7fbc4a74ecfc8999e638c7e179068de00f59`。在签名、公证、真实设备矩阵和负责人最终确认完成前，不得把本分支构建称为正式 Release。[D-032、E-021]
+交互原型已冻结在独立分支 `prototype/ui-flow-v2-hardening`；v1.0.0 的历史发布准备保留在 `release/v1.0.0`，当前 RC 收口分支为 `release/v1.0.1`，基线为 `da64e77fc5839042f8fa38ae29c57694f7ae0e14`。在签名、公证、真实设备矩阵和负责人最终确认完成前，不得把本分支构建称为正式 Release。[D-039、D-040、E-047]
 
 M1 格式资产使用精确的 `1.0.0` 验证档案。开发者可运行 `./scripts/validate-m1` 校验 schema、虚构夹具、仓库 JSON、文档引用、依赖图和当前 v1 授权边界；首次运行需要联网安装锁定的开发验证依赖。这不是产品运行命令或公开兼容性承诺。
 

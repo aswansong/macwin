@@ -111,7 +111,7 @@ pub fn device_self_check(app: AppHandle, state: State<'_, MacWinState>) -> Devic
         .unwrap_or_default();
     let plan = karabiner::plan_for_target();
     DeviceSelfCheck {
-        app_version: env!("CARGO_PKG_VERSION").to_owned(),
+        app_version: app.package_info().version.to_string(),
         format_version: habitpack::SCHEMA_VERSION.to_owned(),
         runtime: platform::runtime_info(),
         keyboard_devices: plan.devices,
@@ -136,7 +136,7 @@ pub fn scan_windows() -> Result<WindowsScan, String> {
 }
 
 #[tauri::command]
-pub fn export_habitpack(path: String, selection: ExportSelection) -> Result<ExportReceipt, String> {
+pub fn export_habitpack(app: AppHandle, path: String, selection: ExportSelection) -> Result<ExportReceipt, String> {
     if path.is_empty() || !path.to_ascii_lowercase().ends_with(".habitpack") {
         return Err("EXPORT_EXTENSION".to_owned());
     }
@@ -170,7 +170,8 @@ pub fn export_habitpack(path: String, selection: ExportSelection) -> Result<Expo
             official_url: item.official_url,
         })
         .collect();
-    let receipt = habitpack::write_package(
+    let app_version = app.package_info().version.to_string();
+    let receipt = habitpack::write_package_with_app_version(
         Path::new(&path),
         PackageInput {
             source_os: scan
@@ -183,6 +184,7 @@ pub fn export_habitpack(path: String, selection: ExportSelection) -> Result<Expo
             software,
             guide_requested: selection.guide_requested,
         },
+        &app_version,
     )
     .map_err(|error| error.code.to_owned())?;
     let bytes = std::fs::metadata(&path)

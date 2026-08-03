@@ -1440,7 +1440,15 @@ fn records_count_from_central(central: &[u8]) -> Option<u16> {
     Some(count)
 }
 
+#[allow(dead_code)]
 pub fn build_package(input: PackageInput) -> Result<(Vec<u8>, PackageReceipt)> {
+    build_package_with_app_version(input, env!("CARGO_PKG_VERSION"))
+}
+
+pub fn build_package_with_app_version(
+    input: PackageInput,
+    app_version: &str,
+) -> Result<(Vec<u8>, PackageReceipt)> {
     let (entries, _) = build_entries(&input)?;
     let created_at = now_utc()?;
     let mut files = Vec::new();
@@ -1457,7 +1465,7 @@ pub fn build_package(input: PackageInput) -> Result<(Vec<u8>, PackageReceipt)> {
         schema_version: SCHEMA_VERSION,
         created_at: &created_at,
         created_by: CreatedBy {
-            app_version: env!("CARGO_PKG_VERSION"),
+            app_version,
             ruleset_version: "macwin.v1.0.0",
         },
         source: Source {
@@ -1499,8 +1507,26 @@ pub fn build_package(input: PackageInput) -> Result<(Vec<u8>, PackageReceipt)> {
     ))
 }
 
+#[allow(dead_code)]
 pub fn write_package(path: impl AsRef<Path>, input: PackageInput) -> Result<PackageReceipt> {
     let (bytes, receipt) = build_package(input)?;
+    write_package_bytes(path, bytes, receipt)
+}
+
+pub fn write_package_with_app_version(
+    path: impl AsRef<Path>,
+    input: PackageInput,
+    app_version: &str,
+) -> Result<PackageReceipt> {
+    let (bytes, receipt) = build_package_with_app_version(input, app_version)?;
+    write_package_bytes(path, bytes, receipt)
+}
+
+fn write_package_bytes(
+    path: impl AsRef<Path>,
+    bytes: Vec<u8>,
+    receipt: PackageReceipt,
+) -> Result<PackageReceipt> {
     let path = path.as_ref();
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
     std::fs::create_dir_all(parent).map_err(|_| error("HP_EXPORT_WRITE"))?;

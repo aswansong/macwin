@@ -290,6 +290,13 @@
 - 理由：先把同一提交的双平台安装包放到 GitHub，便于负责人在更换或取得真实 Windows/Mac 设备后直接下载验收，同时保留正式签名、公证和真实设备矩阵作为 v1.0.0 发布门。
 - 证据：E-045
 
+### D-040：v1.0.1-rc.1 只做未签名 RC 收口
+
+- 状态：已决定
+- 决定：从 `origin/integration/v1.0.0-visual-fidelity-v6` 的 `da64e77` 创建 `release/v1.0.1`，把应用包版本对齐到 `1.0.1-rc.1`（Cargo 基础版本 `1.0.1`），并通过 GitHub Actions 构建 Windows x64 NSIS 与 Apple Silicon macOS DMG。允许创建 `v1.0.1-rc.1` Pre-release，但不得创建正式 `v1.0.1` 标签/Release、不得合并 `main`、不得伪称已签名或已公证。
+- 理由：保留已发布 v1.0.0 RC 的历史可复查性，同时让当前视觉整合和原生 App 版本在真实双平台打包前拥有独立候选版本。签名、公证、真实设备、更新凭据和正式公开承诺仍是后续人类门槛。
+- 证据：E-047
+
 ## 已取代的决定
 
 ### D-X01：全局交换 Ctrl 与 Command

@@ -2,8 +2,8 @@
   "schema_version": "1.0.0",
   "product": "MacWin",
   "direction": "windows_to_macos",
-  "current_milestone": "v1.0.0-release",
-  "milestone_status": "v1_release_in_progress",
+  "current_milestone": "v1.0.1-rc-release",
+  "milestone_status": "v1_release_candidate",
   "prototype_authorized": true,
   "production_implementation_authorized": true,
   "system_changes_authorized": true,
@@ -81,10 +81,10 @@
       "evidence_ref": "E-020"
     },
     "release": {
-      "branch": "release/v1.0.0",
-      "scope": "production_p0_and_release_preparation_in_progress",
-      "decision_ref": "D-032",
-      "evidence_ref": "E-021"
+      "branch": "release/v1.0.1",
+      "scope": "unsigned_v1.0.1_rc_and_release_preparation_in_progress",
+      "decision_ref": "D-040",
+      "evidence_ref": "E-047"
     }
   },
   "status_definitions": {

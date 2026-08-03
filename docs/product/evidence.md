@@ -339,3 +339,10 @@
 - 摘要：GitHub Actions run `30785408954` 在 `release/v1.0.0` 提交 `89aae51` 上分别生成 Windows x64 NSIS 安装器和 Apple Silicon macOS DMG；两个 job 均通过测试、打包与 artifact 上传。DMG 通过 `hdiutil verify`，内部主程序为 arm64，只有 ad-hoc 签名而没有 Team ID 或 Apple 公证；Windows 文件识别为 NSIS 安装器。Pre-release `v1.0.0-rc.1` 已上传两个安装包和各自 SHA-256 清单。
 - 产品含义：负责人现在可从 [GitHub Pre-release](https://github.com/aswansong/macwin/releases/tag/v1.0.0-rc.1) 在真实设备下载测试；该证据不满足正式签名、公证、SmartScreen/Gatekeeper 可信分发或四平台验收。
 - 关联决定：D-023、D-032、D-039、OD-002
+
+### E-047：负责人授权 v1.0.1 未签名 RC 收口
+
+- 类型：负责人确认、发布范围与版本治理
+- 摘要：负责人授权从 `origin/integration/v1.0.0-visual-fidelity-v6` 的 `da64e77` 创建 `release/v1.0.1`，对齐前端、Tauri 和 Cargo 版本，运行真实 Windows x64 NSIS 与 Apple Silicon macOS DMG 的 GitHub Actions 打包，并创建 `v1.0.1-rc.1` Pre-release。授权不包括签名、公证、正式 `v1.0.1` Release、合并 `main` 或绕过 SmartScreen/Gatekeeper。
+- 产品含义：候选包是可复查、可下载的知情测试入口；`.habitpack` schema/ruleset 和快照格式仍保持 `1.0.0`，不会因为应用 RC 版本变化而扩大迁移数据范围。
+- 关联决定：D-039、D-040、OD-002、OD-006、OD-007

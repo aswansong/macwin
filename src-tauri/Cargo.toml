@@ -1,6 +1,6 @@
 [package]
 name = "macwin"
-version = "1.0.0"
+version = "1.0.1"
 description = "MacWin — Windows habits to Mac"
 authors = ["MacWin"]
 edition = "2021"
