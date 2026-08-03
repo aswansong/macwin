@@ -1,6 +1,19 @@
 # MacWin v1 验证矩阵（开发中）
 
-状态：`release/v1.0.0`。这份记录区分“代码已具备”“本地验证通过”和“仍需真实设备/凭据门槛”，不把开发构建当作正式 Release。[D-032、E-021]
+状态：`integration/v1.0.0-visual-fidelity-v6`（基于 `release/v1.0.0`）。这份记录区分“代码已具备”“本地验证通过”和“仍需真实设备/凭据门槛”，不把开发构建当作正式 Release。[D-032、E-021]
+
+## integration/v1.0.0-visual-fidelity-v6 视觉整合补充
+
+| 能力 | 浏览器证据 | 边界 |
+| --- | --- | --- |
+| Windows W1 → W2 → W3 | v6 本地 Vite 预览实际点击、通行证模块联动、真实选择适配层、导出前复核和生成后交接 | 浏览器路径使用虚构数据；Windows Tauri 路径仍调用 `scan_windows` 与 `export_habitpack`，不以视觉预览证明真实扫描或写文件 |
+| 软件单次确认 | Windows 扫描后自动带入白名单内已安装软件，W2 只显示“Mac 端确认”，Mac 计划页保留唯一勾选入口；新增 `defaultSoftwareIds` 测试 | 不自动安装软件；未知软件不会进入导出选择，最终结果仍按 `manual_action_required` 处理 |
+| Mac B → C | v6 本地 Vite 预览实际点击导入、强制计划、双分组、执行、结果、报告、指南和恢复 | 浏览器路径使用虚构数据；Tauri 路径仍调用 `import_habitpack`、`confirm_plan`、`apply_plan`、`rollback_*`，不把预览结果当作真实系统结果 |
+| 真实/预览隔离 | `isTauri` 优先，只有非 Tauri 开发浏览器启用 preview bridge；预览工具栏需要 `?preview=1` | Tauri 中 query 参数不能切换到虚构执行；真实应用不显示“演示数据”或虚构设备票据 |
+| 异常与安全状态表达 | UAC 拒绝、Mac 权限拒绝、离线、第三方拒绝、单模块失败、损坏包均可复现 | 权限、Wi‑Fi 密码、第三方安装、签名和真实设备仍受原有门槛约束 |
+| 响应式与可访问性 | v6 QA 记录的视觉对照、1584×1024、1440×900、1280×720、390×844；可见焦点、减少动态效果 CSS、窄窗无横向溢出 | 200% 系统文字缩放仍需负责人按真实桌面环境复核 |
+
+本节只补充展示层和数据适配证据，不替代下方 v1 的 Rust/Tauri、格式、权限、快照、签名或真实设备证据。完整视觉对照和边界见 [`visual-fidelity-v6-qa.md`](visual-fidelity-v6-qa.md)。
 
 ## 已在当前分支验证
 

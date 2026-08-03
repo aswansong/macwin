@@ -11,6 +11,11 @@ export const initialState = (webPreview: boolean): AppState => ({
   busy: false,
   error: null,
   webPreview,
+  preview: {
+    scenario: "normal",
+    wifiPasswordSelected: false,
+    linearMouseConfirmed: false,
+  },
   selection: {
     include_keyboard: true,
     include_pointer: true,
@@ -24,6 +29,7 @@ export function canNavigate(state: AppState, next: View): boolean {
   if (next === "diagnostics") return true;
   if (next === "scan") return Boolean(state.scan);
   if (next === "exported") return Boolean(state.receipt);
+  if (next === "export") return Boolean(state.scan);
   if (next === "plan") return Boolean(state.plan);
   if (["complete", "report", "guide", "restore", "diagnostics"].includes(next)) {
     return Boolean(state.outcome);
@@ -36,7 +42,7 @@ export function setView(state: AppState, next: View): AppState {
 }
 
 export function progressFor(view: View): { side: "windows" | "mac" | "home"; step: number } {
-  if (["scanning", "scan", "exported"].includes(view)) {
+  if (["scanning", "scan", "export", "exported"].includes(view)) {
     return { side: "windows", step: view === "scanning" ? 1 : view === "scan" ? 2 : 3 };
   }
   if (["plan", "applying", "complete", "report", "guide", "restore", "diagnostics"].includes(view)) {

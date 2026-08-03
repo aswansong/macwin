@@ -38,6 +38,15 @@ npm run tauri dev
 npm run dev -- --port 4173
 ```
 
+本整合分支的浏览器视觉走查入口（仅 Vite 开发服务器；不调用系统桥）：
+
+```text
+http://127.0.0.1:4173/?platform=windows&scenario=normal
+http://127.0.0.1:4173/?platform=macos&scenario=normal
+```
+
+开发预览还可用 `scenario=uac-denied`、`permission-denied`、`offline`、`third-party-declined`、`module-failed` 和 `corrupt-package` 复现异常路径；需要显示预览工具栏时再加 `preview=1`。它们只使用虚构数据，不读取或修改真实系统；v6 视觉结论记录在 [`docs/product/visual-fidelity-v6-qa.md`](docs/product/visual-fidelity-v6-qa.md)。进入真实 Tauri 应用后，所有扫描、导入、计划、应用、恢复和报告操作继续通过 Rust 命令执行。
+
 自动化检查：
 
 ```bash
