@@ -353,6 +353,7 @@ summary { width: max-content; color: var(--blue); cursor: pointer; font-size: 10
   .map-stop { min-height: 30px; }
   .map-stop:not(:last-of-type)::after, .map-rail-note { display: none; }
   .map-stop span:last-child { display: none; }
+  .map-stop.current span:last-child { display: inline; color: var(--ink); font-size: 10px; }
   .map-dot { width: 23px; height: 23px; }
 }
 

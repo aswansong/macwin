@@ -373,6 +373,8 @@ function renderRestore(): string {
   return renderShell(`<div class="mac-map subpage-map"><div>${renderMapRail(4)}</div><section class="restore-content"><div class="section-title"><span class="section-index coral">↶</span><div><h2>恢复迁移前状态</h2><p>恢复针对这次快照，不是恢复出厂设置，也不会影响未参与迁移的设置。</p></div></div><section class="restore-list">${rows || `<p class="empty-line">没有可恢复的动作。</p>`}</section><div class="notice-line"><span class="status-glyph good">i</span><span>全部恢复会按依赖逆序处理；Wi‑Fi 快照不包含密码。</span></div><div class="action-row"><button class="secondary-button" data-action="complete">暂不恢复</button><button class="primary-cta dark" data-action="rollback-all" ${results.some(canRestore) ? "" : "disabled"}><span><b>全部恢复</b><small>只处理可恢复模块</small></span><i>↶</i></button></div></section></div>`, "迁移后主页 · 恢复", "", "", "");
 }
 
+let lastRenderedView: View | null = null;
+
 function renderDiagnostics(): string {
   const diagnostics = state.diagnostics;
   if (!diagnostics) return renderShell(`<div class="activity-panel"><div class="activity-icon mint">✓</div><h2>正在生成设备自检</h2><p>只读取本机信息，不上传。</p></div>`, "设备自检", "", "", "");
@@ -386,6 +388,10 @@ function render(): void {
   const content = state.view === "home" ? renderHome() : state.view === "scanning" ? renderScanning() : state.view === "scan" ? renderScan() : state.view === "export" ? renderExportReview() : state.view === "exported" ? renderExported() : state.view === "plan" ? renderPlan() : state.view === "applying" ? renderApplying() : state.view === "complete" ? renderComplete() : state.view === "report" ? renderReport() : state.view === "guide" ? renderGuide() : state.view === "restore" ? renderRestore() : renderDiagnostics();
   appRoot.innerHTML = state.busy ? `${content}<div class="busy-overlay" role="status">正在处理…</div>` : content;
   bindEvents();
+  if (lastRenderedView !== state.view) {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    lastRenderedView = state.view;
+  }
 }
 
 function recordError(error: unknown): void {
