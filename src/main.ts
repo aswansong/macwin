@@ -213,12 +213,19 @@ function setBusy(busy: boolean, error: string | null = null): void { state = { .
 function updateView(view: View): void { state = setView(state, view); render(); }
 function goHome(): void { state = { ...state, view: "home", busy: false, error: null }; void loadRuntime(); }
 
+function renderPlatformIcon(kind: "windows" | "macos" | "unsupported"): string {
+  if (kind === "macos") return `<span class="platform-emblem apple" aria-hidden="true"></span>`;
+  if (kind === "windows") return `<span class="platform-emblem windows" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M1 2h10v9H1zM13 2h10v9H13zM1 13h10v9H1zM13 13h10v9H13z"/></svg></span>`;
+  return `<span class="platform-emblem neutral" aria-hidden="true">•</span>`;
+}
+
 function renderJourney(side: "windows" | "mac" | "home", step: number, type: "windows" | "mac"): string {
   const labels = type === "windows" ? ["检测", "选择", "导出"] : ["导入", "确认", "执行", "完成"];
+  const platformKind = type === "windows" ? "windows" : "macos";
   return `<nav class="journey" aria-label="${type === "windows" ? "Windows 流程" : "Mac 流程"}"><div class="journey-steps">${labels.map((label, index) => {
     const active = side === type && step >= index + 1;
     return `<span class="journey-step ${active ? "active" : ""} ${side === type && step === index + 1 ? "current" : ""}"><span class="journey-node">${index + 1}</span><span>${label}</span></span>${index < labels.length - 1 ? `<span class="journey-connector ${active && step > index + 1 ? "active" : ""}"></span>` : ""}`;
-  }).join("")}</div><span class="journey-endpoint">${side === "windows" ? "Windows" : side === "mac" ? "Mac" : "入口"}</span></nav>`;
+  }).join("")}</div><span class="journey-endpoint">${renderPlatformIcon(platformKind)}<span>${side === "windows" ? "Windows" : side === "mac" ? "Mac" : "入口"}</span></span></nav>`;
 }
 
 function renderMapRail(active: number): string {
@@ -238,7 +245,9 @@ function renderPreviewToolbar(): string {
 
 function renderShell(content: string, eyebrow: string, title: string, description = "", journey: string = ""): string {
   const platform = state.runtime?.platform === "windows" ? "Windows → Mac" : state.runtime?.platform === "macos" ? "Mac 目标端" : "离线、本地、可恢复";
-  return `<div class="app-shell"><header class="topbar"><button class="brand-button" data-action="home" aria-label="回到首页"><span class="brand-mark">MW</span><span><strong>MacWin</strong><small>双持 Mac 和 Windows 的好帮手</small></span></button><div class="topbar-meta"><span class="platform-chip">${escapeHtml(platform)}</span><span class="version-chip">v1.0</span></div></header><main class="main-content"><div class="content-column">${journey}${renderErrorPanel()}<div class="eyebrow">${escapeHtml(eyebrow)}</div><h1>${escapeHtml(title)}</h1>${description ? `<p class="lead">${escapeHtml(description)}</p>` : ""}${content}</div></main><footer class="privacy-footer"><span class="privacy-dot"></span><span>${state.webPreview ? "浏览器演示数据 · 不会修改系统" : "全程本地处理 · 不搬个人文件 · 不上传扫描结果"}</span><span class="footer-spacer"></span><button class="text-button" data-action="diagnostics">设备自检</button><button class="text-button" data-action="check-update">检查更新</button><a class="text-button" href="https://github.com/aswansong/macwin/issues" target="_blank" rel="noreferrer">反馈问题 ↗</a><button class="text-button" data-action="privacy">隐私与支持</button></footer>${renderPreviewToolbar()}</div>`;
+  const platformKind = state.runtime?.platform === "windows" ? "windows" : state.runtime?.platform === "macos" ? "macos" : "unsupported";
+  const platformMark = renderPlatformIcon(platformKind);
+  return `<div class="app-shell"><header class="topbar"><button class="brand-button" data-action="home" aria-label="回到首页"><span class="brand-mark">MW</span><span><strong>MacWin</strong><small>双持 Mac 和 Windows 的好帮手</small></span></button><div class="topbar-meta"><span class="platform-chip">${platformMark}<span>${escapeHtml(platform)}</span></span><span class="version-chip">v1.0</span></div></header><main class="main-content"><div class="content-column">${journey}${renderErrorPanel()}<div class="eyebrow platform-eyebrow">${platformMark}<span>${escapeHtml(eyebrow)}</span></div><h1>${escapeHtml(title)}</h1>${description ? `<p class="lead">${escapeHtml(description)}</p>` : ""}${content}</div></main><footer class="privacy-footer"><span class="privacy-dot"></span><span>${state.webPreview ? "浏览器演示数据 · 不会修改系统" : "全程本地处理 · 不搬个人文件 · 不上传扫描结果"}</span><span class="footer-spacer"></span><button class="text-button" data-action="diagnostics">设备自检</button><button class="text-button" data-action="check-update">检查更新</button><a class="text-button" href="https://github.com/aswansong/macwin/issues" target="_blank" rel="noreferrer">反馈问题 ↗</a><button class="text-button" data-action="privacy">隐私与支持</button></footer>${renderPreviewToolbar()}</div>`;
 }
 
 function passportModules(): string {

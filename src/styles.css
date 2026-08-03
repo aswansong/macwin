@@ -41,11 +41,17 @@ a { color: var(--blue); }
 .brand-button small { margin-top: 2px; color: var(--muted); font-size: 10px; }
 .topbar-meta { display: flex; gap: 8px; align-items: center; }
 .platform-chip, .version-chip { padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--white); font-family: var(--mono); font-size: 9px; }
+.platform-chip { display: inline-flex; gap: 6px; align-items: center; }
+.platform-emblem { display: inline-grid; width: 17px; height: 17px; place-items: center; flex: 0 0 auto; color: currentColor; }
+.platform-emblem.apple { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Symbol", sans-serif; font-size: 18px; line-height: 1; letter-spacing: 0; text-transform: none; }
+.platform-emblem.windows svg { width: 15px; height: 15px; fill: currentColor; }
 .version-chip { color: var(--ink); }
 .main-content { flex: 1; padding: clamp(32px, 5vw, 72px) 20px 122px; }
 .content-column { width: min(1180px, 100%); margin: 0 auto; }
 .eyebrow, .home-marker, .map-rail-label { color: var(--blue); font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
 .eyebrow { margin: 0 0 15px; }
+.platform-eyebrow { display: inline-flex; gap: 8px; align-items: center; }
+.platform-eyebrow .platform-emblem { width: 15px; height: 15px; font-size: 15px; }
 .coral-text { color: var(--coral); }
 .blue-text { color: var(--blue); }
 h1 { margin: 0; font-size: clamp(32px, 5vw, 58px); line-height: 1.02; letter-spacing: -.07em; font-weight: 830; }
