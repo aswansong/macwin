@@ -53,7 +53,21 @@ jobs:
 
       - name: Build unsigned macOS DMG
         if: matrix.os == 'macos-15'
-        run: npm run tauri build -- --target ${{ matrix.target }} --bundles dmg --no-sign --config src-tauri/tauri.unsigned.conf.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run tauri build -- --target ${{ matrix.target }} --bundles app --no-sign --config src-tauri/tauri.unsigned.conf.json
+          bundle_root="src-tauri/target/${{ matrix.target }}/release/bundle"
+          app="$bundle_root/macos/MacWin.app"
+          dmg="$bundle_root/dmg/MacWin_1.0.0-rc.1_aarch64.dmg"
+          test -d "$app"
+          # Ad-hoc signing is free and gives the test bundle a complete local
+          # integrity seal. It does not provide a Developer ID or notarization.
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          mkdir -p "$bundle_root/dmg"
+          hdiutil create -volname MacWin -srcfolder "$app" -ov -format UDZO "$dmg"
+          hdiutil verify "$dmg"
 
       - name: Stage Windows package
         if: matrix.os == 'windows-latest'
