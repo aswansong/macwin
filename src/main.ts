@@ -23,6 +23,7 @@ const appRoot = root;
 const isTauri = Boolean((window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
 const previewEnabled = !isTauri && import.meta.env.DEV;
 const query = new URLSearchParams(window.location.search);
+const previewToolbarEnabled = previewEnabled && query.get("preview") === "1";
 const previewPlatform = query.get("platform") === "windows" ? "windows" : "macos";
 const previewScenario = parseScenario(query.get("scenario"));
 let state = initialState(previewEnabled);
@@ -219,6 +220,61 @@ function renderPlatformIcon(kind: "windows" | "macos" | "unsupported"): string {
   return `<span class="platform-emblem neutral" aria-hidden="true">•</span>`;
 }
 
+function renderModuleGlyph(kind: "habit" | "software" | "system" | "wifi" | "file"): string {
+  const paths: Record<typeof kind, string> = {
+    habit: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M6 9h2m2 0h2m2 0h2m2 0H18M6 12h2m2 0h2m2 0h2m2 0H18M6 15h12"/>',
+    software: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>',
+    system: '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.2-1.7l2-1.2-2-3.4-2.1 1.2a7 7 0 0 0-2.9-1.7V2.8h-4v2.4a7 7 0 0 0-2.9 1.7L4.8 5.7l-2 3.4 2 1.2A7 7 0 0 0 4.6 12c0 .6.1 1.2.2 1.7l-2 1.2 2 3.4 2.1-1.2a7 7 0 0 0 2.9 1.7v2.4h4v-2.4a7 7 0 0 0 2.9-1.7l2.1 1.2 2-3.4-2-1.2c.1-.5.2-1.1.2-1.7Z"/>',
+    wifi: '<path d="M3 9a14 14 0 0 1 18 0M6 13a9.5 9.5 0 0 1 12 0M9.5 17a4.5 4.5 0 0 1 5 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/>',
+    file: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h4M10 13h5M10 17h5"/>',
+  };
+  return `<svg class="module-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[kind]}</svg>`;
+}
+
+function renderWindowTitlebar(kind: "windows" | "macos" | "unsupported"): string {
+  const mac = kind === "macos";
+  return `<header class="reference-titlebar ${mac ? "reference-titlebar-mac" : "reference-titlebar-windows"}">
+    ${mac ? '<div class="traffic-lights" aria-hidden="true"><span class="traffic-red"></span><span class="traffic-yellow"></span><span class="traffic-green"></span></div>' : ""}
+    <button class="reference-brand" data-action="home" aria-label="回到首页"><span class="brand-mark">MW</span><strong>MacWin</strong></button>
+    ${mac ? '<div class="reference-titlebar-actions"><button class="titlebar-action" data-action="diagnostics" aria-label="设备自检">▧</button><button class="titlebar-action" data-action="check-update" aria-label="检查更新">⚙</button></div>' : '<div class="windows-caption-controls" aria-hidden="true"><span>−</span><span>□</span><span>×</span></div>'}
+  </header>`;
+}
+
+function renderReferenceRail(type: "windows" | "mac", active: number): string {
+  const labels = type === "windows" ? ["检测", "选择", "导出"] : ["Windows 检测", "确认计划", "Mac 完成"];
+  return `<aside class="reference-rail" aria-label="${type === "windows" ? "Windows 流程" : "Mac 迁移流程"}"><div class="reference-rail-brand">${type === "windows" ? renderPlatformIcon("windows") : renderPlatformIcon("macos")}<span>${type === "windows" ? "Windows → Mac" : "迁移地图"}</span></div><div class="reference-rail-steps">${labels.map((label, index) => {
+    const step = index + 1;
+    const stateClass = active > step ? "completed" : active === step ? "current" : "pending";
+    return `<div class="reference-rail-step ${stateClass}"><span class="reference-rail-node">${active > step ? "✓" : step}</span><div><strong>${label}</strong><small>${stateClass === "completed" ? "已完成" : stateClass === "current" ? (type === "windows" ? "当前步骤" : "当前计划") : "待开始"}</small></div></div>`;
+  }).join("")}</div><p class="reference-rail-note">确认前不修改系统。每个模块独立验证，拒绝权限只影响相关动作。</p></aside>`;
+}
+
+function renderTicketSlot(kind: "habit" | "software" | "system" | "wifi", title: string, active: boolean, detail: string): string {
+  const tone = kind === "habit" ? "blue" : kind === "software" ? "yellow" : kind === "system" ? "mint" : "aqua";
+  return `<div class="ticket-slot tone-${tone} ${active ? "is-selected" : "is-empty"}"><span class="ticket-slot-icon">${renderModuleGlyph(kind)}</span><strong>${title}</strong><small>${active ? "已选择" : detail}</small></div>`;
+}
+
+function renderHabitTicket(orientation: "horizontal" | "vertical", variant: "home" | "selection" | "export" | "empty"): string {
+  const isHome = variant === "home";
+  const isExport = variant === "export";
+  const habits = isHome || state.selection.include_keyboard || state.selection.include_pointer || Boolean(state.plan?.selected_module_ids.some((id) => ["keyboard_compatibility", "pointer_scroll"].includes(id)));
+  const software = isHome || isExport || Boolean(state.plan?.selected_module_ids.some((id) => id.startsWith("software."))) || Boolean(state.scan?.software.some((item) => item.installed));
+  const system = isHome || state.selection.guide_requested || Boolean(state.plan?.guide_requested);
+  const wifi = isHome || state.preview.wifiPasswordSelected || Boolean(state.plan?.selected_module_ids.includes("wifi.personal"));
+  const vertical = orientation === "vertical";
+  return `<article class="habit-ticket ${vertical ? "habit-ticket-vertical" : "habit-ticket-horizontal"} ${variant === "empty" ? "ticket-empty" : ""}">
+    <div class="ticket-strap" aria-hidden="true"><span class="ticket-ring"></span></div>
+    <div class="ticket-paper"><div class="ticket-paper-inner">
+      <div class="ticket-masthead"><span>MACWIN / HABIT PASS</span><span>1.0.0</span></div>
+      <div class="ticket-heading"><strong>.habitpack</strong><span class="ticket-stamp">MACWIN<br/>HABIT PASS</span></div>
+      <div class="ticket-rule"></div>
+      ${vertical ? `<div class="ticket-file-placeholder">${renderModuleGlyph("file")}<span>MacWin 迁移包</span></div><div class="ticket-safe-line">${renderModuleGlyph("system")}<span>受保护的迁移数据</span></div>` : `<div class="ticket-modules">${renderTicketSlot("habit", "操作习惯", habits, "未选择")}${renderTicketSlot("software", "软件与开发", software, "空位")}${renderTicketSlot("system", "系统设置", system, "未选择")}${renderTicketSlot("wifi", "Wi‑Fi", wifi, "未选择")}</div><div class="ticket-route"><span>Windows</span><i>→</i><span>Mac</span></div>`}
+      <div class="ticket-foot"><span>${isExport ? "由 MacWin 验证" : "由你选择"}</span><span>${state.preview.wifiPasswordSelected || state.plan?.contains_secrets ? "含敏感信息" : "不搬个人文件"}</span></div>
+    </div></div>
+    <div class="ticket-barcode" aria-hidden="true">${Array.from({ length: 22 }, (_, index) => `<span style="--bar:${(index % 4) + 1}"></span>`).join("")}</div>
+  </article>`;
+}
+
 function renderJourney(side: "windows" | "mac" | "home", step: number, type: "windows" | "mac"): string {
   const labels = type === "windows" ? ["检测", "选择", "导出"] : ["导入", "确认", "执行", "完成"];
   const platformKind = type === "windows" ? "windows" : "macos";
@@ -238,34 +294,14 @@ function renderErrorPanel(): string {
 }
 
 function renderPreviewToolbar(): string {
-  if (!previewEnabled) return "";
+  if (!previewToolbarEnabled) return "";
   const scenarios: Array<[PreviewScenario, string]> = [["normal", "正常"], ["uac-denied", "UAC 拒绝"], ["permission-denied", "Mac 权限拒绝"], ["offline", "离线"], ["third-party-declined", "第三方拒绝"], ["module-failed", "单模块失败"], ["corrupt-package", "损坏迁移包"]];
   return `<div class="preview-toolbar" aria-label="浏览器预览控制"><span class="preview-label">预览</span><button class="preview-platform ${previewPlatform === "windows" ? "selected" : ""}" data-preview-platform="windows">Windows</button><button class="preview-platform ${previewPlatform === "macos" ? "selected" : ""}" data-preview-platform="macos">Mac</button><label>情境<select data-preview-scenario>${scenarios.map((option) => { const value = option[0]; const label = option[1]; return `<option value="${value}" ${state.preview.scenario === value ? "selected" : ""}>${label}</option>`; }).join("")}</select></label><span class="preview-note">虚构数据 · 不修改系统</span></div>`;
 }
 
 function renderShell(content: string, eyebrow: string, title: string, description = "", journey: string = ""): string {
-  const platform = state.runtime?.platform === "windows" ? "Windows → Mac" : state.runtime?.platform === "macos" ? "Mac 目标端" : "离线、本地、可恢复";
   const platformKind = state.runtime?.platform === "windows" ? "windows" : state.runtime?.platform === "macos" ? "macos" : "unsupported";
-  const platformMark = renderPlatformIcon(platformKind);
-  return `<div class="app-shell"><header class="topbar"><button class="brand-button" data-action="home" aria-label="回到首页"><span class="brand-mark">MW</span><span><strong>MacWin</strong><small>双持 Mac 和 Windows 的好帮手</small></span></button><div class="topbar-meta"><span class="platform-chip">${platformMark}<span>${escapeHtml(platform)}</span></span><span class="version-chip">v1.0</span></div></header><main class="main-content"><div class="content-column">${journey}${renderErrorPanel()}<div class="eyebrow platform-eyebrow">${platformMark}<span>${escapeHtml(eyebrow)}</span></div><h1>${escapeHtml(title)}</h1>${description ? `<p class="lead">${escapeHtml(description)}</p>` : ""}${content}</div></main><footer class="privacy-footer"><span class="privacy-dot"></span><span>${state.webPreview ? "浏览器演示数据 · 不会修改系统" : "全程本地处理 · 不搬个人文件 · 不上传扫描结果"}</span><span class="footer-spacer"></span><button class="text-button" data-action="diagnostics">设备自检</button><button class="text-button" data-action="check-update">检查更新</button><a class="text-button" href="https://github.com/aswansong/macwin/issues" target="_blank" rel="noreferrer">反馈问题 ↗</a><button class="text-button" data-action="privacy">隐私与支持</button></footer>${renderPreviewToolbar()}</div>`;
-}
-
-function passportModules(): string {
-  const selected = state.view === "scan" || state.view === "export" ? state.selection : state.plan ? { include_keyboard: state.plan.selected_module_ids.includes("keyboard_compatibility"), include_pointer: state.plan.selected_module_ids.includes("pointer_scroll"), software_ids: state.plan.selected_module_ids.filter((id) => id.startsWith("software.")).map((id) => id.replace("software.", "")), guide_requested: state.plan.guide_requested } : state.selection;
-  const modules = [
-    selected.include_keyboard ? ["键盘", "KEY"] : null,
-    selected.include_pointer ? ["指针", "PTR"] : null,
-    selected.software_ids.length ? ["软件", "APP"] : null,
-    state.preview.wifiPasswordSelected ? ["Wi‑Fi", "NET"] : null,
-    selected.guide_requested ? ["指南", "GUIDE"] : null,
-  ].filter(Boolean) as string[][];
-  return modules.length ? modules.map((module) => { const label = module[0]; const code = module[1]; return `<span class="passport-module"><b>${code}</b><span>${label}</span></span>`; }).join("") : `<span class="passport-empty">选择内容后会出现在这里</span>`;
-}
-
-function renderPassport(large = false): string {
-  const plan = state.plan;
-  const secret = plan?.contains_secrets || state.preview.wifiPasswordSelected;
-  return `<div class="passport-card ${large ? "large" : ""}"><div class="passport-edge"><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="passport-head"><span>MACWIN / HABITPACK</span><span>1.0.0</span></div><div class="passport-title"><span class="passport-monogram">MW</span><div><strong>习惯<br/>通行证</strong><small>WINDOWS → MAC</small></div></div><div class="passport-stamp">${secret ? "含敏感信息" : "LOCAL / OFFLINE"}</div><div class="passport-rule"></div><div class="passport-modules">${passportModules()}</div><div class="passport-foot"><span>由你选择</span><span>${secret ? "导入后删除副本" : "不搬个人文件"}</span></div></div>`;
+  return `<div class="app-shell reference-shell ${platformKind}">${renderWindowTitlebar(platformKind)}<main class="main-content reference-main"><div class="content-column">${journey}${renderErrorPanel()}${eyebrow ? `<div class="eyebrow platform-eyebrow">${renderPlatformIcon(platformKind)}<span>${escapeHtml(eyebrow)}</span></div>` : ""}${title ? `<h1>${escapeHtml(title)}</h1>` : ""}${description ? `<p class="lead">${escapeHtml(description)}</p>` : ""}${content}</div></main>${renderPreviewToolbar()}</div>`;
 }
 
 function renderMigrationHome(): string {
@@ -279,36 +315,38 @@ function renderHome(): string {
     return renderShell(`<section class="activity-panel"><div class="activity-icon mint">⌁</div><h2>正在读取当前平台</h2><p>MacWin 会先确认系统和架构，再显示可用入口。</p></section>`, "设备检查", "", "", "");
   }
   if (state.runtime?.platform === "windows") {
-    return renderShell(`<section class="home-layout windows-home"><div class="home-copy"><span class="home-marker">W1 / 检测</span><h2>检测这台 Windows</h2><p>MacWin 只读取白名单习惯与环境，扫描在本机完成，不搬个人文件。</p><div class="scope-list"><div class="scope-row"><span class="scope-icon blue">⌘</span><span><strong>操作习惯</strong><small>键盘、鼠标与触控板</small></span></div><div class="scope-row"><span class="scope-icon coral">□</span><span><strong>软件与开发</strong><small>浏览器、办公与轻量开发工具</small></span></div><div class="scope-row"><span class="scope-icon mint">◌</span><span><strong>系统设置</strong><small>可恢复的显示与输入偏好</small></span></div><div class="scope-row"><span class="scope-icon yellow">⌁</span><span><strong>个人 Wi‑Fi</strong><small>只处理用户逐项选择的网络</small></span></div></div></div><aside class="home-action"><div class="system-readout"><span class="status-glyph good">✓</span><div><strong>${escapeHtml(state.runtime.support_message)}</strong><small>${escapeHtml(state.runtime.os_version)} · ${escapeHtml(state.runtime.architecture)}</small></div></div><button class="primary-cta blue" data-action="start-scan"><span><b>开始检测</b><small>约需几步 · 默认不需要管理员权限</small></span><i>→</i></button><p class="home-boundary">检测前不会读取文件、浏览器历史/密码、Cookie、账号或登录状态。</p></aside></section>`, "Windows 来源端", "", "", renderJourney("windows", 1, "windows"));
+    return renderShell(`<section class="reference-page windows-detect-page"><div class="windows-detect-copy"><div class="reference-kicker">W1 / WINDOWS 来源端</div><div class="windows-heading"><span class="windows-heading-mark">${renderPlatformIcon("windows")}</span><div><h1>检测这台 Windows</h1><p>查看可以迁移的习惯与环境</p></div></div><div class="reference-scan-list"><div class="reference-scan-row"><span class="scan-row-icon tone-blue">${renderModuleGlyph("habit")}</span><span><strong>操作习惯</strong><small>键盘、鼠标与触控板</small></span><span class="scan-row-check">□</span></div><div class="reference-scan-row"><span class="scan-row-icon tone-yellow">${renderModuleGlyph("software")}</span><span><strong>软件与开发</strong><small>浏览器、办公与轻量开发工具</small></span><span class="scan-row-check">□</span></div><div class="reference-scan-row"><span class="scan-row-icon tone-mint">${renderModuleGlyph("system")}</span><span><strong>系统设置</strong><small>可恢复的显示与输入偏好</small></span><span class="scan-row-check">□</span></div><div class="reference-scan-row"><span class="scan-row-icon tone-aqua">${renderModuleGlyph("wifi")}</span><span><strong>Wi‑Fi</strong><small>只处理用户逐项选择的个人网络</small></span><span class="scan-row-check">□</span></div></div><div class="reference-privacy-note"><span class="note-icon">✓</span><span>只在本机检查，不搬个人文件</span></div></div><aside class="windows-detect-ticket">${renderHabitTicket("vertical", "empty")}</aside><div class="reference-bottom-bar windows-bottom-bar"><span class="bottom-bar-note">扫描前不会读取浏览器历史、密码、Cookie、账号或登录状态。</span><button class="reference-primary blue-action" data-action="start-scan"><span>${renderModuleGlyph("file")}</span><b>开始检测</b><i>→</i></button></div></section>`, "", "", "", "");
   }
   if (state.runtime.platform !== "macos") {
     return renderShell(`<section class="activity-panel"><div class="activity-icon coral">!</div><h2>当前设备不受支持</h2><p>${escapeHtml(state.runtime.support_message)}。MacWin 不会修改系统。</p><div class="notice-line"><span class="status-glyph warning">i</span><span>正式范围：Windows 10/11 x64 来源端，或 Apple 芯片 macOS 15/26 目标端。</span></div></section>`, "设备检查", "", "", "");
   }
   const migrationHome = renderMigrationHome();
-  return renderShell(`<section class="cover-layout"><div class="cover-copy"><span class="home-marker coral-text">B / 迁移封面</span><h2>你的习惯通行证</h2><p>导入 Windows 端生成的 .habitpack，先检查内容，再决定这台 Mac 要做什么。</p><button class="primary-cta coral" data-action="import"><span><b>导入迁移包</b><small>只接受经过验证的 .habitpack</small></span><i>→</i></button><div class="cover-facts"><span><b>本机离线</b><small>除版本检查外不上传数据</small></span><span><b>先看计划</b><small>确认前不会修改系统</small></span></div></div><aside class="cover-object">${renderPassport(true)}</aside></section>${migrationHome}<section class="home-note"><strong>迁移包不是整机备份。</strong><span>Wi‑Fi 密码若被主动选择，会在包中标记为敏感信息；报告、日志和快照都不会显示密码。</span></section>`, "Mac 目标端", "", "", "");
+  return renderShell(`<section class="reference-page mac-cover-page"><div class="mac-cover-copy"><div class="reference-kicker">B / MAC 目标端</div><div class="mac-brand-lockup"><span class="brand-mark">MW</span><strong>MacWin</strong></div><h1>把 Windows<br/>习惯装进一张<span>通行证</span></h1><p>旧电脑打包，新 Mac 接住。</p><div class="reference-safety-list"><span><i class="safety-mark mint">✓</i>只迁移习惯与环境，不搬个人文件</span><span><i class="safety-mark yellow">✓</i>演示数据，不会修改系统</span></div><div class="mac-cover-foot"><span class="tiny-play">▷</span><span>应用前先看计划</span></div></div><div class="mac-cover-ticket"><div class="ticket-stage">${renderHabitTicket("horizontal", "home")}</div><div class="ticket-route"><span class="route-origin">Windows</span><i>→</i><span class="route-target">Mac</span></div><button class="reference-primary blue-action mac-import-button" data-action="import"><span>${renderModuleGlyph("file")}</span><b>导入这张迁移通行证</b><i>↓</i></button></div></section>${migrationHome}`, "", "", "", "");
 }
 
 function renderScanning(): string {
   return renderShell(`<section class="activity-panel"><div class="activity-icon blue">⌁</div><h2>正在读取白名单设置</h2><p>只读取系统版本、输入设置和已知软件。不会访问个人文件。</p><div class="activity-list"><div class="activity-row done"><span>✓</span><strong>平台兼容性</strong><small>Windows 10/11 x64</small></div><div class="activity-row active"><span>•</span><strong>输入设置</strong><small>当前阶段</small></div><div class="activity-row"><span>○</span><strong>软件与开发</strong><small>等待读取</small></div></div></section>`, "Windows 端 · 检测", "正在检测", "完成后只展示你能选择的变化。", renderJourney("windows", 1, "windows"));
 }
 
-function renderWindowsSelectionRow(input: string, title: string, description: string, checked: boolean, badge = ""): string {
-  return `<label class="selection-row"><input type="checkbox" ${input} ${checked ? "checked" : ""}/><span class="selection-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(description)}</small></span>${badge ? `<span class="risk-badge">${escapeHtml(badge)}</span>` : ""}</label>`;
-}
-
 function renderScan(): string {
   const scan = state.scan;
   if (!scan) return renderHome();
-  const installed = scan.software.filter((item) => item.installed);
   const wifi = scan.wifi?.[0];
-  return renderShell(`<div class="windows-workspace"><section class="selection-panel"><div class="section-title"><span class="section-index blue">W2</span><div><h2>选择要带到 Mac 的内容</h2><p>复选框就是选择状态。常用软件在 Mac 计划中只确认一次。</p></div></div><div class="discovery-list"><div class="list-heading"><span>操作习惯</span><small>可以分别恢复</small></div>${renderWindowsSelectionRow("data-keyboard", "选择性 Ctrl 兼容", "普通应用支持 Ctrl+C/V/X/Z；终端和远程桌面保留真实 Ctrl。", state.selection.include_keyboard)}${renderWindowsSelectionRow("data-pointer", "鼠标与触控板滚动方向", "两个设备分开记录，Mac 端按结果验证。", state.selection.include_pointer)}<div class="list-heading"><span>软件与开发</span><small>Mac 计划中一次确认</small></div>${installed.map((item) => `<div class="finding-row"><span class="scope-icon coral">□</span><span><strong>${escapeHtml(item.name)}</strong><small>${item.category === "developer" ? "开发工具" : "白名单软件"} · ${escapeHtml(item.version_policy)} · Mac 端再确认</small></span></div>`).join("")}<div class="list-heading"><span>系统设置</span><small>只加入指南内容</small></div>${renderWindowsSelectionRow("data-guide", "个性化 Mac 使用指南", "只解释这次实际选择、Command、Option、Fn 和恢复方式。", state.selection.guide_requested)}<div class="list-heading"><span>个人 Wi‑Fi</span><small>逐项选择，密码另行同意</small></div>${wifi ? `<div class="wifi-choice"><div class="wifi-network"><span class="scope-icon yellow">⌁</span><div><strong>${escapeHtml(wifi.name)}</strong><small>${escapeHtml(wifi.security)} · 只保留网络名也可以</small></div></div><label class="selection-row nested"><input type="checkbox" data-wifi-password ${state.preview.wifiPasswordSelected ? "checked" : ""}/><span class="selection-copy"><strong>同时带上 Wi‑Fi 密码</strong><small>迁移包第一版不加密；选择后可能触发一次 UAC。</small></span><span class="risk-badge sensitive">敏感信息</span></label></div>` : `<p class="empty-line">没有发现可处理的个人 Wi‑Fi</p>`}</div><div class="notice-line"><span class="status-glyph good">i</span><span>不会读取浏览器书签、历史、密码、Cookie、账号或项目文件。</span></div><div class="action-row"><button class="secondary-button" data-action="home">返回</button><button class="primary-cta dark" data-action="export-review"><span><b>查看迁移包</b><small>确认选择与敏感信息提示</small></span><i>→</i></button></div></section><aside class="passport-dock"><div class="dock-heading"><span>实时预览</span><small>.habitpack</small></div>${renderPassport()}<div class="passport-dock-note"><span class="status-glyph good">✓</span><span>你每次勾选，票面都会同步更新。</span></div></aside></div>`, "Windows 端 · 选择", "", "", renderJourney("windows", 2, "windows"));
+  const habitsChecked = state.selection.include_keyboard || state.selection.include_pointer;
+  return renderShell(`<section class="reference-page windows-select-page"><div class="windows-select-grid"><section class="windows-select-copy"><div class="reference-kicker">W2 / WINDOWS 选择</div><h1>选择要带走的内容</h1><p class="reference-subtitle">只勾选你想在 Mac 上继续使用的习惯与环境。</p><div class="reference-option-list"><label class="reference-option-row"><input type="checkbox" data-habits-toggle ${habitsChecked ? "checked" : ""}/><span class="option-row-icon tone-blue">${renderModuleGlyph("habit")}</span><span class="option-row-copy"><strong>操作习惯</strong><small>键盘、鼠标与触控板；普通应用保留熟悉的 Ctrl 操作。</small></span><span class="option-row-state">${habitsChecked ? "已选择" : "未选择"}<b>›</b></span></label><div class="reference-option-row option-static"><span class="option-row-icon tone-yellow">${renderModuleGlyph("software")}</span><span class="option-row-copy"><strong>软件与开发</strong><small>浏览器、办公与轻量开发工具，Mac 端计划中确认。</small></span><span class="option-row-state">Mac 端确认<b>›</b></span></div><label class="reference-option-row"><input type="checkbox" data-guide ${state.selection.guide_requested ? "checked" : ""}/><span class="option-row-icon tone-mint">${renderModuleGlyph("system")}</span><span class="option-row-copy"><strong>系统设置</strong><small>显示、输入与恢复方式；生成与你的选择相符的指南。</small></span><span class="option-row-state">${state.selection.guide_requested ? "已选择" : "未选择"}<b>›</b></span></label><label class="reference-option-row wifi-option-row"><input type="checkbox" data-wifi-password ${state.preview.wifiPasswordSelected ? "checked" : ""}/><span class="option-row-icon tone-aqua">${renderModuleGlyph("wifi")}</span><span class="option-row-copy"><strong>Wi‑Fi</strong><small>${wifi ? `${escapeHtml(wifi.name)} · ${escapeHtml(wifi.security)}` : "未发现可处理的个人网络"}<em>密码需单独确认；迁移包第一版不加密</em></small></span><span class="option-row-state">${state.preview.wifiPasswordSelected ? "已选择" : "未选择"}<b>›</b></span></label></div><div class="select-safety-line"><span>⌁</span><span>含密码时需要管理员权限；不会迁移个人文件、账号或浏览器资料。</span></div></section><aside class="windows-select-ticket"><div class="ticket-stage selection-ticket-stage">${renderHabitTicket("horizontal", "selection")}</div><div class="ticket-selection-meta"><span>✦</span><strong>票面会随选择即时更新</strong><small>系统设置当前未选；软件将在 Mac 计划中确认。</small></div></aside></div><div class="reference-bottom-bar"><span class="bottom-bar-note">文件只在本机生成，你决定保存在哪里。</span><button class="secondary-button" data-action="home">返回</button><button class="reference-primary blue-action" data-action="export-review"><span>${renderModuleGlyph("file")}</span><b>生成迁移包</b><i>↓</i></button></div></section>`, "", "", "", "");
 }
 
 function renderExportReview(): string {
   const plan = previewPlanForState();
   const selected = plan.selected_module_ids.length;
   const secret = plan.contains_secrets;
-  return renderShell(`<div class="export-workspace"><section class="export-review"><div class="section-title"><span class="section-index coral">W3</span><div><h2>检查迁移包</h2><p>生成前确认内容；生成后会重新打开并验证结构、哈希和选择引用。</p></div></div><div class="route-summary"><div class="route-summary-row done"><span>✓</span><div><strong>检测</strong><small>已读取 Windows 白名单设置</small></div></div><div class="route-summary-row done"><span>✓</span><div><strong>选择</strong><small>${selected} 个模块将写入迁移包</small></div></div><div class="route-summary-row current"><span>3</span><div><strong>导出</strong><small>生成、验证，再交给 Mac</small></div></div></div><div class="review-lines"><div><span>包内容</span><strong>${selected} 个选择 · ${plan.guide_requested ? "含指南" : "不含指南"}</strong></div><div><span>敏感信息</span><strong class="${secret ? "accent-danger" : ""}">${secret ? "含 Wi‑Fi 密码" : "不含密码"}</strong></div><div><span>保存方式</span><strong>用户选择本地位置</strong></div></div>${secret ? `<div class="notice-line warning"><span class="status-glyph warning">!</span><span>这是未加密迁移包。请只用你控制的本地方式传输，Mac 导入成功后删除不再需要的副本。</span></div>` : `<div class="notice-line"><span class="status-glyph good">✓</span><span>扫描与导出都在本机完成；MacWin 不会自动上传或同步迁移包。</span></div>`}<div class="action-row"><button class="secondary-button" data-action="back-to-scan">返回选择</button><button class="primary-cta coral" data-action="export"><span><b>生成并验证迁移包</b><small>写入后立即检查结构与引用</small></span><i>→</i></button></div></section><aside class="passport-dock export-passport"><div class="dock-heading"><span>将要交给 Mac</span><small>预览</small></div>${renderPassport()}<p class="dock-caption">.habitpack 是声明式迁移包，不包含可执行脚本或任意命令。</p></aside></div>`, "Windows 端 · 导出", "", "", renderJourney("windows", 3, "windows"));
+  const resultRows = [
+    ["操作习惯", "blue", "已包含"],
+    ["软件与开发", "yellow", "Mac 端确认"],
+    ["系统设置", "mint", plan.guide_requested ? "已包含" : "未选择"],
+    ["Wi‑Fi", "aqua", secret ? "含敏感信息" : "未含密码"],
+  ] as const;
+  return renderShell(`<section class="reference-page windows-export-page"><div class="windows-export-grid"><div class="windows-export-rail">${renderReferenceRail("windows", 3)}<div class="rail-security">✓ <span>迁移安全保护中</span></div></div><div class="windows-export-ticket"><div class="reference-kicker">W3 / EXPORT</div>${renderHabitTicket("vertical", "export")}</div><section class="windows-export-summary"><div class="reference-kicker">已验证的迁移包</div><h1>迁移包已准备好 <span class="summary-check">✓</span></h1><p>选择已经整理好，写入前会再次验证结构和引用。</p><div class="export-summary-list">${resultRows.map((row) => { const title = row[0]; const tone = row[1]; const status = row[2]; const kind = title === "操作习惯" ? "habit" : title === "软件与开发" ? "software" : title === "系统设置" ? "system" : "wifi"; return `<div class="export-summary-row"><span class="option-row-icon tone-${tone}">${renderModuleGlyph(kind)}</span><strong>${title}</strong><small>${status}</small></div>`; }).join("")}</div><div class="export-summary-rule"></div><div class="export-summary-meta"><span>包含 ${selected} 项规则</span><span class="${secret ? "accent-danger" : ""}">${secret ? "含 Wi‑Fi 密码" : "不含密码"}</span></div><button class="reference-primary blue-action export-submit" data-action="export"><span>${renderModuleGlyph("file")}</span><b>导出迁移包</b><i>↓</i></button><div class="export-small-notes"><span>⌑　迁移包只保存在你选择的位置</span><span>▣　含 Wi‑Fi 密码时请勿公开分享</span></div></section></div></section>`, "", "", "", "");
 }
 
 function renderExported(): string {
@@ -349,7 +387,9 @@ function renderPlanChoice(moduleId: string, title: string, subtitle: string, che
 function renderPlanGroup(plan: ImportPlan, group: "habits" | "software", title: string, subtitle: string, children: string): string {
   const stateForGroup = groupSelectedState(plan, group);
   const expanded = expandedPlanGroups.has(group);
-  return `<section class="plan-group ${expanded ? "expanded" : ""}"><div class="plan-group-row"><label class="plan-group-choice"><input type="checkbox" data-group-toggle="${group}" ${stateForGroup.checked ? "checked" : ""}/><span><strong>${title}</strong><small>${subtitle}</small></span></label><button class="group-toggle" type="button" data-group-expand="${group}" aria-expanded="${expanded ? "true" : "false"}">${expanded ? "收起" : "展开"}<span aria-hidden="true">${expanded ? "−" : "+"}</span></button></div><div class="plan-group-items" data-group-items="${group}" ${expanded ? "" : "hidden"}>${children}</div></section>`;
+  const icon = group === "habits" ? "habit" : "software";
+  const risks = group === "habits" ? `${plan.contains_secrets ? '<span class="plan-flag sensitive">含敏感信息</span>' : ""}<span class="plan-flag permission">需按系统授权</span>` : `<span class="plan-flag manual">官方入口</span><span class="plan-flag manual">不可自动恢复</span>`;
+  return `<section class="plan-group reference-plan-group ${expanded ? "expanded" : ""}"><div class="plan-group-row"><label class="plan-group-choice"><input type="checkbox" data-group-toggle="${group}" ${stateForGroup.checked ? "checked" : ""}/><span class="plan-group-icon tone-${icon === "habit" ? "blue" : "yellow"}">${renderModuleGlyph(icon as "habit" | "software")}</span><span class="plan-group-label"><strong>${title}</strong><small>${subtitle}</small></span></label><div class="plan-group-flags">${risks}</div><button class="group-toggle" type="button" data-group-expand="${group}" aria-expanded="${expanded ? "true" : "false"}">${expanded ? "收起" : "查看项目"}<span aria-hidden="true">${expanded ? "−" : "+"}</span></button></div><div class="plan-group-items" data-group-items="${group}" ${expanded ? "" : "hidden"}>${children}</div></section>`;
 }
 
 function renderDetailModal(plan: ImportPlan): string {
@@ -409,7 +449,7 @@ function renderPlan(): string {
   const habitsGroup = renderPlanGroup(plan, "habits", "系统与习惯", "键盘、鼠标、Finder 与 Wi‑Fi", `${systemChildren}${wifiChoice}` || `<p class="empty-line">没有可迁移的系统习惯</p>`);
   const softwareGroup = renderPlanGroup(plan, "software", "软件与开发", "浏览器、开发工具与办公软件", softwareChildren || `<p class="empty-line">没有选择软件</p>`);
   const count = plan.selected_module_ids.length;
-  return renderShell(`<div class="mac-map"><div>${renderMapRail(2)}</div><section class="plan-content"><div class="section-title"><span class="section-index coral">C2</span><div><h2>确认迁移计划</h2><p>默认只显示两类内容。点开选项名称，可以查看它会做什么。</p></div></div><div class="plan-summary"><span><b>${count}</b> 项已选</span><span><b>${plan.contains_secrets ? "含" : "不含"}</b> Wi‑Fi 密码</span></div><section class="module-list">${habitsGroup}${softwareGroup}</section><div class="plan-safety"><span class="status-glyph good">✓</span><span>确认后先保存迁移前快照；只处理你勾选的内容。</span></div><div class="action-row"><button class="secondary-button" data-action="home">取消计划</button><button class="primary-cta dark" data-action="apply" ${count ? "" : "disabled"}><span><b>确认并应用</b><small>${count} 项 · 先保存快照</small></span><i>→</i></button></div></section></div>${renderDetailModal(plan)}`, "Mac 端 · 计划", "", "", "");
+  return renderShell(`<section class="reference-page mac-plan-page"><div class="mac-plan-grid"><div class="mac-plan-rail">${renderReferenceRail("mac", 2)}</div><section class="mac-plan-content"><div class="reference-kicker">C / MAC 目标端</div><div class="mac-plan-heading"><div><h1>确认迁移计划</h1><p>先看清楚，再让它发生。</p></div><span class="snapshot-reminder">⌁　迁移前快照会先保存</span></div><section class="reference-plan-list">${habitsGroup}${softwareGroup}</section><div class="plan-bottom-note"><span>ⓘ</span><span>拒绝某项权限不会影响其他模块；点开分组名称可查看具体项目。</span></div></section></div><div class="reference-bottom-bar plan-bottom-bar"><button class="secondary-button" data-action="home">取消</button><span class="bottom-bar-note">${count} 项将处理 · ${plan.contains_secrets ? "含敏感信息" : "不含密码"}</span><button class="reference-primary blue-action" data-action="apply" ${count ? "" : "disabled"}><b>确认并应用</b><i>→</i></button></div></section>${renderDetailModal(plan)}`, "", "", "", "");
 }
 
 function renderApplying(): string {
@@ -596,6 +636,7 @@ function bindEvents(): void {
     else if (action === "download-report-json") void saveReport("json");
   }));
   appRoot.querySelectorAll<HTMLInputElement>("input[data-keyboard]").forEach((input) => input.addEventListener("change", () => { state = { ...state, selection: { ...state.selection, include_keyboard: input.checked } }; render(); }));
+  appRoot.querySelectorAll<HTMLInputElement>("input[data-habits-toggle]").forEach((input) => input.addEventListener("change", () => { state = { ...state, selection: { ...state.selection, include_keyboard: input.checked, include_pointer: input.checked } }; render(); }));
   appRoot.querySelectorAll<HTMLInputElement>("input[data-pointer]").forEach((input) => input.addEventListener("change", () => { state = { ...state, selection: { ...state.selection, include_pointer: input.checked } }; render(); }));
   appRoot.querySelectorAll<HTMLInputElement>("input[data-guide]").forEach((input) => input.addEventListener("change", () => { state = { ...state, selection: { ...state.selection, guide_requested: input.checked } }; render(); }));
   appRoot.querySelectorAll<HTMLInputElement>("input[data-wifi-password]").forEach((input) => input.addEventListener("change", () => { state = { ...state, preview: { ...state.preview, wifiPasswordSelected: input.checked } }; render(); }));
