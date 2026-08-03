@@ -34,7 +34,8 @@
     "Windows signing-before-updater packaging guard",
     "Tauri updater downgrade protection documented and guarded",
     "snapshot lifecycle and report format decisions reconciled",
-    "v1 support entry and same-major habitpack compatibility gate aligned"
+    "v1 support entry and same-major habitpack compatibility gate aligned",
+    "unsigned v1.0.0-rc.1 Windows NSIS and Apple Silicon DMG published as a GitHub Pre-release"
   ],
   "failed_or_deferred": [
     "P0-008 real external-device reconnect matrix not complete",
@@ -47,14 +48,15 @@
   "evidence": [
     "commit 370cc98 on release/v1.0.0",
     "docs/product/v1-validation.md",
-    "docs/product/evidence.md E-024/E-025/E-026/E-027/E-028/E-029/E-030/E-031/E-032/E-033/E-034/E-035/E-036/E-037/E-038/E-039/E-040/E-041/E-042/E-043/E-044",
+    "docs/product/evidence.md E-024/E-025/E-026/E-027/E-028/E-029/E-030/E-031/E-032/E-033/E-034/E-035/E-036/E-037/E-038/E-039/E-040/E-041/E-042/E-043/E-044/E-045/E-046",
     "GitHub Actions runs 30764274017, 30764782994 and 30765236861 succeeded on macos-15 and windows-latest",
     "release/v1.0.0 documentation reconciliation is clean and pushed",
     "latest completed code and docs validation run 30765236861 passed on macos-15 and windows-latest",
     "draft PR https://github.com/aswansong/macwin/pull/1 targets main and remains open",
-    "./scripts/validate-m1 (55 tests), release-preparation, manifest, release-assets, npm and cargo checks passed"
+    "./scripts/validate-m1 (55 tests), release-preparation, manifest, release-assets, npm and cargo checks passed",
+    "GitHub Actions run 30785408954 generated both unsigned RC packages; Pre-release https://github.com/aswansong/macwin/releases/tag/v1.0.0-rc.1"
   ],
-  "next_action": "按 D-039 生成并发布 v1.0.0-rc.1 双平台未签名 GitHub Pre-release；不合并 main。随后等待负责人用真实 Windows/Mac 设备下载安装并按验收手册测试。",
+  "next_action": "负责人从 GitHub Pre-release v1.0.0-rc.1 在真实 Windows 10/11 与 Apple Silicon macOS 15/26 下载并按验收手册测试；记录脱敏结果后再处理免费 Windows 签名申请与正式 macOS Developer ID 门槛。",
   "human_gates": [
     "Apple Developer ID signing and notarization credentials",
     "Windows code-signing certificate",

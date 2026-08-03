@@ -35,7 +35,7 @@
 
 ## 当前下一动作
 
-下一动作：按 D-039 从当前分支生成 Windows x64 NSIS 与 Apple Silicon macOS DMG，发布为明确标记的 `v1.0.0-rc.1` 未签名 GitHub Pre-release 并附 SHA-256；不合并 `main`。随后由负责人在真实 Windows/Mac 设备下载验收，再进入正式签名、公证和 v1.0.0 发布门。OD-005/OD-007 未关闭前不新增真实 Wi‑Fi 密码或自动安装实现。
+下一动作：未签名 [`v1.0.0-rc.1` GitHub Pre-release](https://github.com/aswansong/macwin/releases/tag/v1.0.0-rc.1) 已包含 Windows x64 NSIS、Apple Silicon macOS DMG 和双平台 SHA-256。[E-046] 负责人下一步在真实 Windows 10/11 与 Apple Silicon macOS 15/26 下载验收；不合并 `main`，验收后再进入免费 Windows 签名申请、正式 macOS Developer ID 和 v1.0.0 发布门。OD-005/OD-007 未关闭前不新增真实 Wi‑Fi 密码或自动安装实现。
 
 ## 阻塞项与门槛
 

@@ -332,3 +332,10 @@
 - 摘要：负责人要求在真实 Windows/Mac 设备验收前，先把源码、Windows 安装包和 macOS 安装包上传至公开 GitHub，以便取得设备后直接拉取测试；签名优先寻找免费开源方案，macOS 暂无免费 Developer ID 时只要求在自己的测试设备上按系统提供的手动确认流程运行。
 - 产品含义：可以创建清楚标记的未签名 Pre-release，但不能删除隔离属性、关闭系统安全能力或把它宣传为已签名正式版本。正式 v1.0.0 仍需 D-032 的签名、公证、真实设备和最终确认。
 - 关联决定：D-023、D-032、D-039、OD-002
+
+### E-046：双平台未签名 RC 已发布
+
+- 类型：GitHub Actions 构建、发布资产验证
+- 摘要：GitHub Actions run `30785408954` 在 `release/v1.0.0` 提交 `89aae51` 上分别生成 Windows x64 NSIS 安装器和 Apple Silicon macOS DMG；两个 job 均通过测试、打包与 artifact 上传。DMG 通过 `hdiutil verify`，内部主程序为 arm64，只有 ad-hoc 签名而没有 Team ID 或 Apple 公证；Windows 文件识别为 NSIS 安装器。Pre-release `v1.0.0-rc.1` 已上传两个安装包和各自 SHA-256 清单。
+- 产品含义：负责人现在可从 [GitHub Pre-release](https://github.com/aswansong/macwin/releases/tag/v1.0.0-rc.1) 在真实设备下载测试；该证据不满足正式签名、公证、SmartScreen/Gatekeeper 可信分发或四平台验收。
+- 关联决定：D-023、D-032、D-039、OD-002
