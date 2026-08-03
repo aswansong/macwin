@@ -2,6 +2,12 @@ name: unsigned RC packages
 
 on:
   workflow_dispatch:
+  push:
+    branches: ["release/v1.0.0"]
+    paths:
+      - ".github/workflows/unsigned-rc.yml"
+      - "src-tauri/tauri.unsigned.conf.json"
+      - "docs/releases/v1.0.0-rc.1.md"
 
 permissions:
   contents: read
