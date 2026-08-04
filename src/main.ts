@@ -1,7 +1,13 @@
-import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import packageMetadata from "../package.json";
 import { initialState, setView, statusLabel } from "./app-state";
+import {
+  invokeNative,
+  parseNativeError,
+  type NativeCommand,
+  type NativeCommandArgs,
+  type NativeCommandResult,
+} from "./native-bridge";
 import {
   canRestoreModule,
   defaultSoftwareIds,
@@ -17,14 +23,12 @@ import {
 } from "./ui-contract";
 import type {
   DeviceSelfCheck,
-  ExportReceipt,
   GuideSection,
   ImportPlan,
   MigrationOutcome,
   ModuleResult,
   PreviewScenario,
   RuntimeInfo,
-  SnapshotStatus,
   View,
   WindowsScan,
 } from "./types";
@@ -136,24 +140,27 @@ function previewPlanForState(): ImportPlan {
   return { ...previewPlanBase, guide_requested: hasWindowsSelection ? state.selection.guide_requested : true, wifi, contains_secrets: wifiSelected, selected_module_ids: [...selected] };
 }
 
-function invokeOrPreview<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-  if (isTauri) return invoke<T>(command, args);
-  if (command === "runtime_info") return Promise.resolve(previewRuntime as T);
-  if (command === "scan_windows") return Promise.resolve(previewScan as T);
+function invokeOrPreview<K extends NativeCommand>(command: K, args?: NativeCommandArgs[K]): Promise<NativeCommandResult[K]> {
+  if (isTauri) return invokeNative(command, args);
+  if (command === "runtime_info") return Promise.resolve(previewRuntime as NativeCommandResult[K]);
+  if (command === "scan_windows") return Promise.resolve(previewScan as NativeCommandResult[K]);
   if (command === "import_habitpack") {
     if (state.preview.scenario === "corrupt-package") return Promise.reject(new Error("HP_ZIP_LAYOUT"));
-    return Promise.resolve(previewPlanForState() as T);
+    return Promise.resolve(previewPlanForState() as NativeCommandResult[K]);
   }
-  if (command === "confirm_plan") return Promise.resolve({ ...previewPlanForState(), selected_module_ids: (args?.selected_module_ids as string[] | undefined) ?? previewPlanForState().selected_module_ids } as T);
+  if (command === "confirm_plan") {
+    const confirmation = (args as NativeCommandArgs["confirm_plan"] | undefined)?.confirmation;
+    return Promise.resolve({ ...previewPlanForState(), selected_module_ids: confirmation?.selected_module_ids ?? previewPlanForState().selected_module_ids } as NativeCommandResult[K]);
+  }
   if (command === "export_habitpack") {
     const plan = previewPlanForState();
-    return Promise.resolve({ path: "浏览器预览，不会写入文件", package_bytes: 0, modules: plan.selected_module_ids, contains_secrets: plan.contains_secrets, validated: true } as T);
+    return Promise.resolve({ path: "浏览器预览，不会写入文件", package_bytes: 0, modules: plan.selected_module_ids, contains_secrets: plan.contains_secrets, validated: true } as NativeCommandResult[K]);
   }
-  if (command === "apply_plan") return Promise.resolve(previewOutcome() as T);
-  if (command === "rollback_module") return Promise.resolve(previewRollback(args?.module_id as string) as T);
-  if (command === "rollback_all") return Promise.resolve(previewRollback("all") as T);
-  if (command === "device_self_check") return Promise.resolve(previewDiagnostics as T);
-  if (command === "export_report") return Promise.resolve({ path: "浏览器预览，不会写入文件", format: args?.format ?? "html", bytes: 0 } as T);
+  if (command === "apply_plan") return Promise.resolve(previewOutcome() as NativeCommandResult[K]);
+  if (command === "rollback_module") return Promise.resolve(previewRollback((args as NativeCommandArgs["rollback_module"] | undefined)?.moduleId ?? "") as NativeCommandResult[K]);
+  if (command === "rollback_all") return Promise.resolve(previewRollback("all") as NativeCommandResult[K]);
+  if (command === "device_self_check") return Promise.resolve(previewDiagnostics as NativeCommandResult[K]);
+  if (command === "export_report") return Promise.resolve({ path: "浏览器预览，不会写入文件", format: (args as NativeCommandArgs["export_report"] | undefined)?.format ?? "html", bytes: 0 } as NativeCommandResult[K]);
   return Promise.reject(new Error("浏览器预览不支持此操作"));
 }
 
@@ -525,18 +532,17 @@ function render(): void {
   }
 }
 
-function recordError(error: unknown): void {
-  if (!isTauri) return;
-  const raw = String(error ?? "UNKNOWN_ERROR").toUpperCase();
-  const code = raw.match(/[A-Z][A-Z0-9_-]{2,63}/)?.[0] ?? "UNKNOWN_ERROR";
-  void invoke("record_error", { input: { code } }).catch(() => undefined);
+function recordError(error: unknown): string {
+  const code = parseNativeError(error);
+  if (isTauri) void invokeNative("record_error", { input: { code } }).catch(() => undefined);
+  return code;
 }
 
 async function runScan(): Promise<void> {
-  if (state.runtime?.platform !== "windows" || state.runtime.supported !== true) { recordError("UNSUPPORTED_PLATFORM"); state = { ...state, error: "UNSUPPORTED_PLATFORM" }; render(); return; }
+  if (state.runtime?.platform !== "windows" || state.runtime.supported !== true) { const code = recordError("UNSUPPORTED_PLATFORM"); state = { ...state, error: code }; render(); return; }
   state = { ...state, view: "scanning", busy: true, error: null }; render();
-  try { const scan = await invokeOrPreview<WindowsScan>("scan_windows"); state = { ...state, scan, runtime: scan.runtime, selection: { ...state.selection, software_ids: defaultSoftwareIds(scan) }, view: "scan", busy: false }; }
-  catch (error) { recordError(error); state = { ...state, view: "home", busy: false, error: String(error) }; }
+  try { const scan = await invokeOrPreview("scan_windows"); state = { ...state, scan, runtime: scan.runtime, selection: { ...state.selection, software_ids: defaultSoftwareIds(scan) }, view: "scan", busy: false }; }
+  catch (error) { const code = recordError(error); state = { ...state, view: "home", busy: false, error: code }; }
   render();
 }
 
@@ -546,24 +552,24 @@ async function exportPackage(): Promise<void> {
   try {
     const path = isTauri ? await save({ defaultPath: "windows-habits.habitpack", filters: [{ name: "MacWin 迁移包", extensions: ["habitpack"] }] }) : null;
     if (!path && isTauri) { setBusy(false); return; }
-    const receipt = await invokeOrPreview<ExportReceipt>("export_habitpack", { path, selection: state.selection });
+    const receipt = await invokeOrPreview("export_habitpack", { path: path ?? "preview.habitpack", selection: state.selection });
     state = { ...state, receipt, view: "exported", busy: false };
-  } catch (error) { recordError(error); state = { ...state, busy: false, error: String(error) }; }
+  } catch (error) { const code = recordError(error); state = { ...state, busy: false, error: code }; }
   render();
 }
 
 async function importPackage(): Promise<void> {
-  if (state.runtime?.platform !== "macos" || state.runtime.supported !== true) { recordError("UNSUPPORTED_PLATFORM"); state = { ...state, error: "UNSUPPORTED_PLATFORM" }; render(); return; }
+  if (state.runtime?.platform !== "macos" || state.runtime.supported !== true) { const code = recordError("UNSUPPORTED_PLATFORM"); state = { ...state, error: code }; render(); return; }
   try {
     const path = isTauri ? await open({ multiple: false, directory: false, filters: [{ name: "MacWin 迁移包", extensions: ["habitpack"] }] }) : "preview.habitpack";
     if (!path && isTauri) return;
     setBusy(true);
-    const importedPlan = await invokeOrPreview<ImportPlan>("import_habitpack", { path });
+    const importedPlan = await invokeOrPreview("import_habitpack", { path: path ?? "preview.habitpack" });
     const plan = normalizePlan(importedPlan);
     expandedPlanGroups = new Set();
     activeDetailModuleId = null;
     state = { ...state, plan, runtime: isTauri ? state.runtime : runtimeFor("macos"), view: "plan", busy: false, error: null };
-  } catch (error) { recordError(error); state = { ...state, view: "home", busy: false, error: String(error) }; }
+  } catch (error) { const code = recordError(error); state = { ...state, view: "home", busy: false, error: code }; }
   render();
 }
 
@@ -574,26 +580,26 @@ async function applyPlan(): Promise<void> {
   try {
     const keyboard = plan.keyboard_compatibility;
     const selectedModuleIds = selectedModulesForConfirmation(plan);
-    const confirmedRaw = await invokeOrPreview<ImportPlan>("confirm_plan", { selected_module_ids: selectedModuleIds, keyboard_built_in: keyboard.built_in_enabled, keyboard_external: keyboard.external_enabled });
+    const confirmedRaw = await invokeOrPreview("confirm_plan", { confirmation: { selected_module_ids: selectedModuleIds, keyboard_built_in: keyboard.built_in_enabled, keyboard_external: keyboard.external_enabled } });
     const confirmed = normalizePlan({ ...confirmedRaw, selected_module_ids: selectedModuleIds });
     state = { ...state, plan: confirmed };
-    const outcome = await invokeOrPreview<MigrationOutcome>("apply_plan", { keyboard_built_in: confirmed.keyboard_compatibility.built_in_enabled, keyboard_external: confirmed.keyboard_compatibility.external_enabled, selected_module_ids: confirmed.selected_module_ids, confirmation_token: confirmed.confirmation_token });
+    const outcome = await invokeOrPreview("apply_plan", { keyboardBuiltIn: confirmed.keyboard_compatibility.built_in_enabled, keyboardExternal: confirmed.keyboard_compatibility.external_enabled, selectedModuleIds: confirmed.selected_module_ids, confirmationToken: confirmed.confirmation_token });
     state = { ...state, outcome, view: "complete", busy: false };
-  } catch (error) { recordError(error); state = { ...state, view: "plan", busy: false, error: String(error) }; }
+  } catch (error) { const code = recordError(error); state = { ...state, view: "plan", busy: false, error: code }; }
   render();
 }
 
 async function rollback(moduleId?: string): Promise<void> {
   state = { ...state, busy: true, error: null }; render();
-  try { const outcome = await invokeOrPreview<MigrationOutcome>(moduleId ? "rollback_module" : "rollback_all", moduleId ? { module_id: moduleId } : undefined); state = { ...state, outcome, view: "complete", busy: false }; }
-  catch (error) { recordError(error); state = { ...state, busy: false, error: String(error) }; }
+  try { const outcome = moduleId ? await invokeOrPreview("rollback_module", { moduleId }) : await invokeOrPreview("rollback_all"); state = { ...state, outcome, view: "complete", busy: false }; }
+  catch (error) { const code = recordError(error); state = { ...state, busy: false, error: code }; }
   render();
 }
 
 async function runDiagnostics(): Promise<void> {
   state = { ...state, view: "diagnostics", busy: true, error: null }; render();
-  try { const diagnostics = await invokeOrPreview<DeviceSelfCheck>("device_self_check"); state = { ...state, diagnostics, busy: false }; }
-  catch (error) { recordError(error); state = { ...state, busy: false, error: String(error) }; }
+  try { const diagnostics = await invokeOrPreview("device_self_check"); state = { ...state, diagnostics, busy: false }; }
+  catch (error) { const code = recordError(error); state = { ...state, busy: false, error: code }; }
   render();
 }
 
@@ -601,8 +607,8 @@ async function deleteSnapshot(): Promise<void> {
   if (!isTauri || !state.diagnostics?.snapshot.available) return;
   if (!window.confirm("删除迁移前快照后，MacWin 将无法自动恢复这次迁移。确定删除吗？")) return;
   setBusy(true);
-  try { const snapshot = await invoke<SnapshotStatus>("delete_snapshot", { request: { confirmed: true } }); state = { ...state, diagnostics: { ...state.diagnostics, snapshot }, busy: false }; }
-  catch (error) { recordError(error); state = { ...state, busy: false, error: String(error) }; }
+  try { const snapshot = await invokeOrPreview("delete_snapshot", { request: { confirmed: true } }); state = { ...state, diagnostics: { ...state.diagnostics, snapshot }, busy: false }; }
+  catch (error) { const code = recordError(error); state = { ...state, busy: false, error: code }; }
   render();
 }
 
@@ -682,20 +688,20 @@ function bindEvents(): void {
 
 async function saveReport(format: "html" | "json"): Promise<void> {
   const text = state.outcome?.results.map((result) => `${result.title}：${result.before} → ${result.after}（${statusLabel(result.status)}）`).join("\n") ?? "";
-  if (isTauri) { try { const receipt = await invoke<{ path: string; format: string }>("export_report", { format }); window.alert(`报告已保存：${receipt.path}`); } catch (error) { recordError(error); state = { ...state, error: String(error) }; render(); } return; }
+  if (isTauri) { try { const receipt = await invokeOrPreview("export_report", { format }); window.alert(`报告已保存：${receipt.path}`); } catch (error) { const code = recordError(error); state = { ...state, error: code }; render(); } return; }
   await navigator.clipboard?.writeText(text);
   window.alert(format === "html" ? "浏览器演示已复制报告文字；真实应用会保存 HTML 文件。" : "浏览器演示已复制脱敏报告文字；真实应用会保存 JSON 文件。");
 }
 
 async function checkUpdate(showResult: boolean): Promise<void> {
   if (!isTauri) { if (showResult) window.alert("浏览器演示不会联网检查更新。"); return; }
-  try { const result = await invoke<{ status: string; version: string | null }>("check_update"); if (showResult && result.status === "available") { const confirmed = window.confirm(`发现新版本 ${result.version ?? ""}。MacWin 会先验证签名，再下载并安装。现在安装吗？`); if (confirmed) { const installed = await invoke<{ status: string; version: string | null }>("install_update", { request: { confirmed: true } }); window.alert(installed.status === "installed_restart_required" ? `版本 ${installed.version ?? ""} 已安装，重启 MacWin 后生效。` : "当前已是最新版本。"); } } else if (showResult) window.alert("当前已是最新版本。"); }
-  catch (error) { if (showResult && !String(error).includes("UPDATE_NOT_CONFIGURED")) recordError(error); if (showResult) window.alert("暂时无法检查更新；离线时不影响本地迁移功能。"); }
+  try { const result = await invokeOrPreview("check_update"); if (showResult && result.status === "available") { const confirmed = window.confirm(`发现新版本 ${result.version ?? ""}。MacWin 会先验证签名，再下载并安装。现在安装吗？`); if (confirmed) { const installed = await invokeOrPreview("install_update", { request: { confirmed: true } }); window.alert(installed.status === "installed_restart_required" ? `版本 ${installed.version ?? ""} 已安装，重启 MacWin 后生效。` : "当前已是最新版本。"); } } else if (showResult) window.alert("当前已是最新版本。"); }
+  catch (error) { if (showResult && parseNativeError(error) !== "UPDATE_NOT_CONFIGURED") recordError(error); if (showResult) window.alert("暂时无法检查更新；离线时不影响本地迁移功能。"); }
 }
 
 async function loadRuntime(): Promise<void> {
-  try { state = { ...state, runtime: await invokeOrPreview<RuntimeInfo>("runtime_info") }; }
-  catch { state = { ...state, runtime: { platform: "unsupported", os_version: "无法读取", architecture: "unknown", supported: false, support_message: "无法确认当前设备是否受支持", alpha: false } }; }
+  try { state = { ...state, runtime: await invokeOrPreview("runtime_info") }; }
+  catch (error) { const code = recordError(error); state = { ...state, runtime: { platform: "unsupported", os_version: "无法读取", architecture: "unknown", supported: false, support_message: "无法确认当前设备是否受支持", alpha: false }, error: code }; }
   if (isTauri) void checkUpdate(false);
   render();
 }

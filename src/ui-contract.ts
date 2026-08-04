@@ -38,6 +38,8 @@ export function isPreviewEnvironment(isTauri: boolean, isDev: boolean): boolean 
 export function friendlyError(value: unknown): string {
   const code = String(value ?? "").replace(/^Error:\s*/, "");
   const messages: Record<string, string> = {
+    TAURI_INVALID_ARGS: "MacWin 与原生组件的参数没有对齐，系统没有被修改；请重新打开应用后再试。",
+    UNKNOWN_ERROR: "这一步没有完成，MacWin 没有继续修改系统；请重试或查看错误码。",
     SNAPSHOT_INTEGRITY: "迁移前快照完整性校验失败，已停止恢复；原设置不会被猜测覆盖。",
     SNAPSHOT_INVALID: "迁移前快照格式无效，已停止恢复。",
     SNAPSHOT_MISSING: "没有找到这次迁移的快照，无法安全恢复。",
@@ -58,8 +60,14 @@ export function friendlyError(value: unknown): string {
     SNAPSHOT_DELETE_CONFIRM_REQUIRED: "删除快照必须经过确认。",
     SNAPSHOT_DELETE: "无法删除迁移前快照；它仍然保留。",
     MODULE_NOT_RESTORABLE: "这个模块没有在本次迁移中成功修改，不能把它当作需要恢复的设置。",
+    PLAN_EMPTY_SELECTION: "没有选择任何可应用项目；请返回计划页勾选至少一项。",
+    SNAPSHOT_CREATE: "无法保存迁移前快照，MacWin 已停止应用；原设置没有被覆盖。",
+    SNAPSHOT_LOAD: "无法读取迁移前快照，MacWin 已停止恢复；原设置保持不变。",
+    ACCESSIBILITY_DENIED: "系统没有授予辅助功能权限；相关模块已降级，其他模块不受影响。",
+    UAC_DENIED: "没有获得 Windows 管理员授权；相关项目已跳过，其他项目可以继续。",
+    UPDATE_NOT_CONFIGURED: "当前版本尚未配置可信更新源；本地迁移功能不受影响。",
   };
-  return messages[code] ?? (code || "发生未知错误，请查看报告中的错误码。");
+  return messages[code] ?? (code ? `操作未完成（错误码 ${code}）。MacWin 没有继续修改系统，请重试或查看错误提示。` : "发生未知错误，请查看报告中的错误码。");
 }
 
 function selectedSoftwareIds(plan: ImportPlan): Set<string> {

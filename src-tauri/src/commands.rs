@@ -136,7 +136,11 @@ pub fn scan_windows() -> Result<WindowsScan, String> {
 }
 
 #[tauri::command]
-pub fn export_habitpack(app: AppHandle, path: String, selection: ExportSelection) -> Result<ExportReceipt, String> {
+pub fn export_habitpack(
+    app: AppHandle,
+    path: String,
+    selection: ExportSelection,
+) -> Result<ExportReceipt, String> {
     if path.is_empty() || !path.to_ascii_lowercase().ends_with(".habitpack") {
         return Err("EXPORT_EXTENSION".to_owned());
     }
@@ -251,6 +255,9 @@ pub fn confirm_plan(
     let mut selected = confirmation.selected_module_ids;
     selected.sort();
     selected.dedup();
+    if selected.is_empty() {
+        return Err("PLAN_EMPTY_SELECTION".to_owned());
+    }
     if selected.iter().any(|module| !known.contains(module)) {
         return Err("PLAN_MODULE_UNKNOWN".to_owned());
     }
@@ -646,3 +653,32 @@ pub async fn install_update(
 
 #[allow(dead_code)]
 fn _software_type_is_serializable(_: SoftwareFinding, _: SoftwarePlanItem) {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn plan_confirmation_dto_uses_snake_case_fields() {
+        let confirmation: PlanConfirmation = serde_json::from_value(serde_json::json!({
+            "selected_module_ids": ["finder_extensions"],
+            "keyboard_built_in": true,
+            "keyboard_external": false,
+        }))
+        .expect("confirmation DTO");
+        assert_eq!(confirmation.selected_module_ids, ["finder_extensions"]);
+        assert_eq!(confirmation.keyboard_built_in, Some(true));
+        assert_eq!(confirmation.keyboard_external, Some(false));
+    }
+
+    #[test]
+    fn flattened_confirmation_is_not_the_command_envelope() {
+        let flattened = serde_json::json!({
+            "selected_module_ids": ["finder_extensions"],
+            "keyboard_built_in": true,
+            "keyboard_external": false,
+        });
+        let wrapped = serde_json::json!({ "confirmation": flattened });
+        assert!(serde_json::from_value::<PlanConfirmation>(wrapped).is_err());
+    }
+}
