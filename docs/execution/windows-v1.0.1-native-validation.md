@@ -23,13 +23,14 @@
 
 | 候选 | 大小 | SHA-256 | PE/版本 | 签名 | 来源判断 | 用途 |
 | --- | ---: | --- | --- | --- | --- | --- |
+| `%TEMP%/macwin-ci-8830608/macwin.exe` | 13,204,480 | `748559EFF12440177B2464096CE4835E5E27AFEEFEB6ACB5ED950F57DCFDA8C2` | x64 AMD64；`1.0.1-rc.1` | `NotSigned` | GitHub Actions run `30910856416`、HEAD `8830608` 的 Windows artifact；artifact digest `sha256:616fc5703efbfea9b15951c576be5a83e4f7b7bdb3f027cae3dfbb1d1806ac9a` | 可信 CI 原生候选，待动作时确认后启动 |
 | `%USERPROFILE%/Desktop/创业/自媒体/macwin/macwin.exe` | 13,196,800 | `DE6AB3865971243C3B66AB9BC46DEF208A1B037D9281574EA0AFE82C55819BAB` | x64 AMD64；`1.0.1-rc.1` | `NotSigned` | 未在 Release manifest 或可匿名下载的 CI artifact 中建立哈希证明 | 本机 GUI 基线 |
 | `%USERPROFILE%/Desktop/创业/自媒体/macwin/uninstall.exe` | 79,167 | `FC9DB2CE384AE5C8EDFA73B76E2E6287DA263FAD3D76B5FDF9149BCB2A7D7127` | `1.0.1-rc.1` | `NotSigned` | 用户级安装登记引用的卸载入口；非 Release 资产 | 未执行 |
 | `%USERPROFILE%/Downloads/MacWin_1.0.1-rc.1_x64-setup.exe` | 3,175,404 | `8AC208BABE263615011AD12457BED0B4D933CD966FEE15E00E750CA5178B50B0` | I386 installer；`1.0.1-rc.1` | `NotSigned` | 与 GitHub Pre-release `v1.0.1-rc.1` 的 `SHA256SUMS.txt` 完全匹配；资产构建提交为 `26ec53f` | 可信的未签名 Release 资产，未执行安装 |
 
 系统卸载注册表中已有一个用户级 `MacWin 1.0.1-rc.1` 登记，安装目录为上述桌面目录，卸载入口为该目录内的 `uninstall.exe`。盘点范围还发现 Desktop 11 个、Downloads 15 个、Cargo target 144 个 `.exe/.msi`；其中与 MacWin 相关的只有表内文件和两个 Cargo 测试二进制，后者是本地构建中间物，不是交付候选。临时目录中的历史副本和其他软件安装器未纳入 MacWin 可信证据。纳入 MacWin 交付盘点的 PE 均无 Authenticode 签名；没有可用签名凭据，也没有尝试签名。
 
-GitHub 公开的 `SHA256SUMS.txt` 证明了 Downloads 安装器；匿名 Actions artifact 下载返回 `401 Requires authentication`，所以桌面 EXE 不标为可信发布资产。现有 GUI 结果只作为同版本行为证据，不替代 Release binary 的来源证明。
+GitHub 公开的 `SHA256SUMS.txt` 证明了 Downloads 安装器；本次通过受控 artifact 下载取得并核验了 `8830608` 的 Windows CI PE。现有 GUI 结果来自桌面目录 EXE，只作为同版本行为证据；可信 CI PE 尚未启动，不把前者的 GUI 结果转嫁给后者。
 
 ## 主机 GUI 原生流程
 
@@ -83,7 +84,7 @@ GitHub 公开的 `SHA256SUMS.txt` 证明了 Downloads 安装器；匿名 Actions
 
 - Windows 安装器与 PE 均为 `NotSigned`，未通过正式签名/SmartScreen 门槛。
 - 本机未执行 Downloads 安装器、卸载或重装；现有用户级登记只证明已有安装记录，不证明本次资产安装成功。
-- 本机 GUI 使用的是来源未独立证明的现有桌面 EXE，不能升级为可信 Release binary 的启动验收。
+- 本机 GUI 已使用来源未独立证明的现有桌面 EXE；可信 CI PE 已下载并核验，但尚未在动作时确认后启动，因此不能把 GUI 结果升级为可信 CI binary 的启动验收。
 - Windows Sandbox 因需管理员权限未启用；不在本次任务中改变系统设置。
 
 ## 隐私声明
