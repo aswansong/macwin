@@ -136,7 +136,11 @@ pub fn scan_windows() -> Result<WindowsScan, String> {
 }
 
 #[tauri::command]
-pub fn export_habitpack(app: AppHandle, path: String, selection: ExportSelection) -> Result<ExportReceipt, String> {
+pub fn export_habitpack(
+    app: AppHandle,
+    path: String,
+    selection: ExportSelection,
+) -> Result<ExportReceipt, String> {
     if path.is_empty() || !path.to_ascii_lowercase().ends_with(".habitpack") {
         return Err("EXPORT_EXTENSION".to_owned());
     }

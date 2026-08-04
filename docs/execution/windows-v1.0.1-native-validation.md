@@ -17,7 +17,7 @@
 - 源码基线提交：`2274a5c71b808d5863129c7e5dd39e064373ceea`
 - 验证分支：`windows/v1.0.1-native-validation`（当前专用分支，不修改 `main` 或 `release/v1.0.1`）
 - `26ec53f` 到 `2274a5c` 的差异仅涉及文档；应用源码没有变化
-- 本次仅增加该验证分支的 CI 触发范围和本记录文档，不创建 tag、正式 Release 或签名资产
+- 本次增加该验证分支的 CI 触发范围、Rust 既有格式漂移修复和本记录文档；不创建 tag、正式 Release 或签名资产
 
 ## Windows 文件盘点与信任判断
 
@@ -61,12 +61,12 @@ GitHub 公开的 `SHA256SUMS.txt` 证明了 Downloads 安装器；匿名 Actions
 | `npm run build` | 通过 |
 | `python -m unittest discover -s tests -p "test_*.py"`（仓库 venv） | 通过；55 个测试 |
 | `python -m tools.m1.repo_checks`（仓库 venv） | 通过；14 schemas、8 个有效夹具、113 个无效夹具、34 个 JSON、37 个相对链接、15 个 P0、D=40/OD=11/E=48 |
-| `cargo test --locked --manifest-path src-tauri/Cargo.toml` | 通过；20 个测试 |
-| `cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` | 通过；无 warning |
-| `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` | 未通过；当前 Rust 1.97.1 对仓库既有源码报告格式差异；未自动格式化或改写源文件 |
+| `cargo test --locked --manifest-path src-tauri/Cargo.toml` | 格式化前基线通过；20 个测试。格式化后重新编译生成的测试 PE 在启动阶段被 Smart App Control 阻止，未执行断言 |
+| `cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` | 格式化前基线通过、无 warning；格式化后未重复触发本机受阻的编译/执行路线，交由 Windows CI 验证 |
+| `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` | 通过；已用 Rust 1.97.1 格式化 4 个既有漂移文件 |
 | `git diff --check` | 通过 |
 
-此前 `npm ci`、前端构建、M1 测试和 Release 候选构建也有历史通过记录；本次没有修改 lockfile。Windows PowerShell 没有 `bash` 命令，因此本次 M1 检查使用同一仓库 venv 直接运行等价的 unittest/repo_checks 入口，并记录了精确结果。
+此前 `npm ci`、前端构建、M1 测试和 Release 候选构建也有历史通过记录；本次没有修改 lockfile。Windows PowerShell 没有 `bash` 命令，因此本次 M1 检查使用同一仓库 venv 直接运行等价的 unittest/repo_checks 入口，并记录了精确结果。Rust 格式化后的本机测试不再重复启动，以遵守 Smart App Control 同一路线最多两次检查的约束。
 
 ## Smart App Control、Code Integrity 与替代路线
 

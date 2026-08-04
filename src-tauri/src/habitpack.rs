@@ -660,11 +660,14 @@ fn compatible_schema_version(value: &Value) -> Result<()> {
     let text = value.as_str().ok_or_else(|| error("HP_SCHEMA_VERSION"))?;
     let mut parts = text.split('.');
     let parse_component = |component: Option<&str>| {
-        component.filter(|part| {
-            !part.is_empty()
-                && part.bytes().all(|byte| byte.is_ascii_digit())
-                && (part.len() == 1 || !part.starts_with('0'))
-        })?.parse::<u64>().ok()
+        component
+            .filter(|part| {
+                !part.is_empty()
+                    && part.bytes().all(|byte| byte.is_ascii_digit())
+                    && (part.len() == 1 || !part.starts_with('0'))
+            })?
+            .parse::<u64>()
+            .ok()
     };
     let major = parse_component(parts.next());
     let minor = parse_component(parts.next());
@@ -767,7 +770,9 @@ fn parse_pointer_parameters(parameters: &Map<String, Value>) -> Result<(String, 
     closed(parameters, &["device", "scroll_direction"])?;
     let device = string(required(parameters, "device")?)?;
     let direction = string(required(parameters, "scroll_direction")?)?;
-    if !["mouse", "trackpad"].contains(&device) || !["natural", "windows_style"].contains(&direction) {
+    if !["mouse", "trackpad"].contains(&device)
+        || !["natural", "windows_style"].contains(&direction)
+    {
         return Err(error("HP_SCHEMA"));
     }
     Ok((device.to_owned(), direction.to_owned()))
@@ -1037,8 +1042,17 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
                     }
                     let id = string(required(params, "software_id")?)?;
                     if ![
-                        "edge", "chrome", "firefox", "microsoft365", "wps",
-                        "vscode", "git", "node", "python", "codex-cli", "claude-code",
+                        "edge",
+                        "chrome",
+                        "firefox",
+                        "microsoft365",
+                        "wps",
+                        "vscode",
+                        "git",
+                        "node",
+                        "python",
+                        "codex-cli",
+                        "claude-code",
                     ]
                     .contains(&id)
                     {
@@ -1051,14 +1065,21 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
                     software.push(evidence);
                 }
                 "developer" => {
-                    if !params.keys().all(|key| key == "tool_id" || key == "install_homebrew")
+                    if !params
+                        .keys()
+                        .all(|key| key == "tool_id" || key == "install_homebrew")
                         || bool_value(required(params, "install_homebrew")?)?
                     {
                         return Err(error("HP_SCHEMA"));
                     }
                     let id = string(required(params, "tool_id")?)?;
                     if ![
-                        "vscode", "git", "node", "python", "codex-cli", "claude-code",
+                        "vscode",
+                        "git",
+                        "node",
+                        "python",
+                        "codex-cli",
+                        "claude-code",
                     ]
                     .contains(&id)
                     {
@@ -1096,7 +1117,10 @@ fn semantic_check(payloads: &BTreeMap<String, Vec<u8>>) -> Result<ImportedPackag
         source_os,
         keyboard,
         pointer: if pointer_mouse.is_some() || pointer_trackpad.is_some() {
-            Some(PointerEvidence { mouse_direction: pointer_mouse, trackpad_direction: pointer_trackpad })
+            Some(PointerEvidence {
+                mouse_direction: pointer_mouse,
+                trackpad_direction: pointer_trackpad,
+            })
         } else {
             None
         },
@@ -1255,7 +1279,10 @@ fn build_entries(input: &PackageInput) -> Result<PackageEntries> {
                 candidate_id: format!("pointer.{}", index + 1),
                 rule_id: "fixture.pointer.scroll",
                 rule_version: SCHEMA_VERSION,
-                source: CandidateSource { kind: "fixture_detected", label },
+                source: CandidateSource {
+                    kind: "fixture_detected",
+                    label,
+                },
                 status: "detected",
                 exclusion_reason: None,
                 parameters: serde_json::json!({"device": device, "scroll_direction": direction}),
@@ -1265,7 +1292,11 @@ fn build_entries(input: &PackageInput) -> Result<PackageEntries> {
         if !candidates.is_empty() {
             entries.insert(
                 "modules/pointer.json".to_owned(),
-                json_bytes(&Module { schema_version: SCHEMA_VERSION, module: "pointer", candidates })?,
+                json_bytes(&Module {
+                    schema_version: SCHEMA_VERSION,
+                    module: "pointer",
+                    candidates,
+                })?,
             );
         }
     }
@@ -1275,14 +1306,28 @@ fn build_entries(input: &PackageInput) -> Result<PackageEntries> {
         .enumerate()
         .filter(|(_, software)| {
             [
-                "edge", "chrome", "firefox", "microsoft365", "wps", "vscode", "git", "node",
-                "python", "codex-cli", "claude-code",
+                "edge",
+                "chrome",
+                "firefox",
+                "microsoft365",
+                "wps",
+                "vscode",
+                "git",
+                "node",
+                "python",
+                "codex-cli",
+                "claude-code",
             ]
             .contains(&software.id.as_str())
         })
         .partition::<Vec<_>, _>(|(_index, software)| {
             ![
-                "vscode", "git", "node", "python", "codex-cli", "claude-code",
+                "vscode",
+                "git",
+                "node",
+                "python",
+                "codex-cli",
+                "claude-code",
             ]
             .contains(&software.id.as_str())
         });
@@ -1333,7 +1378,10 @@ fn build_entries(input: &PackageInput) -> Result<PackageEntries> {
                 candidate_id,
                 rule_id: "fixture.developer.lightweight",
                 rule_version: SCHEMA_VERSION,
-                source: CandidateSource { kind: "fixture_detected", label },
+                source: CandidateSource {
+                    kind: "fixture_detected",
+                    label,
+                },
                 status: "detected",
                 exclusion_reason: None,
                 parameters: serde_json::json!({"tool_id":software.id,"install_homebrew":false}),
@@ -1494,7 +1542,10 @@ pub fn build_package_with_app_version(
     if parsed.pointer.is_some() {
         modules.push("pointer".to_owned());
     }
-    if module_paths.iter().any(|path| path == "modules/developer.json") {
+    if module_paths
+        .iter()
+        .any(|path| path == "modules/developer.json")
+    {
         modules.push("developer".to_owned());
     }
     Ok((
@@ -1542,7 +1593,8 @@ fn write_package_bytes(
             .write(true)
             .open(&temp_path)
             .map_err(|_| error("HP_EXPORT_WRITE"))?;
-        file.write_all(&bytes).map_err(|_| error("HP_EXPORT_WRITE"))?;
+        file.write_all(&bytes)
+            .map_err(|_| error("HP_EXPORT_WRITE"))?;
         file.sync_all().map_err(|_| error("HP_EXPORT_WRITE"))?;
         drop(file);
         let on_disk = std::fs::read(&temp_path).map_err(|_| error("HP_EXPORT_WRITE"))?;
@@ -1638,7 +1690,10 @@ mod tests {
         .expect("write");
         assert!(receipt.modules.iter().any(|module| module == "pointer"));
         let parsed = parse_file(&path).expect("parse on disk");
-        assert_eq!(parsed.pointer.unwrap().trackpad_direction.as_deref(), Some("natural"));
+        assert_eq!(
+            parsed.pointer.unwrap().trackpad_direction.as_deref(),
+            Some("natural")
+        );
         assert!(!directory.path().join(".move.habitpack.tmp").exists());
     }
     #[test]
@@ -1702,6 +1757,9 @@ mod tests {
         let same_major = package_with_schema_version(&bytes, "1.1.0");
         assert!(parse_bytes(&same_major).is_ok());
         let future_major = package_with_schema_version(&bytes, "2.0.0");
-        assert_eq!(parse_bytes(&future_major).unwrap_err().code, "HP_SCHEMA_VERSION");
+        assert_eq!(
+            parse_bytes(&future_major).unwrap_err().code,
+            "HP_SCHEMA_VERSION"
+        );
     }
 }
