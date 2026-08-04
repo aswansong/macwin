@@ -90,3 +90,30 @@ GitHub 公开的 `SHA256SUMS.txt` 证明了 Downloads 安装器；本次通过�
 ## 隐私声明
 
 本文使用 `%USERPROFILE%` 脱敏路径，不写入用户名、完整本地路径、设备序列号、Wi-Fi 名称或密码、Token、SSH 私钥、浏览器资料、个人文件、完整日志或迁移包内容。测试输出仅保留哈希、结构、计数和安全策略类别。
+## Current closure addendum (2026-08-04)
+
+This addendum supersedes the earlier provisional notes in this record that said the trusted CI PE had not been started and that installer actions had not been executed.
+
+### Trusted CI PE and native W1-W3
+
+- GitHub Actions run `30911906548` (HEAD `bf2da70c09ff0c709486f1bc8365c66631434f46`) completed successfully for both Windows and macOS. The Windows artifact was artifact `8893804881`, digest `sha256:dce106ebec274d345d399cba9e14bf67af1e80253816dc444f010e0389254fc2`.
+- The downloaded Windows PE was `%TEMP%/macwin-ci-bf2da70/macwin.exe`, 13,204,480 bytes, SHA-256 `F5807B0C8E384C78ACA971B93DAFFA92C3B028D97C39DAD983BA54DD9AF2A91A`, x64 AMD64, ProductVersion `1.0.1-rc.1`, Authenticode `NotSigned`.
+- Explorer launch and read-only process inspection both identified the trusted CI source path above; the running process was not the Desktop copy. W1 opened normally, W1-W2 scan completed, operation habits were cancelled and reselected, and W3 displayed the explicit export confirmation with six Mac-side software confirmations, a system guide, eight Wi-Fi rules, and no password export.
+- The trusted CI export was `%USERPROFILE%/Documents/macwin-ci-bf2da70.habitpack`. The UI reported that generation and verification completed.
+
+### Trusted CI `.habitpack` evidence
+
+- Size: 5,008 bytes; SHA-256 `B3EA305976827D5BD8051FC965310F6CAA2F57A04C9806A43D4F10AEB1B5A48E`.
+- ZIP integrity: passed (`testzip() == None`). Entries were exactly `manifest.json`, `modules/developer.json`, `modules/keyboard.json`, `modules/pointer.json`, `modules/software.json`, and `selections.json`.
+- Repository M1 strict validation: passed (`entries=6`, `candidates=9`, `secrets=0`). `manifest.contains_secrets` was `false`; declared hashes matched; module whitelist passed; no executable or secret payload was present.
+
+### Installer, uninstall, and clean reinstall
+
+- The verified Downloads installer `%USERPROFILE%/Downloads/MacWin_1.0.1-rc.1_x64-setup.exe` was launched through Explorer without changing Smart App Control, Defender, firewall, or Code Integrity settings. The installer recognized the existing `1.0.1-rc.1` installation, completed Add/Reinstall components, and reported installation success.
+- The installed `.../macwin/macwin.exe` launched and showed W1. The uninstaller launched from the installed `uninstall.exe` and reported that uninstallation completed successfully. After uninstall, `macwin.exe`, `uninstall.exe`, the user uninstall registry entry, and `%APPDATA%/MacWin` / `%LOCALAPPDATA%/MacWin` were absent; the install directory itself remained as an empty directory and was not deleted automatically.
+- A clean reinstall from the same verified installer completed successfully after uninstall. The installed `macwin.exe` launched and showed W1; the user uninstall entry returned with DisplayVersion `1.0.1-rc.1`, and the installed `uninstall.exe` was present again. The final live process path was the installed Desktop path, not the CI temporary path.
+
+### Security and release-gate status
+
+- Smart App Control remained enabled; Defender real-time protection and all Windows Firewall profiles remained enabled. No security policy, exclusion, registry bypass, renaming trick, or self-signed trust change was used.
+- The PE and installer remain `NotSigned`; this closes native alpha/validation evidence but does not close the formal signed-release/SmartScreen gate. Windows Sandbox was not enabled because its status query required elevation; no elevation or reboot was performed.
