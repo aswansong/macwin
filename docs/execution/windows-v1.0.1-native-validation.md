@@ -24,9 +24,10 @@
 | 候选 | 大小 | SHA-256 | PE/版本 | 签名 | 来源判断 | 用途 |
 | --- | ---: | --- | --- | --- | --- | --- |
 | `%USERPROFILE%/Desktop/创业/自媒体/macwin/macwin.exe` | 13,196,800 | `DE6AB3865971243C3B66AB9BC46DEF208A1B037D9281574EA0AFE82C55819BAB` | x64 AMD64；`1.0.1-rc.1` | `NotSigned` | 未在 Release manifest 或可匿名下载的 CI artifact 中建立哈希证明 | 本机 GUI 基线 |
+| `%USERPROFILE%/Desktop/创业/自媒体/macwin/uninstall.exe` | 79,167 | `FC9DB2CE384AE5C8EDFA73B76E2E6287DA263FAD3D76B5FDF9149BCB2A7D7127` | `1.0.1-rc.1` | `NotSigned` | 用户级安装登记引用的卸载入口；非 Release 资产 | 未执行 |
 | `%USERPROFILE%/Downloads/MacWin_1.0.1-rc.1_x64-setup.exe` | 3,175,404 | `8AC208BABE263615011AD12457BED0B4D933CD966FEE15E00E750CA5178B50B0` | I386 installer；`1.0.1-rc.1` | `NotSigned` | 与 GitHub Pre-release `v1.0.1-rc.1` 的 `SHA256SUMS.txt` 完全匹配；资产构建提交为 `26ec53f` | 可信的未签名 Release 资产，未执行安装 |
 
-系统卸载注册表中已有一个用户级 `MacWin 1.0.1-rc.1` 登记，安装目录为上述桌面目录，卸载入口为该目录内的 `uninstall.exe`。临时目录中的历史副本未纳入可信证据。两份纳入盘点的 PE 均无 Authenticode 签名；没有可用签名凭据，也没有尝试签名。
+系统卸载注册表中已有一个用户级 `MacWin 1.0.1-rc.1` 登记，安装目录为上述桌面目录，卸载入口为该目录内的 `uninstall.exe`。盘点范围还发现 Desktop 11 个、Downloads 15 个、Cargo target 144 个 `.exe/.msi`；其中与 MacWin 相关的只有表内文件和两个 Cargo 测试二进制，后者是本地构建中间物，不是交付候选。临时目录中的历史副本和其他软件安装器未纳入 MacWin 可信证据。纳入 MacWin 交付盘点的 PE 均无 Authenticode 签名；没有可用签名凭据，也没有尝试签名。
 
 GitHub 公开的 `SHA256SUMS.txt` 证明了 Downloads 安装器；匿名 Actions artifact 下载返回 `401 Requires authentication`，所以桌面 EXE 不标为可信发布资产。现有 GUI 结果只作为同版本行为证据，不替代 Release binary 的来源证明。
 
