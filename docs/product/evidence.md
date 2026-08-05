@@ -389,3 +389,10 @@
 - 摘要：在 macOS 26.5.2 Apple Silicon 机器上用 `MacWin_1.0.1-rc.2` 未签名 App 导入用户提供的 `windows-habits.habitpack`（SHA-256 `3d96b3abfbf8638f408aad4cd5e6bb1ee7c12c266a1915f9f2781212fd5c3b17`），通过强制计划确认后，结果页显示内置键盘 Control ↔ Command“已验证”；`defaults -currentHost read` 读回四个成对映射。随后在恢复页单独恢复键位，结果显示“已恢复并验证”，系统 mapping key 回到迁移前不存在状态；外接键盘、Option、Fn 未被写入。测试使用临时新快照，完成后恢复原有应用外快照并清理测试映射。
 - 产品含义：rc.2 的原生键位实现已完成一次真实应用级写入、读回和精确恢复；这不替代睡眠/重启、外接设备矩阵和签名包验收。
 - 关联决定：D-041、D-042、D-012
+
+### E-054：rc.2 本地 Apple Silicon 产物核验
+
+- 类型：Tauri release 构建、DMG 校验、架构与哈希核对
+- 摘要：在集成提交 `3bb9a5c` 上本地运行 `npm run tauri build -- --bundles app,dmg --no-sign --config src-tauri/tauri.unsigned.conf.json`；`MacWin.app` 主程序为 `arm64`，DMG 通过 `hdiutil verify`，包名为 `MacWin_1.0.1-rc.2_aarch64.dmg`，SHA-256 为 `8497b96046cda5a5258522c615092e163c79e7927f6388fdd14e22d188784cdc`。代码目录显示 ad-hoc/linker-signed、无 Team ID，不能视为 Developer ID 签名或公证。
+- 产品含义：本地包可供负责人和明确知情 Alpha 测试者继续验收；GitHub 双平台 Actions、公开 Pre-release、签名、公证和正式版本仍未完成。
+- 关联决定：D-040、D-042、OD-002、OD-006
