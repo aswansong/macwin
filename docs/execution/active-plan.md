@@ -1,10 +1,10 @@
 # 当前执行计划
 
-计划 ID：`v1.0.1-rc-release`
+计划 ID：`v1.0.1-macos-habitpack-e2e`
 
-状态：**release/v1.0.1 未签名 RC 收口中**
+状态：**fix/v1.0.1-macos-habitpack-e2e 原生闭环修复中**
 
-最后更新：2026-08-03
+最后更新：2026-08-04
 
 负责人角色：产品负责人、技术负责人、反方评审（Codex）；最终拍板人：仓库负责人
 
@@ -13,6 +13,8 @@
 负责人已授权从 v1.0.0 RC 基线创建 `release/v1.0.1`，对齐 `1.0.1-rc.1` 应用版本，运行真实 Windows x64 NSIS 与 Apple Silicon macOS DMG 的 Actions 打包，并创建未签名 `v1.0.1-rc.1` Pre-release。未授权签名、公证、正式 `v1.0.1` Release、合并 `main` 或绕过系统安全提示。[D-040、E-047]
 
 负责人同时再次确认 M2 Wave 0 研究授权，但该研究授权不扩大本分支的发布边界：新增研究代码、虚构夹具和研究报告必须放在 `codex/m2-*` 独立分支，不创建 PR、不合并 `main`、不创建 Release。[D-033、E-023]
+
+本分支的额外授权来自负责人提供的真实 Apple 芯片 Mac 与 `/Users/makerzhu/Desktop/windows-habits.habitpack` 回归包：只验证并修复 v1.0.1 的本地 Tauri 导入、计划确认、声明式安全设置、报告与恢复闭环。允许在确认计划后执行已实现且可验证的 Finder、键盘重复速度、选择性 Ctrl 和原生滚动方向设置；第三方安装、管理员权限、辅助功能/输入监控授权和不可逆操作仍须在动作时单独确认。不得修改原始迁移包、正式 Release、`main` 或 `release/v1.0.1`。
 
 产品范围仍是 Windows 10/11 x64 → Apple 芯片 macOS 15/26 的“习惯与环境迁移”，不搬运个人文件、浏览器数据、账号、Token、SSH 私钥、项目代码或聊天记录。默认本地离线、无账号、无聊天、无常驻；版本检查只上传应用版本、平台和架构。
 
@@ -32,10 +34,11 @@
 6. 启用 Tauri bundle，完善 Windows x64/macOS arm64 安装、升级、卸载和 CI 草稿 Release；Release workflow 的 build/publish job 会检出输入 tag，`scripts/prepare-release.py` 会在正式标签构建前校验并同步 Tauri/npm 版本，`scripts/build-release-manifest.py` 会对 updater 产物做确定性选择，`scripts/validate-release-assets.py` 会在发布前校验双平台安装包、哈希、SBOM、签名文本和 manifest 一致性，`scripts/stage-release-assets.py` 会展平公开资产并生成总 SHA-256，手动 tag 输入也会用于 macOS DMG 的生成和公证路径；不把未签名包标为正式版。
 7. RC 阶段的一次完整代码审查、安全/隐私审查和端到端 UX 审查已完成；报告双格式入口、快照完整性错误态、开发工具白名单和取消模块/恢复边界已修复。完整本地测试矩阵与双平台 CI 均已通过，P2 留在 backlog。
 8. 在本分支完成版本/文档/CI 对齐，推送后等待 `v1-ci` 与 `unsigned-rc`；仅在两个包、提交一致性、哈希和 Pre-release 资产核验通过后记录证据。真实设备、签名、公证和正式 v1.0.1 发布继续留给后续人类门槛。
+9. 本分支修复 Tauri v2 命令参数合约（`confirm_plan` 外层 DTO、`apply_plan`/`rollback_module` 顶层 camelCase）、统一原生桥接和稳定错误码；真实 `.habitpack` 已完成导入、计划确认、应用、报告、单模块恢复和全部恢复走查。最终 App/DMG 仍为未签名知情测试构建，不改变正式发布门槛。
 
 ## 当前下一动作
 
-下一动作：`v1.0.1-rc.1` Pre-release 已由 Actions run `30824474842` 发布并完成 tag/HEAD、资产数量和 SHA-256 核验。[E-048] 负责人下一步从 [GitHub Pre-release](https://github.com/aswansong/macwin/releases/tag/v1.0.1-rc.1) 在真实 Windows 10/11 与 Apple Silicon macOS 15/26 下载验收；不合并 `main`，不创建正式 `v1.0.1` Release。OD-005/OD-007 未关闭前不新增真实 Wi‑Fi 密码或自动安装实现。
+下一动作：完成本分支最终测试、未签名 App/DMG 哈希记录、两次真实原生走查证据，提交并推送 `fix/v1.0.1-macos-habitpack-e2e`；然后等待负责人决定是否把修复挑选回 `release/v1.0.1`。不合并 `main`、不改动正式 Release。OD-005/OD-007 未关闭前不新增真实 Wi‑Fi 密码或自动安装实现。
 
 ## 阻塞项与门槛
 
@@ -51,5 +54,6 @@ npm test
 npm run build
 cargo test --locked --manifest-path src-tauri/Cargo.toml
 cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-npm run tauri build
+MACWIN_REAL_HABITPACK=/Users/makerzhu/Desktop/windows-habits.habitpack cargo test --locked --manifest-path src-tauri/Cargo.toml user_provided_external -- --ignored
+PATH="/Users/makerzhu/.cargo/bin:$PATH" npm run tauri build -- --bundles app,dmg --config src-tauri/tauri.unsigned.conf.json
 ```

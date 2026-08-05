@@ -90,5 +90,7 @@ describe("v6 integration contracts", () => {
     expect(canRestoreModule({ module_id: "finder_extensions", title: "", before: "", after: "", reason: "", benefit: "", recovery: "", status: "applied_verified", error_code: null })).toBe(true);
     expect(canRestoreModule({ module_id: "software.chrome", title: "", before: "", after: "", reason: "", benefit: "", recovery: "", status: "manual_action_required", error_code: null })).toBe(false);
     expect(friendlyError("HP_SCHEMA_VERSION")).toContain("同一 major");
+    expect(friendlyError("TAURI_INVALID_ARGS")).toContain("参数没有对齐");
+    expect(friendlyError("UNKNOWN_ERROR")).toContain("没有继续修改系统");
   });
 });
