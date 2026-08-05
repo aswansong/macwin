@@ -66,9 +66,10 @@
     "./scripts/validate-m1 passed: 55/55 tests; external habitpack regression 1/1",
     "E-049/E-050/E-051/E-052 document native mapping, convergence, icon and titlebar evidence",
     "E-053 records real Apple Silicon Mac mapping apply/readback/restore",
-    "E-054 records local arm64 App and DMG verification on commit 0059a3e"
+    "E-054 records local arm64 App and DMG verification on commit 0059a3e",
+    "autopilot checkpoint metadata aligned in commit bb347d2"
   ],
-  "next_action": "先重新认证本机 GitHub 账号后推送 0059a3e；然后等待 integration/v1.0.1-final-convergence 的 Windows/macOS CI 和 unsigned v1.0.1-rc.2 产物校验；不创建正式 v1.0.1。",
+  "next_action": "先重新认证本机 GitHub 账号后推送 bb347d2（含 0059a3e）；然后等待 integration/v1.0.1-final-convergence 的 Windows/macOS CI 和 unsigned v1.0.1-rc.2 产物校验；不创建正式 v1.0.1。",
   "human_gates": [
     "Apple Developer ID signing and notarization credentials",
     "Windows code-signing certificate",
