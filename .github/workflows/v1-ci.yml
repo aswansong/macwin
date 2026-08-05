@@ -2,7 +2,7 @@ name: v1 validation
 
 on:
   push:
-    branches: ["release/v1.0.1", "main"]
+    branches: ["release/v1.0.1", "main", "windows/v1.0.1-native-validation"]
   pull_request:
     branches: ["release/v1.0.1", "main"]
   workflow_dispatch:
@@ -30,7 +30,7 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@1.97.1
         with:
-          components: clippy
+          components: clippy,rustfmt
 
       - name: Assert Apple Silicon runner
         if: matrix.os == 'macos-15'
@@ -44,6 +44,9 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 
       - name: Test Rust backend
         run: cargo test --manifest-path src-tauri/Cargo.toml --locked
