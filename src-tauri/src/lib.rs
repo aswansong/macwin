@@ -1,7 +1,7 @@
 mod commands;
 mod engine;
 mod habitpack;
-mod karabiner;
+mod keyboard;
 mod platform;
 mod snapshot;
 

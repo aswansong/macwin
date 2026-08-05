@@ -116,12 +116,9 @@ export interface KeyboardDevice {
   redacted_id: string;
 }
 
-export interface KarabinerStatus {
-  installed: boolean;
-  version: string | null;
-  config_present: boolean;
-  permission: string;
-  official_url: string;
+export interface KeyboardConflictStatus {
+  detected: boolean;
+  detail: string;
 }
 
 export interface SnapshotStatus {
@@ -137,7 +134,7 @@ export interface KeyboardCompatibilityPlan {
   devices: KeyboardDevice[];
   shortcuts: string[];
   exceptions: string[];
-  karabiner: KarabinerStatus;
+  conflict: KeyboardConflictStatus;
   recovery: string;
 }
 
@@ -146,7 +143,7 @@ export interface DeviceSelfCheck {
   format_version: string;
   runtime: RuntimeInfo;
   keyboard_devices: KeyboardDevice[];
-  karabiner: KarabinerStatus;
+  keyboard_conflict: KeyboardConflictStatus;
   snapshot: SnapshotStatus;
   recent_modules: string[];
   privacy_note: string;

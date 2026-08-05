@@ -55,7 +55,7 @@ pub struct WindowsScan {
     pub scanned_at: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TargetPreferences {
     pub finder_extensions_existed: bool,
     pub finder_extensions: bool,
@@ -65,6 +65,11 @@ pub struct TargetPreferences {
     pub initial_key_repeat: i64,
     pub pointer_scroll_existed: bool,
     pub pointer_scroll_reversed: bool,
+    /// The exact per-device modifier mapping captured before MacWin writes.
+    /// `None` means the built-in keyboard was not available at snapshot time.
+    pub built_in_modifier_key: Option<String>,
+    pub built_in_modifier_mapping_existed: bool,
+    pub built_in_modifier_mapping: Option<String>,
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -206,6 +211,56 @@ pub fn restore_pointer(previous: TargetPreferences) -> Result<PointerApplyReport
     #[cfg(target_os = "macos")]
     {
         macos::restore_pointer(previous)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = previous;
+        Err(PlatformError::Unsupported)
+    }
+}
+
+pub fn keyboard_devices() -> Vec<crate::keyboard::KeyboardDevice> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::keyboard_devices()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Vec::new()
+    }
+}
+
+pub fn keyboard_conflict_status() -> crate::keyboard::KeyboardConflictStatus {
+    #[cfg(target_os = "macos")]
+    {
+        macos::keyboard_conflict_status()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        crate::keyboard::KeyboardConflictStatus {
+            detected: false,
+            detail: "目标 Mac 上检查".to_owned(),
+        }
+    }
+}
+
+pub fn apply_builtin_modifier_swap() -> Result<crate::keyboard::ApplyReport, PlatformError> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::apply_builtin_modifier_swap()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err(PlatformError::Unsupported)
+    }
+}
+
+pub fn restore_builtin_modifier_mapping(
+    previous: &TargetPreferences,
+) -> Result<crate::keyboard::ApplyReport, PlatformError> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::restore_builtin_modifier_mapping(previous)
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -525,6 +580,8 @@ mod windows {
 mod macos {
     use super::*;
     use crate::habitpack::PointerEvidence;
+    use crate::keyboard::{ApplyReport, KeyboardConflictStatus, KeyboardDevice};
+    use sha2::{Digest, Sha256};
     use std::process::Command;
 
     pub fn runtime_info() -> RuntimeInfo {
@@ -568,6 +625,20 @@ mod macos {
             .map(|value| value.trim().to_owned()))
     }
 
+    fn current_host_defaults_read(key: &str) -> Result<Option<String>, PlatformError> {
+        let output = Command::new("/usr/bin/defaults")
+            .args(["-currentHost", "read", "-g", key])
+            .output()
+            .map_err(|_| PlatformError::Read("MODIFIER_READ"))?;
+        if !output.status.success() {
+            return Ok(None);
+        }
+        Ok(String::from_utf8(output.stdout)
+            .ok()
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty()))
+    }
+
     fn parse_bool(value: Option<String>) -> (bool, bool) {
         match value {
             Some(value)
@@ -597,6 +668,12 @@ mod macos {
             "NSGlobalDomain",
             "com.apple.swipescrolldirection",
         )?);
+        let built_in_modifier_key = built_in_modifier_key();
+        let built_in_modifier_mapping = built_in_modifier_key
+            .as_deref()
+            .map(current_host_defaults_read)
+            .transpose()?
+            .flatten();
         Ok(TargetPreferences {
             finder_extensions_existed,
             finder_extensions,
@@ -606,6 +683,9 @@ mod macos {
             initial_key_repeat,
             pointer_scroll_existed,
             pointer_scroll_reversed,
+            built_in_modifier_mapping_existed: built_in_modifier_mapping.is_some(),
+            built_in_modifier_key,
+            built_in_modifier_mapping,
         })
     }
 
@@ -773,6 +853,264 @@ mod macos {
         Ok(PointerApplyReport {
             status: "rolled_back_verified".to_owned(),
             detail: "已恢复迁移前的原生滚动方向".to_owned(),
+        })
+    }
+
+    fn parse_hid_number(value: &str) -> Option<u64> {
+        if let Some(hex) = value.strip_prefix("0x") {
+            u64::from_str_radix(hex, 16).ok()
+        } else {
+            value.parse().ok()
+        }
+    }
+
+    fn redacted_id(raw: &str) -> String {
+        let mut hash = Sha256::new();
+        hash.update(raw.as_bytes());
+        let digest = hash.finalize();
+        format!(
+            "kb-{}",
+            digest[..6]
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        )
+    }
+
+    /// Read-only HID enumeration. We only keep the vendor/product/location
+    /// tuple needed by macOS' per-device defaults key and a redacted display ID.
+    pub fn keyboard_devices() -> Vec<KeyboardDevice> {
+        let output = Command::new("/usr/bin/hidutil")
+            .args(["list"])
+            .output()
+            .ok()
+            .and_then(|output| {
+                if output.status.success() {
+                    String::from_utf8(output.stdout).ok()
+                } else {
+                    None
+                }
+            });
+        let Some(output) = output else {
+            return Vec::new();
+        };
+        let mut seen = std::collections::HashSet::new();
+        output
+            .lines()
+            .skip(2)
+            .filter_map(|line| {
+                let columns = line.split_whitespace().collect::<Vec<_>>();
+                if columns.len() < 6
+                    || parse_hid_number(columns[3]) != Some(1)
+                    || parse_hid_number(columns[4]) != Some(6)
+                {
+                    return None;
+                }
+                let vendor_id = parse_hid_number(columns[0]);
+                let product_id = parse_hid_number(columns[1]);
+                let location_id = parse_hid_number(columns[2]);
+                let built_in = columns.last().is_some_and(|value| *value == "1");
+                let kind = if built_in { "built_in" } else { "external" };
+                let raw = format!(
+                    "{}:{}:{}:{}",
+                    vendor_id.unwrap_or_default(),
+                    product_id.unwrap_or_default(),
+                    location_id.unwrap_or_default(),
+                    kind
+                );
+                if !seen.insert(raw.clone()) {
+                    return None;
+                }
+                let recognized = if built_in {
+                    location_id.is_some_and(|value| value != 0)
+                } else {
+                    vendor_id.is_some_and(|value| value != 0)
+                        && product_id.is_some_and(|value| value != 0)
+                };
+                Some(KeyboardDevice {
+                    name: if built_in {
+                        "MacBook 内置键盘".to_owned()
+                    } else {
+                        "外接键盘".to_owned()
+                    },
+                    kind: kind.to_owned(),
+                    recognized,
+                    redacted_id: redacted_id(&raw),
+                    vendor_id,
+                    product_id,
+                    location_id,
+                })
+            })
+            .collect()
+    }
+
+    fn built_in_modifier_key() -> Option<String> {
+        keyboard_devices()
+            .into_iter()
+            .find(|device| device.kind == "built_in" && device.recognized)
+            .map(|device| {
+                format!(
+                    "com.apple.keyboard.modifiermapping.{}-{}-{}",
+                    device.vendor_id.unwrap_or_default(),
+                    device.product_id.unwrap_or_default(),
+                    device.location_id.unwrap_or_default()
+                )
+            })
+    }
+
+    pub fn keyboard_conflict_status() -> KeyboardConflictStatus {
+        let config = std::env::var_os("HOME")
+            .map(std::path::PathBuf::from)
+            .map(|home| home.join(".config/karabiner/karabiner.json"));
+        let detected = config.as_ref().is_some_and(|path| path.exists());
+        KeyboardConflictStatus {
+            detected,
+            detail: if detected {
+                "检测到第三方键位配置文件；MacWin 只写入 macOS 原生内置键盘映射，不读取或修改该文件"
+                    .to_owned()
+            } else {
+                "未检测到已知第三方键位配置；MacWin 不会安装或写入第三方工具".to_owned()
+            },
+        }
+    }
+
+    const LEFT_CONTROL: &str = "30064771296";
+    const LEFT_COMMAND: &str = "30064771299";
+    const RIGHT_CONTROL: &str = "30064771300";
+    const RIGHT_COMMAND: &str = "30064771303";
+
+    fn normalized_mapping(value: &str) -> String {
+        value.chars().filter(|ch| !ch.is_whitespace()).collect()
+    }
+
+    fn mapping_contains_swap(value: &str) -> bool {
+        let normalized = normalized_mapping(value);
+        [
+            (LEFT_CONTROL, LEFT_COMMAND),
+            (LEFT_COMMAND, LEFT_CONTROL),
+            (RIGHT_CONTROL, RIGHT_COMMAND),
+            (RIGHT_COMMAND, RIGHT_CONTROL),
+        ]
+        .iter()
+        .all(|(source, destination)| {
+            normalized.contains(&format!(
+                "HIDKeyboardModifierMappingDst={destination};HIDKeyboardModifierMappingSrc={source};"
+            )) || normalized.contains(&format!(
+                "HIDKeyboardModifierMappingSrc={source};HIDKeyboardModifierMappingDst={destination};"
+            ))
+        })
+    }
+
+    fn write_builtin_mapping(key: &str) -> Result<(), PlatformError> {
+        // `defaults` cannot nest `-dict` values inside `-array` arguments.
+        // Give it one OpenStep property-list value instead; this is the same
+        // native per-device mapping format that `defaults read` returns.
+        let mut mapping = String::from("(\n");
+        for (source, destination) in [
+            (LEFT_CONTROL, LEFT_COMMAND),
+            (LEFT_COMMAND, LEFT_CONTROL),
+            (RIGHT_CONTROL, RIGHT_COMMAND),
+            (RIGHT_COMMAND, RIGHT_CONTROL),
+        ] {
+            mapping.push_str(&format!(
+                "{{\nHIDKeyboardModifierMappingSrc = {source};\nHIDKeyboardModifierMappingDst = {destination};\n}},\n"
+            ));
+        }
+        mapping.push(')');
+        let status = Command::new("/usr/bin/defaults")
+            .args(["-currentHost", "write", "-g", key, &mapping])
+            .status()
+            .map_err(|_| PlatformError::Write("MODIFIER_WRITE"))?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err(PlatformError::Write("MODIFIER_WRITE"))
+        }
+    }
+
+    fn write_exact_mapping(key: &str, raw: &str) -> Result<(), PlatformError> {
+        let status = Command::new("/usr/bin/defaults")
+            .args(["-currentHost", "write", "-g", key, raw])
+            .status()
+            .map_err(|_| PlatformError::Write("MODIFIER_RESTORE"))?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err(PlatformError::Write("MODIFIER_RESTORE"))
+        }
+    }
+
+    fn delete_mapping(key: &str) -> Result<(), PlatformError> {
+        let status = Command::new("/usr/bin/defaults")
+            .args(["-currentHost", "delete", "-g", key])
+            .status()
+            .map_err(|_| PlatformError::Write("MODIFIER_RESTORE"))?;
+        if status.success() || current_host_defaults_read(key)?.is_none() {
+            Ok(())
+        } else {
+            Err(PlatformError::Write("MODIFIER_RESTORE"))
+        }
+    }
+
+    pub fn apply_builtin_modifier_swap() -> Result<ApplyReport, PlatformError> {
+        let Some(key) = built_in_modifier_key() else {
+            return Ok(ApplyReport {
+                status: "manual_action_required".to_owned(),
+                detail: "未识别到内置键盘，MacWin 不会猜测设备".to_owned(),
+            });
+        };
+        write_builtin_mapping(&key)?;
+        let verified = current_host_defaults_read(&key)?
+            .filter(|value| mapping_contains_swap(value))
+            .is_some();
+        if !verified {
+            return Err(PlatformError::Read("MODIFIER_VERIFY"));
+        }
+        Ok(ApplyReport {
+            status: "applied_verified".to_owned(),
+            detail: "已用 macOS 原生设置把内置键盘 Control 与 Command 完整互换；外接键盘保持不变"
+                .to_owned(),
+        })
+    }
+
+    pub fn restore_builtin_modifier_mapping(
+        previous: &TargetPreferences,
+    ) -> Result<ApplyReport, PlatformError> {
+        let Some(key) = previous.built_in_modifier_key.as_deref() else {
+            return Ok(ApplyReport {
+                status: "rolled_back_verified".to_owned(),
+                detail: "快照中没有可恢复的内置键盘映射".to_owned(),
+            });
+        };
+        if previous.built_in_modifier_mapping_existed {
+            let raw = previous
+                .built_in_modifier_mapping
+                .as_deref()
+                .ok_or(PlatformError::Read("MODIFIER_SNAPSHOT"))?;
+            write_exact_mapping(key, raw)?;
+        } else {
+            delete_mapping(key)?;
+        }
+        let current = current_host_defaults_read(key);
+        let verified = if previous.built_in_modifier_mapping_existed {
+            current.ok().flatten().is_some_and(|value| {
+                normalized_mapping(&value)
+                    == normalized_mapping(
+                        previous
+                            .built_in_modifier_mapping
+                            .as_deref()
+                            .unwrap_or_default(),
+                    )
+            })
+        } else {
+            current.ok().flatten().is_none()
+        };
+        if !verified {
+            return Err(PlatformError::Read("MODIFIER_ROLLBACK_VERIFY"));
+        }
+        Ok(ApplyReport {
+            status: "rolled_back_verified".to_owned(),
+            detail: "已按快照精确恢复内置键盘 Control/Command 映射".to_owned(),
         })
     }
 }

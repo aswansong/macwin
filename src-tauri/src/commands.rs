@@ -1,6 +1,6 @@
 use crate::engine::{self, ImportPlan, MigrationOutcome, NativeAdapter, SoftwarePlanItem};
 use crate::habitpack::{self, KeyboardEvidence, PackageInput, PointerEvidence};
-use crate::karabiner::{self, KarabinerStatus, KeyboardDevice};
+use crate::keyboard::{self, KeyboardConflictStatus, KeyboardDevice};
 use crate::platform::{self, RuntimeInfo, SoftwareFinding, WindowsScan};
 use crate::snapshot::default_store;
 use serde::{Deserialize, Serialize};
@@ -83,7 +83,7 @@ pub struct DeviceSelfCheck {
     pub format_version: String,
     pub runtime: RuntimeInfo,
     pub keyboard_devices: Vec<KeyboardDevice>,
-    pub karabiner: KarabinerStatus,
+    pub keyboard_conflict: KeyboardConflictStatus,
     pub snapshot: SnapshotStatus,
     pub recent_modules: Vec<String>,
     pub privacy_note: String,
@@ -109,13 +109,13 @@ pub fn device_self_check(app: AppHandle, state: State<'_, MacWinState>) -> Devic
                 .collect()
         })
         .unwrap_or_default();
-    let plan = karabiner::plan_for_target();
+    let plan = keyboard::plan_for_target();
     DeviceSelfCheck {
         app_version: app.package_info().version.to_string(),
         format_version: habitpack::SCHEMA_VERSION.to_owned(),
         runtime: platform::runtime_info(),
         keyboard_devices: plan.devices,
-        karabiner: plan.karabiner,
+        keyboard_conflict: plan.conflict,
         snapshot: match snapshot_status_for(&app) {
             Ok(snapshot) => snapshot,
             Err(error) => SnapshotStatus {
@@ -313,7 +313,7 @@ pub fn apply_plan(
     if requested != plan.selected_module_ids {
         return Err("PLAN_NOT_CONFIRMED".to_owned());
     }
-    let mut request = karabiner::request_from_plan(&plan.keyboard_compatibility);
+    let mut request = keyboard::request_from_plan(&plan.keyboard_compatibility);
     if let Some(enabled) = keyboard_built_in {
         request.built_in_enabled = enabled;
     }

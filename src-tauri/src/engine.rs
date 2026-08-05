@@ -1,5 +1,5 @@
 use crate::habitpack::{ImportedPackage, KeyboardEvidence, PointerEvidence};
-use crate::karabiner::{ApplyReport, KeyboardCompatibilityPlan, KeyboardCompatibilityRequest};
+use crate::keyboard::{ApplyReport, KeyboardCompatibilityPlan, KeyboardCompatibilityRequest};
 use crate::platform::{PlatformError, PointerSupport, TargetPreferences};
 use crate::snapshot::{Snapshot, SnapshotStore};
 use serde::Serialize;
@@ -57,10 +57,10 @@ impl TargetAdapter for NativeAdapter {
         &mut self,
         request: &KeyboardCompatibilityRequest,
     ) -> Result<ApplyReport, PlatformError> {
-        crate::karabiner::apply(request)
+        crate::keyboard::apply(request)
     }
     fn restore_keyboard_compatibility(&mut self) -> Result<ApplyReport, PlatformError> {
-        crate::karabiner::remove(&crate::platform::read_target_preferences()?)
+        crate::keyboard::remove(&crate::platform::read_target_preferences()?)
     }
     fn set_pointer(
         &mut self,
@@ -217,13 +217,13 @@ pub fn make_plan(
         });
         items.push(PlanItem {
             module_id: "keyboard_compatibility".to_owned(),
-            title: "选择性 Ctrl 兼容".to_owned(),
+            title: "内置键盘 Control ↔ Command".to_owned(),
             current_value: "未启用".to_owned(),
-            target_value: "普通应用 Ctrl+C/V/X/Z → Command 组合".to_owned(),
+            target_value: "内置键盘物理 Control ↔ Command".to_owned(),
             reason: "降低从 Windows 迁移后的快捷键落差。".to_owned(),
-            benefit: "终端、远程桌面和虚拟机仍保留真实 Ctrl。".to_owned(),
-            verification: "重新读取并验证 MacWin 自己的规则。".to_owned(),
-            recovery: "只移除 MacWin 自己的规则。".to_owned(),
+            benefit: "MacBook 内置键盘更接近 Windows；外接键盘保持不变。".to_owned(),
+            verification: "重新读取 macOS 原生修饰键映射。".to_owned(),
+            recovery: "按快照精确恢复原有映射或删除本次新增映射。".to_owned(),
             requires_admin: false,
         });
     }
@@ -289,7 +289,7 @@ pub fn make_plan(
         software,
         guide_requested: package.guide_requested,
         contains_secrets: package.contains_secrets,
-        keyboard_compatibility: crate::karabiner::plan_for_target(),
+        keyboard_compatibility: crate::keyboard::plan_for_target(),
         pointer: package.pointer.clone(),
         pointer_support: crate::platform::pointer_support(),
         selected_module_ids,
@@ -363,7 +363,7 @@ fn guide(results: &[ModuleResult], requested: bool) -> Vec<GuideSection> {
         .iter()
         .any(|item| item.module_id == "keyboard_compatibility" && item.status == "applied_verified")
     {
-        sections.push(GuideSection { title: "选择性 Ctrl 兼容".to_owned(), body: "普通 Mac 应用中的 Ctrl+C/V/X/Z/Y/A/S/F/P/N/O/W/T/L/R 会转换为对应的 Command 组合；Terminal、iTerm2、Warp、远程桌面、虚拟机和 VS Code 默认保留真实 Ctrl。".to_owned() });
+        sections.push(GuideSection { title: "内置键盘 Control ↔ Command".to_owned(), body: "MacBook 内置键盘的物理 Control 与 Command 已互换；外接键盘、Option 与 Fn 保持原样。".to_owned() });
     }
     if results.iter().any(|item| {
         item.module_id.starts_with("software.") && item.status == "manual_action_required"
@@ -511,35 +511,35 @@ pub fn apply_plan<A: TargetAdapter>(
             match compatibility_apply {
                 Ok(report) if report.status == "applied_verified" => results.push(ModuleResult {
                     module_id: "keyboard_compatibility".to_owned(),
-                    title: "选择性 Ctrl 兼容".to_owned(),
-                    before: "未启用".to_owned(),
-                    after: "普通应用 Ctrl 组合已启用".to_owned(),
-                    reason: "让常用 Windows 快捷键在普通 Mac 应用中更接近原来的手感。".to_owned(),
-                    benefit: "Ctrl+C/V/X/Z 等可继续使用，终端和远程桌面仍保留真实 Ctrl。"
+                    title: "内置键盘 Control ↔ Command".to_owned(),
+                    before: "原生映射".to_owned(),
+                    after: "内置键盘 Control 与 Command 已互换".to_owned(),
+                    reason: "让 MacBook 内置键盘的物理键位更接近 Windows 快捷键肌肉记忆。"
                         .to_owned(),
-                    recovery: "只移除 MacWin 自己的规则".to_owned(),
+                    benefit: "内置键盘更顺手；外接键盘不受影响，Option 与 Fn 不变。".to_owned(),
+                    recovery: "按快照精确恢复原有映射".to_owned(),
                     status: "applied_verified".to_owned(),
                     error_code: None,
                 }),
                 Ok(report) => results.push(ModuleResult {
                     module_id: "keyboard_compatibility".to_owned(),
-                    title: "选择性 Ctrl 兼容".to_owned(),
+                    title: "内置键盘 Control ↔ Command".to_owned(),
                     before: "未启用".to_owned(),
                     after: "等待手动完成".to_owned(),
-                    reason: "第三方工具或系统授权尚未就绪。".to_owned(),
+                    reason: "内置键盘没有被安全识别，未猜测设备。".to_owned(),
                     benefit: report.detail,
-                    recovery: "无需恢复，规则尚未写入".to_owned(),
+                    recovery: "无需恢复，原生映射尚未写入".to_owned(),
                     status: "manual_action_required".to_owned(),
                     error_code: None,
                 }),
                 Err(error) => results.push(ModuleResult {
                     module_id: "keyboard_compatibility".to_owned(),
-                    title: "选择性 Ctrl 兼容".to_owned(),
+                    title: "内置键盘 Control ↔ Command".to_owned(),
                     before: "未启用".to_owned(),
                     after: "未改变".to_owned(),
                     reason: "写入规则时遇到错误。".to_owned(),
-                    benefit: "不会全局交换 Ctrl 和 Command。".to_owned(),
-                    recovery: "保留原配置，可稍后重试".to_owned(),
+                    benefit: "不会修改外接键盘或 Option/Fn。".to_owned(),
+                    recovery: "保留迁移前映射，可稍后重试".to_owned(),
                     status: "failed_recoverable".to_owned(),
                     error_code: Some(error_code(&error)),
                 }),
@@ -547,11 +547,11 @@ pub fn apply_plan<A: TargetAdapter>(
         } else {
             results.push(ModuleResult {
                 module_id: "keyboard_compatibility".to_owned(),
-                title: "选择性 Ctrl 兼容".to_owned(),
+                title: "内置键盘 Control ↔ Command".to_owned(),
                 before: "未启用".to_owned(),
                 after: "已跳过".to_owned(),
                 reason: "用户在计划页取消了此模块。".to_owned(),
-                benefit: "不会写入键盘兼容规则。".to_owned(),
+                benefit: "不会修改内置或外接键盘映射。".to_owned(),
                 recovery: "无需恢复。".to_owned(),
                 status: "skipped".to_owned(),
                 error_code: None,
@@ -560,11 +560,11 @@ pub fn apply_plan<A: TargetAdapter>(
     } else {
         results.push(ModuleResult {
             module_id: "keyboard_compatibility".to_owned(),
-            title: "选择性 Ctrl 兼容".to_owned(),
+            title: "内置键盘 Control ↔ Command".to_owned(),
             before: "未启用".to_owned(),
             after: "已跳过".to_owned(),
             reason: "用户在计划页取消了此模块。".to_owned(),
-            benefit: "不会写入键盘兼容规则。".to_owned(),
+            benefit: "不会修改内置或外接键盘映射。".to_owned(),
             recovery: "无需恢复。".to_owned(),
             status: "skipped".to_owned(),
             error_code: None,
@@ -700,6 +700,11 @@ pub fn rollback_module<A: TargetAdapter>(
     } else if module_id == "pointer_scroll" {
         after.pointer_scroll_existed == preferences.pointer_scroll_existed
             && after.pointer_scroll_reversed == preferences.pointer_scroll_reversed
+    } else if module_id == "keyboard_compatibility" {
+        after.built_in_modifier_key == preferences.built_in_modifier_key
+            && after.built_in_modifier_mapping_existed
+                == preferences.built_in_modifier_mapping_existed
+            && after.built_in_modifier_mapping == preferences.built_in_modifier_mapping
     } else {
         true
     };
@@ -816,6 +821,7 @@ mod tests {
             initial_key_repeat: 0,
             pointer_scroll_existed: false,
             pointer_scroll_reversed: false,
+            ..TargetPreferences::default()
         };
         let mut first = make_plan(&package, &preferences, "a.habitpack".to_owned());
         let token = confirmation_token(&first);
@@ -836,6 +842,7 @@ mod tests {
                 initial_key_repeat: 30,
                 pointer_scroll_existed: true,
                 pointer_scroll_reversed: false,
+                ..TargetPreferences::default()
             },
             fail_finder: true,
         };
@@ -893,6 +900,7 @@ mod tests {
                 initial_key_repeat: 30,
                 pointer_scroll_existed: false,
                 pointer_scroll_reversed: false,
+                ..TargetPreferences::default()
             },
             fail_finder: false,
         };
@@ -957,6 +965,7 @@ mod tests {
                 initial_key_repeat: 0,
                 pointer_scroll_existed: false,
                 pointer_scroll_reversed: false,
+                ..TargetPreferences::default()
             },
             fail_finder: false,
         };

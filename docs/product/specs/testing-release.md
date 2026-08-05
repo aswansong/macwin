@@ -26,9 +26,9 @@ Alpha 只允许 Windows 10/11 x64 白名单扫描、现有格式的导出/导入
 
 `release/v1.0.0` 已获 D-032 授权实现剩余 P0、Tauri bundle、更新草稿和 CI。当前构建仍需通过本文件第 6 节的所有阻断门，未签名构建只供明确知情测试者。
 
-### R4.1：v1.0.1-rc.1 未签名候选（当前）
+### R4.1：v1.0.1-rc.2 未签名候选（当前）
 
-`release/v1.0.1` 基于 v1.0.0 RC 的视觉整合提交，负责对齐应用版本、原生 App 版本显示、双平台打包 CI、测试说明和发布资产校验。`v1.0.1-rc.1` 是 GitHub Pre-release，只供负责人和明确知情测试者；Windows 安装器未签名，macOS DMG 只有 ad-hoc 完整性签名，不得关闭 SmartScreen/Gatekeeper，也不代表正式 v1.0.1。[D-040、E-047]
+`integration/v1.0.1-final-convergence` 合流 Mac 与 Windows 原生验证，负责对齐 `1.0.1-rc.2`、原生内置键盘映射、标题栏/图标、双平台打包 CI、测试说明和发布资产校验。`v1.0.1-rc.2` 是 GitHub Pre-release，只供负责人和明确知情测试者；Windows 安装器未签名，macOS DMG 只有 ad-hoc 完整性签名，不得关闭 SmartScreen/Gatekeeper，也不代表正式 v1.0.1。[D-040、D-042]
 
 ### R5：公开新手版本（尚未通过）
 
@@ -111,10 +111,9 @@ M1 仓库统一入口为 `./scripts/validate-m1`；它只验证格式与虚构�
 
 ### 键盘
 
-- 普通应用中的每个白名单 Ctrl 动作产生预期结果；
-- 同一动作的 Command 原生组合仍有效；
-- Terminal、VS Code 终端、远程桌面和虚拟机中的 Ctrl 序列未被转换；
-- 关闭模块并恢复后，规则不再生效。[D-007]
+- 内置键盘 Control 与 Command 两个方向均产生预期结果；
+- 外接键盘不受修改，Option 与 Fn 不受修改；
+- 关闭模块并恢复后，映射精确回到迁移前值或不存在。[D-041]
 
 ### 指针
 

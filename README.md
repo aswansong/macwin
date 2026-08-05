@@ -4,16 +4,16 @@
 
 MacWin 是一个面向 Windows 迁移用户的本地桌面工具。它计划读取经过用户允许的 Windows 使用习惯，生成 `.habitpack` 迁移包，并在 Apple 芯片 Mac 上把这些习惯转换为安全、可解释、可回滚的配置。
 
-> 当前状态：**v1.0.1-rc.1 未签名测试版准备中**。`release/v1.0.1` 基于 v1.0.0 RC 的视觉整合基线，正在验证原生 Tauri 双平台打包；当前构建只供负责人和明确知情测试者使用，不是面向普通用户的正式发布。[D-039、D-040、E-047]
+> 当前状态：**v1.0.1-rc.2 未签名测试版准备中**。`integration/v1.0.1-final-convergence` 合流 Mac/Windows 原生验证，正在验证双平台打包；当前构建只供负责人和明确知情测试者使用，不是面向普通用户的正式发布。[D-039、D-040、E-047]
 
 ## 第一版范围
 
 - 来源：Windows 10/11 x64
 - 目标：Apple 芯片 Mac，macOS 15/26
-- 迁移：白名单键盘重复习惯、选择性 Ctrl、鼠标/触控板滚动方向、浏览器与开发软件白名单检测、Finder 扩展名偏好、个性化使用指南
+- 迁移：白名单键盘重复习惯、MacBook 内置键盘 Control ↔ Command、鼠标/触控板滚动方向、浏览器与开发软件白名单检测、Finder 扩展名偏好、个性化使用指南
 - 不迁移：个人文件、浏览器历史/密码/Cookie、账号会话、完整系统、企业受管理配置
 - 尚在验证或需要发布门槛：Wi‑Fi 密码安全链路、可信软件自动安装、第三方工具授权、签名更新、公证和正式 Release
-- 明确不做：全局 Ctrl/Command 交换、个人文件、浏览器历史/密码/Cookie、账号会话、项目代码和任何迁移包内命令
+- 明确不做：外接键盘全局改键或第三方重映射、个人文件、浏览器历史/密码/Cookie、账号会话、项目代码和任何迁移包内命令
 - 运行原则：核心能力本地、离线、无账号、无大模型
 
 ## 开发运行
@@ -69,13 +69,13 @@ npm run tauri build -- --no-bundle
 npm run tauri build -- --bundles app --no-sign --config '{"bundle":{"createUpdaterArtifacts":false}}'
 ```
 
-Windows 端在扫描页使用普通权限读取白名单注册表、键盘布局、重复速率和滚动习惯；导出包后将 `.habitpack` 以用户自选方式带到 Mac。Mac 端导入后必须先确认计划，后端令牌会锁定用户勾选的模块，才会按固定规则写入 Finder 扩展名、键盘重复速率、选择性 Ctrl 和可安全支持的滚动方向。Karabiner-Elements 与 LinearMouse 不由 MacWin 静默安装；缺失或授权未就绪时降级为官方入口。任何模块失败都单独记录，恢复使用迁移前的一份快照。
+Windows 端在扫描页使用普通权限读取白名单注册表、键盘布局、重复速率和滚动习惯；导出包后将 `.habitpack` 以用户自选方式带到 Mac。Mac 端导入后必须先确认计划，后端令牌会锁定用户勾选的模块，才会按固定规则写入 Finder 扩展名、键盘重复速率、内置键盘原生 Control ↔ Command 映射和可安全支持的滚动方向。MacWin 不安装或写入第三方键位工具，只做只读冲突检查。任何模块失败都单独记录，恢复使用迁移前的一份快照。
 
 MacWin 明确不会执行迁移包中的命令、脚本或路径；不会上传扫描数据。软件条目只接受固定白名单和官方入口，无法在当前版本完成签名/哈希验证的安装会明确降级为手动入口。报告可在本地导出 HTML 或脱敏 JSON。
 
 ## 普通用户使用（正式 Release 后）
 
-正式版本发布后，唯一下载入口是 [GitHub Releases](https://github.com/aswansong/macwin/releases/latest)。请只下载标记为 Windows x64 的签名安装包，或 Apple Silicon 的已签名、公证 DMG；`v1.0.1-rc.1` 未签名 Pre-release 仅供知情测试，不应让普通新手绕过 SmartScreen 或 Gatekeeper。
+正式版本发布后，唯一下载入口是 [GitHub Releases](https://github.com/aswansong/macwin/releases/latest)。请只下载标记为 Windows x64 的签名安装包，或 Apple Silicon 的已签名、公证 DMG；`v1.0.1-rc.2` 未签名 Pre-release 仅供知情测试，不应让普通新手绕过 SmartScreen 或 Gatekeeper。
 
 1. 在 Windows 上安装 MacWin，点击“开始检测”，确认要带走的项目后保存 `.habitpack`。迁移包只用 U 盘或你信任的本地方式带到 Mac，不会自动上传。
 2. 在 Apple 芯片 Mac 上安装 MacWin，点击“导入迁移包”。逐项查看迁移计划；在确认之前不会修改系统。确认后，MacWin 保存一份迁移前快照并逐项验证结果。
@@ -101,7 +101,7 @@ MacWin 明确不会执行迁移包中的命令、脚本或路径；不会上传�
 
 ## 当前里程碑
 
-交互原型已冻结在独立分支 `prototype/ui-flow-v2-hardening`；v1.0.0 的历史发布准备保留在 `release/v1.0.0`，当前 RC 收口分支为 `release/v1.0.1`，基线为 `da64e77fc5839042f8fa38ae29c57694f7ae0e14`。在签名、公证、真实设备矩阵和负责人最终确认完成前，不得把本分支构建称为正式 Release。[D-039、D-040、E-047]
+交互原型已冻结在独立分支 `prototype/ui-flow-v2-hardening`；v1.0.0 的历史发布准备保留在 `release/v1.0.0`，rc.2 合流分支为 `integration/v1.0.1-final-convergence`，基线包含 Mac `6553386` 与 Windows `0f4ec31`。在签名、公证、真实设备矩阵和负责人最终确认完成前，不得把本分支构建称为正式 Release。[D-039、D-040、E-047]
 
 M1 格式资产使用精确的 `1.0.0` 验证档案。开发者可运行 `./scripts/validate-m1` 校验 schema、虚构夹具、仓库 JSON、文档引用、依赖图和当前 v1 授权边界；首次运行需要联网安装锁定的开发验证依赖。这不是产品运行命令或公开兼容性承诺。
 

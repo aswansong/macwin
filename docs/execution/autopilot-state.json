@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "goal": "MacWin v1.0.1 未签名 RC 测试发布",
-  "branch": "release/v1.0.1",
-  "current_milestone": "v1.0.1_rc_release",
+  "branch": "integration/v1.0.1-final-convergence",
+  "current_milestone": "v1.0.1_rc.2_convergence",
   "status": "in_progress",
   "completed": [
     "M0 documentation baseline",
@@ -37,7 +37,10 @@
     "v1 support entry and same-major habitpack compatibility gate aligned",
     "unsigned v1.0.0-rc.1 Windows NSIS and Apple Silicon DMG published as a GitHub Pre-release",
     "v1.0.1-rc.1 version, native app metadata, release docs and unsigned dual-platform workflow aligned",
-    "v1.0.1-rc.1 dual-platform unsigned Pre-release published and SHA-256 verified"
+    "v1.0.1-rc.1 dual-platform unsigned Pre-release published and SHA-256 verified",
+    "Mac/Windows rc.2 convergence merge e07c061",
+    "native MacBook Control/Command mapping with legacy snapshot compatibility",
+    "correct MW icon, native titlebar boundary and rc.2 release notes/workflow"
   ],
   "failed_or_deferred": [
     "P0-008 real external-device reconnect matrix not complete",
@@ -58,14 +61,17 @@
     "./scripts/validate-m1 (55 tests), release-preparation, manifest, release-assets, npm and cargo checks passed",
     "GitHub Actions run 30785408954 generated both unsigned RC packages; Pre-release https://github.com/aswansong/macwin/releases/tag/v1.0.0-rc.1 (historical)",
     "D-040/E-047 authorize release/v1.0.1 and unsigned v1.0.1-rc.1 candidate",
-    "Actions 30824474914/30824474842 passed; tag HEAD 26ec53f; E-048 records assets and SHA-256"
+    "Actions 30824474914/30824474842 passed; tag HEAD 26ec53f; E-048 records assets and SHA-256",
+    "local frontend 14/14, Rust 20 passed/1 historical ignored, Clippy and git diff checks passed",
+    "./scripts/validate-m1 passed: 55/55 tests; external habitpack regression 1/1",
+    "E-049/E-050/E-051/E-052 document native mapping, convergence, icon and titlebar evidence"
   ],
-  "next_action": "负责人从 GitHub Pre-release v1.0.1-rc.1 在真实 Windows 10/11 与 Apple Silicon macOS 15/26 下载并按验收手册测试；记录脱敏结果后再处理免费 Windows 签名申请与正式 macOS Developer ID 门槛。",
+  "next_action": "完成真实 Apple Silicon Mac 原生键位往返与应用走查，触发并等待 integration/v1.0.1-final-convergence 的 Windows/macOS CI 和 unsigned v1.0.1-rc.2 产物校验；不创建正式 v1.0.1。",
   "human_gates": [
     "Apple Developer ID signing and notarization credentials",
     "Windows code-signing certificate",
     "real Windows 10/11 and macOS 15/26 devices",
-    "UAC/TCC/Karabiner system dialogs",
+    "UAC/TCC system dialogs",
     "final public Release confirmation"
   ],
   "privacy": "No secrets, usernames, serial numbers, absolute paths, migration packages, or personal data are stored here."

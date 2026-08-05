@@ -89,20 +89,20 @@ const previewPlanBase: ImportPlan = {
   items: [
     { module_id: "finder_extensions", title: "显示文件扩展名", current_value: "隐藏（当前）", target_value: "显示", reason: "Windows 用户通常直接看到文件扩展名。", benefit: "打开文件时更容易确认真实类型。", verification: "重新读取 Finder 偏好", recovery: "恢复到迁移前值", requires_admin: false },
     { module_id: "keyboard_repeat", title: "键盘重复速度", current_value: "Mac 当前值", target_value: "匹配 Windows 节奏", reason: "保留你熟悉的按键响应节奏。", benefit: "删除和移动文字时手感更接近原来。", verification: "重新读取键盘偏好", recovery: "恢复到迁移前值", requires_admin: false },
-    { module_id: "keyboard_compatibility", title: "选择性 Ctrl 兼容", current_value: "未启用", target_value: "普通应用转换为对应 Command", reason: "降低从 Windows 迁移后的快捷键落差。", benefit: "终端、远程桌面和虚拟机仍保留真实 Ctrl。", verification: "验证 MacWin 自己的规则", recovery: "只移除 MacWin 自己的规则", requires_admin: false },
+    { module_id: "keyboard_compatibility", title: "内置键盘 Control ↔ Command", current_value: "原生映射", target_value: "内置键盘物理 Control ↔ Command", reason: "让 MacBook 内置键盘更接近 Windows 的键位肌肉记忆。", benefit: "外接键盘保持不变，Option 与 Fn 不重映射。", verification: "重新读取 macOS 原生修饰键映射", recovery: "按快照精确恢复原有映射", requires_admin: false },
     { module_id: "pointer_scroll", title: "鼠标与触控板滚动方向", current_value: "读取 Mac 当前值", target_value: "按来源设备分别处理", reason: "保留鼠标和触控板在 Windows 上的使用习惯。", benefit: "两个设备的方向分别说明，不互相覆盖。", verification: "分别读取鼠标与触控板结果", recovery: "恢复迁移前值", requires_admin: false },
   ],
-  keyboard_compatibility: {
+    keyboard_compatibility: {
     built_in_enabled: true,
-    external_enabled: true,
+      external_enabled: false,
     devices: [
       { name: "MacBook 内置键盘（演示）", kind: "built_in", recognized: true, redacted_id: "kb-demo-01" },
       { name: "Windows 外接键盘（演示）", kind: "external", recognized: true, redacted_id: "kb-demo-02" },
     ],
     shortcuts: ["Ctrl+C → Command+C", "Ctrl+V → Command+V", "Ctrl+Z → Command+Z", "Ctrl+Y → Command+Y"],
     exceptions: ["Terminal", "远程桌面", "Parallels / VMware / UTM", "VS Code 集成终端"],
-    karabiner: { installed: false, version: null, config_present: false, permission: "浏览器演示数据；实际 Mac 按系统提示授权", official_url: "https://karabiner-elements.pqrs.org/" },
-    recovery: "只移除 MacWin 自己的规则",
+    conflict: { detected: false, detail: "浏览器演示数据；只检查冲突，不安装第三方工具" },
+    recovery: "按快照精确恢复内置键盘原有映射",
   },
   confirmation_token: "preview-plan-confirmed-v1",
   pointer: { mouse_direction: "windows_style", trackpad_direction: "windows_style" },
@@ -116,7 +116,7 @@ const previewDiagnostics: DeviceSelfCheck = {
   format_version: "1.0.0",
   runtime: runtimeFor("macos"),
   keyboard_devices: previewPlanBase.keyboard_compatibility.devices,
-  karabiner: previewPlanBase.keyboard_compatibility.karabiner,
+  keyboard_conflict: previewPlanBase.keyboard_compatibility.conflict,
   snapshot: { available: false, version: null, created_at: null, error: null },
   recent_modules: [],
   privacy_note: "浏览器演示数据；真实应用只在本机生成，不含用户名、路径、序列号或密码",
@@ -174,7 +174,7 @@ function previewOutcome(): MigrationOutcome {
   const thirdPartyDeclined = state.preview.scenario === "third-party-declined" || !state.preview.linearMouseConfirmed;
   add({ module_id: "finder_extensions", title: "显示文件扩展名", before: "隐藏", after: moduleFailed ? "未改变" : "显示", reason: "让文件类型一眼可见。", benefit: "减少打开错误文件的机会。", recovery: "可恢复到迁移前值", status: moduleFailed ? "failed_recoverable" : "applied_verified", error_code: moduleFailed ? "FINDER_VERIFY" : null });
   add({ module_id: "keyboard_repeat", title: "键盘重复速度", before: "Mac 当前值", after: permissionDenied ? "未改变" : "已匹配 Windows 节奏", reason: "保留你熟悉的按键响应节奏。", benefit: "删除和移动文字时手感更接近原来。", recovery: "可恢复到迁移前值", status: permissionDenied ? "skipped_permission" : "applied_verified", error_code: permissionDenied ? "ACCESSIBILITY_DENIED" : null });
-  add({ module_id: "keyboard_compatibility", title: "选择性 Ctrl 兼容", before: "未启用", after: permissionDenied ? "未改变" : "普通应用使用对应 Command", reason: "降低从 Windows 迁移后的快捷键落差。", benefit: "终端、远程桌面和虚拟机仍保留真实 Ctrl。", recovery: "只移除 MacWin 自己的规则", status: permissionDenied ? "skipped_permission" : "applied_verified", error_code: permissionDenied ? "ACCESSIBILITY_DENIED" : null });
+  add({ module_id: "keyboard_compatibility", title: "内置键盘 Control ↔ Command", before: "原生映射", after: permissionDenied ? "未改变" : "内置键盘物理 Control ↔ Command", reason: "让 MacBook 内置键盘更接近 Windows 的键位肌肉记忆。", benefit: "外接键盘保持不变，Option 与 Fn 不重映射。", recovery: "按快照精确恢复原有映射", status: permissionDenied ? "skipped_permission" : "applied_verified", error_code: permissionDenied ? "ACCESSIBILITY_DENIED" : null });
   const pointerManual = state.preview.scenario === "offline" ? "当前离线；稍后可重试" : thirdPartyDeclined ? "未确认 LinearMouse；请按官方入口完成" : "需要按官方工具界面完成并回到 MacWin 复核";
   add({ module_id: "pointer_scroll", title: "鼠标与触控板滚动方向", before: "Mac 当前值", after: pointerManual, reason: "两个设备的方向分别处理。", benefit: "鼠标方向可保留，触控板仍单独验证。", recovery: "恢复迁移前值", status: "manual_action_required", error_code: null });
   if (selected.has("wifi.personal")) {
@@ -206,7 +206,7 @@ function guideSections(keyboard: boolean): GuideSection[] {
     { title: "鼠标与触控板", body: "鼠标和触控板是两个设置。计划和结果会分别说明；如果第三方工具没有授权，只需按官方入口完成后再回到 MacWin。" },
     { title: "Windows 仍然更合适的地方", body: "某些企业系统、专用 Windows 软件、游戏和特殊外设仍可能更适合留在 Windows；这不是一次迁移就能解决的差异。" },
   ];
-  if (keyboard) sections.unshift({ title: "选择性 Ctrl 兼容", body: "普通应用中的常用 Ctrl 组合可以对应 Command；Terminal、远程桌面、虚拟机和 VS Code 集成终端保留真实 Ctrl。" });
+  if (keyboard) sections.unshift({ title: "内置键盘 Control ↔ Command", body: "MacBook 内置键盘的物理 Control 与 Command 已互换；外接键盘保持原样，Option 与 Fn 不重映射。" });
   return sections;
 }
 
@@ -234,9 +234,8 @@ function renderModuleGlyph(kind: "habit" | "software" | "system" | "wifi" | "fil
 function renderWindowTitlebar(kind: "windows" | "macos" | "unsupported"): string {
   const mac = kind === "macos";
   return `<header class="reference-titlebar ${mac ? "reference-titlebar-mac" : "reference-titlebar-windows"}">
-    ${mac ? '<div class="traffic-lights" aria-hidden="true"><span class="traffic-red"></span><span class="traffic-yellow"></span><span class="traffic-green"></span></div>' : ""}
     <button class="reference-brand" data-action="home" aria-label="回到首页"><span class="brand-mark">MW</span><strong>MacWin</strong></button>
-    ${mac ? '<div class="reference-titlebar-actions"><button class="titlebar-action" data-action="diagnostics" aria-label="设备自检">▧</button><button class="titlebar-action" data-action="check-update" aria-label="检查更新">⚙</button></div>' : '<div class="windows-caption-controls" aria-hidden="true"><span>−</span><span>□</span><span>×</span></div>'}
+    <div class="reference-titlebar-actions"><button class="titlebar-action" data-action="diagnostics" aria-label="设备自检">▧</button><button class="titlebar-action" data-action="check-update" aria-label="检查更新">⚙</button></div>
   </header>`;
 }
 
@@ -315,7 +314,7 @@ function renderHome(): string {
     return renderShell(`<section class="activity-panel"><div class="activity-icon mint">⌁</div><h2>正在读取当前平台</h2><p>MacWin 会先确认系统和架构，再显示可用入口。</p></section>`, "设备检查", "", "", "");
   }
   if (state.runtime?.platform === "windows") {
-    return renderShell(`<section class="reference-page windows-detect-page"><div class="windows-detect-copy"><div class="reference-kicker">W1 / WINDOWS 来源端</div><div class="windows-heading"><span class="windows-heading-mark">${renderPlatformIcon("windows")}</span><div><h1>检测这台 Windows</h1><p>查看可以迁移的习惯与环境</p></div></div><div class="reference-scan-list"><div class="reference-scan-row"><span class="scan-row-icon tone-blue">${renderModuleGlyph("habit")}</span><span><strong>操作习惯</strong><small>键盘、鼠标与触控板</small></span><span class="scan-row-check">□</span></div><div class="reference-scan-row"><span class="scan-row-icon tone-yellow">${renderModuleGlyph("software")}</span><span><strong>软件与开发</strong><small>浏览器、办公与轻量开发工具</small></span><span class="scan-row-check">□</span></div><div class="reference-scan-row"><span class="scan-row-icon tone-mint">${renderModuleGlyph("system")}</span><span><strong>系统设置</strong><small>可恢复的显示与输入偏好</small></span><span class="scan-row-check">□</span></div><div class="reference-scan-row"><span class="scan-row-icon tone-aqua">${renderModuleGlyph("wifi")}</span><span><strong>Wi‑Fi</strong><small>只处理用户逐项选择的个人网络</small></span><span class="scan-row-check">□</span></div></div><div class="reference-privacy-note"><span class="note-icon">✓</span><span>只在本机检查，不搬个人文件</span></div></div><aside class="windows-detect-ticket">${renderHabitTicket("vertical", "empty")}</aside><div class="reference-bottom-bar windows-bottom-bar"><span class="bottom-bar-note">扫描前不会读取浏览器历史、密码、Cookie、账号或登录状态。</span><button class="reference-primary blue-action" data-action="start-scan"><span>${renderModuleGlyph("file")}</span><b>开始检测</b><i>→</i></button></div></section>`, "", "", "", "");
+    return renderShell(`<section class="reference-page windows-detect-page"><div class="windows-detect-copy"><div class="reference-kicker">W1 / WINDOWS 来源端</div><div class="windows-heading"><span class="windows-heading-mark">${renderPlatformIcon("windows")}</span><div><h1>检测这台 Windows</h1><p>查看可以迁移的习惯与环境</p></div></div><div class="reference-scan-list"><div class="reference-scan-row"><span class="scan-row-icon tone-blue">${renderModuleGlyph("habit")}</span><span><strong>操作习惯</strong><small>键盘、鼠标与触控板</small></span><span class="scan-row-check">□</span></div><div class="reference-scan-row"><span class="scan-row-icon tone-yellow">${renderModuleGlyph("software")}</span><span><strong>软件与开发</strong><small>浏览器、办公与轻量开发工具</small></span><span class="scan-row-check">□</span></div><div class="reference-scan-row"><span class="scan-row-icon tone-mint">${renderModuleGlyph("system")}</span><span><strong>系统设置</strong><small>可恢复的显示与输入偏好</small></span><span class="scan-row-check">□</span></div><div class="reference-scan-row"><span class="scan-row-icon tone-aqua">${renderModuleGlyph("wifi")}</span><span><strong>Wi‑Fi</strong><small>只处理用户逐项选择的个人网络</small></span><span class="scan-row-check">□</span></div></div></div><aside class="windows-detect-ticket">${renderHabitTicket("vertical", "empty")}</aside><div class="reference-bottom-bar windows-bottom-bar"><span class="bottom-bar-note">扫描前不会读取浏览器历史、密码、Cookie、账号或登录状态。</span><button class="reference-primary blue-action" data-action="start-scan"><span>${renderModuleGlyph("file")}</span><b>开始检测</b><i>→</i></button></div></section>`, "", "", "", "");
   }
   if (state.runtime.platform !== "macos") {
     return renderShell(`<section class="activity-panel"><div class="activity-icon coral">!</div><h2>当前设备不受支持</h2><p>${escapeHtml(state.runtime.support_message)}。MacWin 不会修改系统。</p><div class="notice-line"><span class="status-glyph warning">i</span><span>正式范围：Windows 10/11 x64 来源端，或 Apple 芯片 macOS 15/26 目标端。</span></div></section>`, "设备检查", "", "", "");
@@ -445,10 +444,10 @@ function renderDetailModal(plan: ImportPlan): string {
       ? `<label class="detail-consent"><input type="checkbox" data-linear-mouse ${state.preview.linearMouseConfirmed ? "checked" : ""}/><span><strong>我已阅读用途和权限</strong><small>${state.preview.linearMouseConfirmed ? "已确认" : "未确认时，指针方向会保留为手动完成"}</small></span></label><a class="detail-link" href="${escapeHtml(support.official_url)}" target="_blank" rel="noreferrer">查看官方说明 ↗</a>`
       : `<div class="detail-readonly-note"><strong>系统状态</strong><small>${escapeHtml(support.permission)}</small></div><a class="detail-link" href="${escapeHtml(support.official_url)}" target="_blank" rel="noreferrer">查看官方说明 ↗</a>`;
   } else if (moduleId === "keyboard_compatibility") {
-    title = "选择性 Ctrl 兼容";
+    title = "内置键盘 Control ↔ Command";
     subtitle = "系统与习惯";
-    body = "普通应用里的 Ctrl+C/V/X/Z 等组合会对应到 Command。Terminal、远程桌面、虚拟机和 VS Code 集成终端保留真实 Ctrl。";
-    result = "复制、粘贴和撤销更接近 Windows 的手感，同时不影响需要真实 Ctrl 的场景。";
+    body = "只修改 MacBook 内置键盘的物理 Control 与 Command；外接键盘、Option 和 Fn 保持原样。";
+    result = "内置键盘的快捷键位置更接近 Windows，且可以按快照精确恢复。";
     recovery = plan.keyboard_compatibility.recovery;
   }
   return `<div class="detail-modal-backdrop" data-detail-backdrop><section class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title"><button class="detail-modal-close" type="button" data-action="close-detail" aria-label="关闭详情">×</button><span class="home-marker blue-text">选项说明</span><h2 id="detail-modal-title">${escapeHtml(title)}</h2><p class="detail-modal-subtitle">${escapeHtml(subtitle)}</p><div class="detail-modal-section"><strong>会做什么</strong><p>${escapeHtml(body)}</p></div><div class="detail-modal-section"><strong>你会看到的结果</strong><p>${escapeHtml(result)}</p></div><div class="detail-modal-section"><strong>如何恢复</strong><p>${escapeHtml(recovery)}</p></div>${extra}</section></div>`;
@@ -459,7 +458,7 @@ function renderPlan(): string {
   if (!plan) return renderHome();
   const systemItems = visiblePlanItems(plan);
   const softwareItems = plan.software.filter((item) => item.installed && !unsupportedSoftware(plan).some((candidate) => candidate.id === item.id));
-  const systemChildren = systemItems.map((item) => renderPlanChoice(item.module_id, item.title, item.module_id === "keyboard_compatibility" ? "普通应用使用对应 Command" : item.module_id === "pointer_scroll" ? "鼠标与触控板分别处理" : "按 Windows 习惯调整", plan.selected_module_ids.includes(item.module_id), "")).join("");
+  const systemChildren = systemItems.map((item) => renderPlanChoice(item.module_id, item.title, item.module_id === "keyboard_compatibility" ? "仅内置键盘 Control ↔ Command" : item.module_id === "pointer_scroll" ? "鼠标与触控板分别处理" : "按 Windows 习惯调整", plan.selected_module_ids.includes(item.module_id), "")).join("");
   const wifiChoice = plan.wifi ? renderPlanChoice("wifi.personal", plan.wifi.name, plan.wifi.contains_secrets ? "已选择密码 · 敏感信息" : "只带网络名", plan.selected_module_ids.includes("wifi.personal"), "") : "";
   const softwareChildren = softwareItems.map((item) => renderPlanChoice(`software.${item.id}`, item.name, "点击查看说明", plan.selected_module_ids.includes(`software.${item.id}`), `data-software-plan="${escapeHtml(item.id)}"`)).join("");
   const unsupported = [...unsupportedPlanItems(plan).map((item) => item.title), ...unsupportedSoftware(plan).map((item) => item.name)];
@@ -519,7 +518,7 @@ function renderDiagnostics(): string {
   const devices = diagnostics.keyboard_devices.length ? diagnostics.keyboard_devices.map((device) => `<div class="device-line"><strong>${escapeHtml(device.name)}</strong><small>${device.kind === "built_in" ? "内置键盘" : "外接键盘"} · 脱敏标识 ${escapeHtml(device.redacted_id)} · ${device.recognized ? "可安全匹配" : "不会猜测"}</small></div>`).join("") : `<p class="empty-line">未发现可安全识别的键盘</p>`;
   const snapshot = diagnostics.snapshot.available ? `已保存${diagnostics.snapshot.created_at ? ` · ${escapeHtml(diagnostics.snapshot.created_at)}` : ""}` : diagnostics.snapshot.error ? `不可用 · ${escapeHtml(friendlyError(diagnostics.snapshot.error))}` : "未找到";
   const deleteButton = isTauri && diagnostics.snapshot.available ? `<button class="secondary-button" data-action="delete-snapshot">删除迁移前快照</button>` : "";
-  return renderShell(`<section class="diagnostics-sheet"><div class="section-title"><span class="section-index mint">D</span><div><h2>设备自检</h2><p>检查当前设备边界，不读取用户名、完整路径、序列号或原始配置。</p></div></div><div class="diagnostic-grid"><div><span>应用</span><strong>${escapeHtml(diagnostics.app_version)}</strong></div><div><span>规则格式</span><strong>${escapeHtml(diagnostics.format_version)}</strong></div><div><span>系统</span><strong>${escapeHtml(diagnostics.runtime.os_version)} · ${escapeHtml(diagnostics.runtime.architecture)}</strong></div><div><span>Karabiner</span><strong>${diagnostics.karabiner.installed ? "已检测到" : "未检测到"}</strong><small>${escapeHtml(diagnostics.karabiner.permission)}</small></div><div><span>迁移前快照</span><strong>${snapshot}</strong><small>卸载应用不会自动删除</small></div></div><h3>键盘设备</h3>${devices}<h3>最近模块</h3><p class="muted">${diagnostics.recent_modules.length ? escapeHtml(diagnostics.recent_modules.join(" · ")) : "暂无执行记录"}</p><div class="notice-line"><span class="status-glyph good">i</span><span>${escapeHtml(diagnostics.privacy_note)}</span></div><div class="action-row"><button class="secondary-button" data-action="home">返回首页</button>${deleteButton}</div></section>`, "设备自检", "", "", "");
+  return renderShell(`<section class="diagnostics-sheet"><div class="section-title"><span class="section-index mint">D</span><div><h2>设备自检</h2><p>检查当前设备边界，不读取用户名、完整路径、序列号或原始配置。</p></div></div><div class="diagnostic-grid"><div><span>应用</span><strong>${escapeHtml(diagnostics.app_version)}</strong></div><div><span>规则格式</span><strong>${escapeHtml(diagnostics.format_version)}</strong></div><div><span>系统</span><strong>${escapeHtml(diagnostics.runtime.os_version)} · ${escapeHtml(diagnostics.runtime.architecture)}</strong></div><div><span>键位冲突检查</span><strong>${diagnostics.keyboard_conflict.detected ? "发现可能冲突" : "未发现"}</strong><small>${escapeHtml(diagnostics.keyboard_conflict.detail)}</small></div><div><span>迁移前快照</span><strong>${snapshot}</strong><small>卸载应用不会自动删除</small></div></div><h3>键盘设备</h3>${devices}<h3>最近模块</h3><p class="muted">${diagnostics.recent_modules.length ? escapeHtml(diagnostics.recent_modules.join(" · ")) : "暂无执行记录"}</p><div class="notice-line"><span class="status-glyph good">i</span><span>${escapeHtml(diagnostics.privacy_note)}</span></div><div class="action-row"><button class="secondary-button" data-action="home">返回首页</button>${deleteButton}</div></section>`, "设备自检", "", "", "");
 }
 
 function render(): void {

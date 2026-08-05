@@ -29,7 +29,7 @@ function fixturePlan(): ImportPlan {
     ],
     guide_requested: true,
     contains_secrets: false,
-    keyboard_compatibility: { built_in_enabled: true, external_enabled: false, devices: [], shortcuts: [], exceptions: [], karabiner: { installed: false, version: null, config_present: false, permission: "", official_url: "" }, recovery: "恢复" },
+    keyboard_compatibility: { built_in_enabled: true, external_enabled: false, devices: [], shortcuts: [], exceptions: [], conflict: { detected: false, detail: "" }, recovery: "恢复" },
     confirmation_token: "token",
     pointer: null,
     pointer_support: { linear_mouse_installed: false, linear_mouse_version: null, native_independent: false, permission: "", official_url: "" },

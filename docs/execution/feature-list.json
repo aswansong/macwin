@@ -178,7 +178,7 @@
         },
         {
           "id": "P0-003-AC02",
-          "statement": "内置键盘 Ctrl 兼容、检测到的外接 Windows 键盘兼容和个性化指南可预选并在首层可见。",
+          "statement": "MacBook 内置键盘 Control ↔ Command 和个性化指南可预选并在首层可见；外接键盘默认不改变。",
           "verification": "对应夹具首屏快照中三个选项可见且状态为选中；用户可取消。"
         },
         {
@@ -312,43 +312,43 @@
     },
     {
       "id": "P0-007",
-      "name": "选择性 Ctrl 与键盘兼容",
+      "name": "MacBook 内置键盘 Control ↔ Command",
       "priority": "P0",
       "status": "implemented",
       "owner": "keyboard-module",
-      "decision_refs": ["D-007", "D-011", "D-027"],
-      "evidence_refs": ["E-001", "E-002"],
+      "decision_refs": ["D-041", "D-027"],
+      "evidence_refs": ["E-001", "E-002", "E-049"],
       "dependencies": ["P0-005", "P0-006"],
-      "human_decisions_required": ["OD-007"],
+      "human_decisions_required": [],
       "acceptance_criteria": [
         {
           "id": "P0-007-AC01",
-          "statement": "普通应用白名单中的复制、粘贴、剪切、撤销、重做、全选、保存和查找可按计划使用 Ctrl 触发。",
-          "verification": "在批准的应用矩阵中逐动作执行并观察真实结果；每个组合记录通过、排除或不支持。"
+          "statement": "MacBook 内置键盘物理 Control 与 Command 的四个左右手方向均按计划互换。",
+          "verification": "在真实 MacBook 内置键盘读取写入后的原生 modifier mapping；四个方向均存在且应用动作可观察。"
         },
         {
           "id": "P0-007-AC02",
-          "statement": "Command 原生组合仍可用，且没有全局交换 Ctrl 与 Command。",
-          "verification": "同一应用矩阵执行 Command 对应动作；物理修饰键事件测试确认未发生全局交换。"
+          "statement": "外接键盘、Option 与 Fn 不被 MacWin 修改。",
+          "verification": "应用前后读取外接设备映射与 Option/Fn 配置；只允许内置设备的四个映射发生变化。"
         },
         {
           "id": "P0-007-AC03",
-          "statement": "Terminal、VS Code 集成终端、远程桌面和虚拟机上下文保留真实 Ctrl。",
-          "verification": "在四类上下文发送预定 Ctrl 测试序列；接收端事件与未启用兼容层的基线一致。"
+          "statement": "写入后读取验证通过且重复执行幂等。",
+          "verification": "连续应用两次；第二次不增加重复映射，四个方向读取值保持一致。"
         },
         {
           "id": "P0-007-AC04",
-          "statement": "内置和外接 Windows 键盘可独立启用、验证和恢复。",
-          "verification": "只启用其中一类并在两把键盘测试；未选择设备不生效，恢复后两者回到迁移前状态。"
+          "statement": "快照记录内置映射键的存在性和精确旧值，恢复后完全相等。",
+          "verification": "分别测试原本无映射和已有映射的设备；应用、单项恢复、全部恢复均读取到原始存在性和值。"
         },
         {
           "id": "P0-007-AC05",
-          "statement": "Option 和 Fn 默认不重映射，Caps Lock 输入法切换仅在用户保留选择时应用。",
-          "verification": "默认计划无 Option/Fn 映射动作；取消 Caps Lock 选项时动作不存在，选择时应用和恢复均通过读取/行为测试。"
+          "statement": "Option、Fn 和 Caps Lock 默认不重映射。",
+          "verification": "应用前后只允许内置键盘四个 Control/Command 映射变化；Option、Fn 和 Caps Lock 的原生值保持不变。"
         }
       ],
-      "non_goals": ["全局修饰键交换", "用户词库迁移", "任意自定义脚本"],
-      "risks": ["应用例外遗漏", "第三方规则冲突", "键盘标识变化"]
+      "non_goals": ["外接键盘自动改键", "第三方键位工具安装", "用户词库迁移", "任意自定义脚本"],
+      "risks": ["内置设备标识变化", "第三方规则冲突", "macOS 原生映射格式变化"]
     },
     {
       "id": "P0-008",

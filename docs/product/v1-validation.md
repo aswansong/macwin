@@ -1,10 +1,10 @@
 # MacWin v1 验证矩阵（开发中）
 
-状态：`release/v1.0.1`（基于 `integration/v1.0.0-visual-fidelity-v6` 的 `da64e77`）。这份记录区分“代码已具备”“本地验证通过”和“仍需真实设备/凭据门槛”，`v1.0.1-rc.1` 仍是不签名知情测试版，不是正式 Release。[D-040、E-047]
+状态：`integration/v1.0.1-final-convergence`（基于 `origin/release/v1.0.1`，合流 Mac `6553386` 与 Windows `0f4ec31`）。这份记录区分“代码已具备”“本地验证通过”和“仍需真实设备/凭据门槛”，`v1.0.1-rc.2` 仍是不签名知情测试版，不是正式 Release。[D-042、E-051]
 
-## v1.0.1-rc.1 候选验证（Actions 已完成）
+## v1.0.1-rc.2 候选验证（Actions 待运行）
 
-候选版本目标为前端/Tauri `1.0.1-rc.1`、Cargo `1.0.1`；`.habitpack` schema、ruleset 与 snapshot 继续保持 `1.0.0`。Actions run `30824474914`（v1 validation）与 `30824474842`（unsigned RC）成功；Windows job `91722419458` 和 macOS job `91722419549` 均通过，构建提交为 `26ec53f95def65e4be9847a74b8b3e2fa7eb2653`。Pre-release [`v1.0.1-rc.1`](https://github.com/aswansong/macwin/releases/tag/v1.0.1-rc.1) 的 tag HEAD 与该提交一致，资产哈希已由下载后复核。[D-040、E-048]
+候选版本目标为前端/Tauri `1.0.1-rc.2`、Cargo `1.0.1`；`.habitpack` schema、ruleset 与 snapshot 继续保持 `1.0.0`。Actions 需要在集成分支推送后运行 Windows x64 与 Apple Silicon macOS 构建，并核对同一提交、Pre-release 标识和 SHA-256；在 Actions 完成前不写入通过数字。[D-042、E-051]
 
 ## integration/v1.0.0-visual-fidelity-v6 视觉整合补充
 
@@ -29,7 +29,7 @@
 | 计划确认 | 后端 `confirm_plan` + SHA-256 令牌 | 令牌不是来源签名；正式分发仍需签名更新链路 |
 | 模块选择 | 计划页勾选后只执行已确认模块 | 未选模块会记录为 `skipped` |
 | Finder 与键盘重复速率 | Alpha 0.1/0.2 真实 Mac 记录 | 需要重新跑 v1 版本的四设备矩阵 |
-| 选择性 Ctrl | Karabiner 固定规则、例外和按模块恢复 | 不做全局交换；完整应用矩阵仍需真实验证 |
+| 内置键盘 Control ↔ Command | macOS 原生逐设备 modifier mapping、四方向读取验证、单项/全部恢复 | 外接键盘不改变；真实内置键盘行为、睡眠/重连仍需验收 |
 | 鼠标/触控板滚动 | 原生全局方向可写入并复核；独立方向明确降级 | LinearMouse 配置不猜测，需官方界面和回连验证 |
 | 一份迁移前快照 | v1 版本、完整性哈希、`ensure` 不覆盖已有基线；设备自检显示是否存在及创建时间 | 仍需验证卸载/重装后的发现和按模块恢复 |
 | 本地报告 | 报告页提供 HTML 与脱敏 JSON 两个保存入口；文件保存后显示本地位置 | 仍需真实安装/卸载后检查报告目录保留策略 |
@@ -45,15 +45,15 @@
 | 手动 tag 的源码一致性 | Release workflow 的 build/publish checkout 显式使用 `inputs.tag || github.ref`，再由 `prepare-release.py` 校验版本 | 只验证 workflow 配置，不证明真实签名构建已执行 |
 | 真实设备验收准备 | [真实设备验收手册](../execution/real-device-acceptance.md) 固定 W10/W11/M15/M26、权限/外设/失败/恢复/升级卸载矩阵与脱敏证据字段 | 尚未执行；设备、签名凭据、系统弹窗和负责人最终确认仍是发布门槛 |
 | 本地 macOS App bundle | Tauri `--bundles app` 完成前端、Rust release 编译和 `MacWin.app` 生成；临时关闭 updater 产物并 `--no-sign` 后可重复构建 | 仅未签名构建验证；updater 私钥、Developer ID、公证、stapling 和真实安装仍未完成 |
-| 本地 macOS DMG | Tauri `--bundles dmg` 生成 Apple Silicon DMG，`hdiutil verify` 校验有效 | 产物仍为未签名 `1.0.1-rc.1` 开发包；不替代 Developer ID、公证、stapling 或真实安装验收 |
-| GitHub 未签名 RC | run `30824474842` 生成 Windows x64 NSIS 与 Apple Silicon DMG；[`v1.0.1-rc.1` Pre-release](https://github.com/aswansong/macwin/releases/tag/v1.0.1-rc.1) 附总 SHA-256；Windows `8ac208…50b0`，macOS `7c81c9…f605` | 只供负责人和知情测试者；不合并 `main`，不替代正式签名、公证或真实设备验收 |
+| 本地 macOS DMG | Tauri `--bundles dmg` 生成 Apple Silicon DMG，`hdiutil verify` 校验有效 | 产物仍为未签名 `1.0.1-rc.2` 开发包；不替代 Developer ID、公证、stapling 或真实安装验收 |
+| GitHub 未签名 RC | rc.2 workflow 待在集成分支运行；资产必须为 Windows x64 NSIS、Apple Silicon DMG 和总 SHA256SUMS | 只供负责人和知情测试者；不合并 `main`，不替代正式签名、公证或真实设备验收 |
 
 ## 尚未达到正式发布门槛
 
 - Wi‑Fi 密码：未实现真实凭据读写；在未证明平台安全不变量前不会把明文密码写入未加密包。
 - 软件自动安装：当前固定白名单提供官方入口；Mac 计划和报告会把已选择但未自动安装的项目标为 `manual_action_required`，不伪报已安装。签名/哈希、架构、版本和安装后可执行验证仍需完成。
 - 首批软件目录：仅 Chrome、Edge、Firefox、Microsoft 365、WPS Office、Visual Studio Code、Git、Node.js、Python、Codex CLI、Claude Code；历史候选不进入 v1 扫描或迁移包。[D-034、E-025]
-- Karabiner/LinearMouse：缺失、拒绝授权、设备断开/重连和卸载后的恢复矩阵仍需实际设备验收。
+- LinearMouse：缺失、拒绝授权、设备断开/重连和卸载后的恢复矩阵仍需实际设备验收；键位模块不再依赖第三方写入。
 - 更新：Tauri updater 已加入代码和 GitHub Releases endpoint 草稿；手动安装路径要求用户确认，并由 updater 在下载后验证签名；`PENDING_RELEASE_KEY` 必须由发布凭据替换，不能用于正式更新。
 - 安装包：bundle 配置和签名 Release workflow 已草拟；Windows 可信签名、Developer ID、公证、stapling、真实安装/卸载尚未完成。
 - 真实矩阵：至少需要 Windows 10 x64、Windows 11 x64、Apple 芯片 macOS 15、Apple 芯片 macOS 26，以及内置键盘、外接 Windows 键盘、鼠标和触控板。
@@ -65,6 +65,6 @@ LinearMouse 是独立的 Mac 鼠标/触控板工具；MacWin 只检测其是否�
 ## 发布前一次性人工门槛
 
 1. 配置 Tauri updater 公钥和签名私钥，并在隔离环境完成签名验证。
-2. 提供真实 Windows 10/11 与 macOS 15/26 设备，完成 UAC、TCC、Karabiner/LinearMouse 授权和拒绝路径。
+2. 提供真实 Windows 10/11 与 macOS 15/26 设备，完成 UAC、TCC、LinearMouse 授权和拒绝路径，并验证内置键盘原生映射恢复。
 3. 在安装、升级、回滚和卸载后检查快照、报告、日志及敏感信息探针。
-4. 负责人确认 Release 内容后，才允许合并 `main`、创建 `v1.0.1` 标签和 GitHub Release；`v1.0.1-rc.1` 不满足这些门槛。
+4. 负责人确认 Release 内容后，才允许合并 `main`、创建 `v1.0.1` 标签和 GitHub Release；`v1.0.1-rc.2` 不满足这些门槛。
