@@ -40,7 +40,10 @@
     "v1.0.1-rc.1 dual-platform unsigned Pre-release published and SHA-256 verified",
     "Mac/Windows rc.2 convergence merge e07c061",
     "native MacBook Control/Command mapping with legacy snapshot compatibility",
-    "correct MW icon, native titlebar boundary and rc.2 release notes/workflow"
+    "correct MW icon, native titlebar boundary and rc.2 release notes/workflow",
+    "GitHub Actions v1 validation run 31062124936 passed on macos-15 and windows-latest",
+    "unsigned v1.0.1-rc.2 package run 31062124948 and publish job 92493455217 passed",
+    "v1.0.1-rc.2 Pre-release assets downloaded and SHA-256 verified"
   ],
   "failed_or_deferred": [
     "P0-008 real external-device reconnect matrix not complete",
@@ -67,9 +70,10 @@
     "E-049/E-050/E-051/E-052 document native mapping, convergence, icon and titlebar evidence",
     "E-053 records real Apple Silicon Mac mapping apply/readback/restore",
     "E-054 records local arm64 App and DMG verification on commit 0059a3e",
-    "autopilot checkpoint metadata aligned in commit bb347d2"
+    "autopilot checkpoint metadata aligned in commit bb347d2",
+    "E-055 records Actions runs 31062124936/31062124948, publish 92493455217, release assets and hashes"
   ],
-  "next_action": "先重新认证本机 GitHub 账号后推送 bb347d2（含 0059a3e）；然后等待 integration/v1.0.1-final-convergence 的 Windows/macOS CI 和 unsigned v1.0.1-rc.2 产物校验；不创建正式 v1.0.1。",
+  "next_action": "完成最终审计并标记 Goal complete；不合并 main、不创建正式 v1.0.1。",
   "human_gates": [
     "Apple Developer ID signing and notarization credentials",
     "Windows code-signing certificate",

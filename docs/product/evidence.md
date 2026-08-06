@@ -394,5 +394,13 @@
 
 - 类型：Tauri release 构建、DMG 校验、架构与哈希核对
 - 摘要：在集成提交 `3bb9a5c` 上本地运行 `npm run tauri build -- --bundles app,dmg --no-sign --config src-tauri/tauri.unsigned.conf.json`；`MacWin.app` 主程序为 `arm64`，DMG 通过 `hdiutil verify`，包名为 `MacWin_1.0.1-rc.2_aarch64.dmg`，SHA-256 为 `8497b96046cda5a5258522c615092e163c79e7927f6388fdd14e22d188784cdc`。代码目录显示 ad-hoc/linker-signed、无 Team ID，不能视为 Developer ID 签名或公证。
-- 产品含义：本地包可供负责人和明确知情 Alpha 测试者继续验收；GitHub 双平台 Actions、公开 Pre-release、签名、公证和正式版本仍未完成。
+- 产品含义：本地包可供负责人和明确知情 Alpha 测试者继续验收；后续 GitHub 双平台 Actions 与公开 Pre-release 已由 E-055 核验，签名、公证和正式版本仍未完成。
 - 关联决定：D-040、D-042、OD-002、OD-006
+
+### E-055：rc.2 双平台 Actions 与公开 Pre-release 核验
+
+- 类型：GitHub Actions 构建、Release 资产下载与 SHA-256 复核
+- 摘要：集成提交 `51eaea95c61568c408a16d8c3954c87c99a94790` 的 v1 validation run `31062124936` 在 `macos-15` 与 `windows-latest` 均通过；unsigned RC run `31062124948` 的 Windows、macOS 打包及 publish job `92493455217` 均成功。Pre-release [`v1.0.1-rc.2`](https://github.com/aswansong/macwin/releases/tag/v1.0.1-rc.2) 为非 draft、prerelease，tag 指向同一提交，资产包含 `MacWin_1.0.1-rc.2_x64-setup.exe`、`MacWin_1.0.1-rc.2_aarch64.dmg`、`README-TESTING.md` 与 `SHA256SUMS.txt`。
+- 哈希：Windows `dacbf6e48c037d8076d2030a81e4fa4a87a5e9d6f4d8b31b52235b90e7cfb4e5`；macOS `3c71e432ad29ba8a5c329746c5472be71013534f6e220d7d8c3bf761ef340390`。使用 `gh release download` 下载后执行 `sha256sum -c SHA256SUMS.txt`，两个文件均返回 `OK`。
+- 产品含义：负责人和明确知情测试者现在可以直接下载同一集成提交的双平台未签名测试包；这仍不代表 Developer ID/Windows 可信签名、公证、真实四平台矩阵或正式 `v1.0.1` 门槛已关闭。
+- 关联决定：D-040、D-042、OD-002、OD-006、OD-007
