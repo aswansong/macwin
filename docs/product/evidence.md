@@ -400,7 +400,14 @@
 ### E-055：rc.2 双平台 Actions 与公开 Pre-release 核验
 
 - 类型：GitHub Actions 构建、Release 资产下载与 SHA-256 复核
-- 摘要：集成提交 `51eaea95c61568c408a16d8c3954c87c99a94790` 的 v1 validation run `31062124936` 在 `macos-15` 与 `windows-latest` 均通过；unsigned RC run `31062124948` 的 Windows、macOS 打包及 publish job `92493455217` 均成功。Pre-release [`v1.0.1-rc.2`](https://github.com/aswansong/macwin/releases/tag/v1.0.1-rc.2) 为非 draft、prerelease，tag 指向同一提交，资产包含 `MacWin_1.0.1-rc.2_x64-setup.exe`、`MacWin_1.0.1-rc.2_aarch64.dmg`、`README-TESTING.md` 与 `SHA256SUMS.txt`。
-- 哈希：Windows `dacbf6e48c037d8076d2030a81e4fa4a87a5e9d6f4d8b31b52235b90e7cfb4e5`；macOS `3c71e432ad29ba8a5c329746c5472be71013534f6e220d7d8c3bf761ef340390`。使用 `gh release download` 下载后执行 `sha256sum -c SHA256SUMS.txt`，两个文件均返回 `OK`。
+- 摘要：最终集成提交 `d76041d970d9369289aef7496f883d094c8d9043` 的 v1 validation run `31063577130` 在 `macos-15` 与 `windows-latest` 均通过；unsigned RC run `31063577136` 的 Windows、macOS 打包及 publish job `92497956679` 均成功。Pre-release [`v1.0.1-rc.2`](https://github.com/aswansong/macwin/releases/tag/v1.0.1-rc.2) 为非 draft、prerelease，tag 指向同一提交，资产包含 `MacWin_1.0.1-rc.2_x64-setup.exe`、`MacWin_1.0.1-rc.2_aarch64.dmg`、`README-TESTING.md` 与 `SHA256SUMS.txt`。
+- 哈希：Windows `a9db613498f8fb8262874a4b0236dbaae87ad1eed8f862d2d282452a84d9a4c5`；macOS `a31f711adaeda19fb3dab3b832246bc1a177968a982da06b5bab2733b02f52d6`。使用 `gh release download` 下载后执行 `sha256sum -c SHA256SUMS.txt`，两个文件均返回 `OK`。
 - 产品含义：负责人和明确知情测试者现在可以直接下载同一集成提交的双平台未签名测试包；这仍不代表 Developer ID/Windows 可信签名、公证、真实四平台矩阵或正式 `v1.0.1` 门槛已关闭。
 - 关联决定：D-040、D-042、OD-002、OD-006、OD-007
+
+### E-056：Windows 发布校验的 CRLF 回归修复
+
+- 类型：CI 失败定位、跨平台发布脚本修复
+- 摘要：最终文档提交前的 unsigned RC run `31063048216` 中，Windows/ macOS 打包均成功，但 publish 在比较 `BUILD_COMMIT.txt` 时因 PowerShell `Set-Content` 写入 CRLF 而失败；改为 `-NoNewline` 后，run `31063577136` 与 publish job `92497956679` 全绿。失败运行未覆盖 Release 资产，成功运行随后重新上传并核验同一提交资产。
+- 产品含义：发布门保留了同一提交的字节级校验，跨平台换行差异不能静默进入公开下载物。
+- 关联决定：D-042、OD-002、OD-006

@@ -41,8 +41,8 @@
     "Mac/Windows rc.2 convergence merge e07c061",
     "native MacBook Control/Command mapping with legacy snapshot compatibility",
     "correct MW icon, native titlebar boundary and rc.2 release notes/workflow",
-    "GitHub Actions v1 validation run 31062124936 passed on macos-15 and windows-latest",
-    "unsigned v1.0.1-rc.2 package run 31062124948 and publish job 92493455217 passed",
+    "GitHub Actions v1 validation run 31063577130 passed on macos-15 and windows-latest",
+    "unsigned v1.0.1-rc.2 package run 31063577136 and publish job 92497956679 passed",
     "v1.0.1-rc.2 Pre-release assets downloaded and SHA-256 verified"
   ],
   "failed_or_deferred": [
@@ -71,7 +71,7 @@
     "E-053 records real Apple Silicon Mac mapping apply/readback/restore",
     "E-054 records local arm64 App and DMG verification on commit 0059a3e",
     "autopilot checkpoint metadata aligned in commit bb347d2",
-    "E-055 records Actions runs 31062124936/31062124948, publish 92493455217, release assets and hashes"
+    "E-055/E-056 record final Actions runs 31063577130/31063577136, publish 92497956679, release assets, hashes and CRLF fix"
   ],
   "next_action": "完成最终审计并标记 Goal complete；不合并 main、不创建正式 v1.0.1。",
   "human_gates": [
