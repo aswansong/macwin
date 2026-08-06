@@ -418,3 +418,12 @@
 - 摘要：在创建 `release/v1.0.1-public` 前重新 fetch/prune/tags，核对 `origin/main=dc2b4000a5f9126b63dc4048d1a8197105a9204b`、rc.2 集成头 `5763966f69eb335b955668718ea9dc6df849331e`、`v1.0.1-rc.2` 标签 `51eaea95c61568c408a16d8c3954c87c99a94790`；main 与集成分支相差 95 个提交、118 个文件。公开版允许通过新 PR merge commit 合入 main，标签固定在精确 main HEAD；不得移动或删除 rc.2 标签/Release，不做任何签名、公证或安全策略绕过。
 - 产品含义：本阶段把“公开可下载”与“可信签名”明确拆开；普通用户能在 README、Release 和安装说明看到支持范围、未签名风险、隐私边界和恢复方式，而源码和资产来源可以逐项复核。
 - 关联决定：D-043、D-032、OD-002、OD-006
+
+### E-058：v1.0.1 公开 workflow dry-run 与下载资产来源核验
+
+- 类型：PR merge、GitHub Actions dry-run、公开资产下载与哈希核验
+- 摘要：PR [#2](https://github.com/aswansong/macwin/pull/2) 以 merge commit `0aaebe93208cdb0cece03ffe301d03d4482ee3ed` 将 rc.2 收入 `main`；PR [#3](https://github.com/aswansong/macwin/pull/3) 以 merge commit `37918ca1be07bc06a60009d2446b0b93aecde7c8` 修复版本守卫误判 `crc32fast`；PR [#4](https://github.com/aswansong/macwin/pull/4) 以 merge commit `b01cb7d0e96ffb53c2f9d318f7ab2aef59e97459` 修复 `BUILD-INFO.platforms` 字典排序。三次 PR 的 Windows/macOS 必需检查均通过。
+- 红→绿证据：公开 workflow 第一次 dry-run `31097879379` 在 prepare 因 `assert "rc" not in cargo.lower()` 误报依赖名而失败；第二次 `31098518195` 双平台构建成功但 verify 因 Python 直接排序 dict 失败；修复后最终 dry-run `31100367976` 的 prepare、Windows x64 NSIS、macOS arm64 DMG、verify 全部成功，publish 明确 skipped。
+- 下载核验：从 `31100367976` 下载 `macwin-v1.0.1-public-assets` 后，`sha256sum -c SHA256SUMS.txt` 对 `MacWin_1.0.1_x64-setup.exe`、`MacWin_1.0.1_aarch64.dmg`、`BUILD-INFO.json`、`README-FIRST.md`、两份 `BUILD_COMMIT` 全部返回 `OK`；`scripts/validate-public-release-assets.py` 输出 `PUBLIC_RELEASE_VALID: v1.0.1 b01cb7d0e96ffb53c2f9d318f7ab2aef59e97459 assets=7`。BUILD-INFO 标记 `tag=v1.0.1`、`version=1.0.1`、`schema_version=1.0.0`、`unsigned=true`，两平台 build commit 均为同一 `b01cb7d…`。
+- 产品含义：标签前的完整构建、资产聚合、重新下载和哈希检查已经有可复查证据；dry-run 不发布、不生成 `latest.json`，正式标签仍必须在最终 main HEAD 上创建，且不混入 rc.2 旧资产。
+- 关联决定：D-043、OD-002、OD-006；关联 PR merge commit `b01cb7d0e96ffb53c2f9d318f7ab2aef59e97459`

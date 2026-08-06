@@ -46,7 +46,9 @@
     "v1.0.1-rc.2 Pre-release assets downloaded and SHA-256 verified",
     "final branch, release, boundary and workspace audit completed",
     "v1.0.1 public release branch created from rc.2 convergence head",
-    "public unsigned release contract and source-consistency validator added"
+    "public unsigned release contract and source-consistency validator added",
+    "PR #2/#3/#4 merged with dual-platform checks",
+    "public workflow dry-run 31100367976 and downloaded asset SHA-256 audit passed"
   ],
   "failed_or_deferred": [
     "P0-008 real external-device reconnect matrix not complete",
@@ -74,9 +76,10 @@
     "E-053 records real Apple Silicon Mac mapping apply/readback/restore",
     "E-054 records local arm64 App and DMG verification on commit 0059a3e",
     "autopilot checkpoint metadata aligned in commit bb347d2",
-    "E-055/E-056 record final Actions runs 31064223858/31064223856, publish 92499884883, release assets, hashes and CRLF fix"
+    "E-055/E-056 record final Actions runs 31064223858/31064223856, publish 92499884883, release assets, hashes and CRLF fix",
+    "E-058 records PR merge commits, dry-run red-to-green fixes, run 31100367976 and downloaded asset hash audit"
   ],
-  "next_action": "完成公开 workflow dry-run、PR merge commit、同提交 v1.0.1 标签、Release 下载审计和 main 分支保护；保留未签名风险边界。",
+  "next_action": "重新 fetch 并确认 main=b01cb7d0e96ffb53c2f9d318f7ab2aef59e97459 后创建 annotated v1.0.1；等待公开 Release，再完成下载审计、关闭 PR #1 和 main 分支保护。",
   "human_gates": [
     "Apple Developer ID signing and notarization credentials",
     "Windows code-signing certificate",
