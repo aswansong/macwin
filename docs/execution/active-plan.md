@@ -33,12 +33,12 @@
 5. P0-013 已加入本地 HTML/脱敏 JSON 报告；P0-014 已加入本地错误日志、GitHub 入口、updater 依赖和签名 Release 草稿，公钥注入仍只在正式发布工作流中进行。
 6. 启用 Tauri bundle，完善 Windows x64/macOS arm64 安装包、dry-run 和公开 tag workflow；公开 workflow 精确检出 tag、运行双平台测试/Clippy/M1/release 测试，生成 `SHA256SUMS.txt`、`BUILD-INFO.json`、`README-FIRST.md`，不生成 `latest.json` 或未签名 updater。签名 workflow 保留凭据门但仅手动触发。
 7. RC 阶段的一次完整代码审查、安全/隐私审查和端到端 UX 审查已完成；报告双格式入口、快照完整性错误态、开发工具白名单和取消模块/恢复边界已修复。完整本地测试矩阵与双平台 CI 均已通过，P2 留在 backlog。
-8. 在本分支完成版本/文档/CI 对齐，先运行公开 workflow dry-run 并下载核验两平台资产；通过新 PR 合并 main 后再创建不可移动 `v1.0.1` 标签和公开 Release。真实设备烟测需记录，可信签名、公证和自动更新继续留在后续版本门槛。
+8. 版本/文档/CI 已对齐；PR #2/#3/#4 已用 merge commit 合入 main，公开 workflow dry-run `31100367976` 已完成双平台构建、聚合校验和下载后 SHA-256 核验（E-058）。下一步只允许在重新 fetch 并确认 `main` HEAD 后创建不可移动 `v1.0.1` annotated tag，触发正式公开 Release；真实设备烟测需记录，可信签名、公证和自动更新继续留在后续版本门槛。
 9. 本分支修复 Tauri v2 命令参数合约（`confirm_plan` 外层 DTO、`apply_plan`/`rollback_module` 顶层 camelCase）、统一原生桥接和稳定错误码；真实 `.habitpack` 已完成导入、计划确认、应用、报告、单模块恢复和全部恢复走查。rc.2 还要求 native modifier mapping 的读写验证和旧快照兼容，不改变正式发布门槛。
 
 ## 当前下一动作
 
-下一动作：冻结 `1.0.1` 版本与公开说明，新增不误触签名门的公开 workflow；随后 dry-run、建 PR、merge main、固定 tag、发布并从 Release 重新下载审计。OD-005/OD-007 未关闭前不新增真实 Wi‑Fi 密码或自动安装实现。
+下一动作：重新 fetch 并核对 `main=b01cb7d0e96ffb53c2f9d318f7ab2aef59e97459`、rc.2 标签不变；在该精确 HEAD 创建 annotated `v1.0.1` 并推送。随后等待公开 workflow 发布，再从 Release 重新下载全部资产审计并配置 main 分支保护。OD-005/OD-007 未关闭前不新增真实 Wi‑Fi 密码或自动安装实现。
 
 ## 阻塞项与门槛
 

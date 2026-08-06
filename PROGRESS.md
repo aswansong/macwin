@@ -1,10 +1,10 @@
 # v1.0.1 public release progress
 - 目标：把已验证 rc.2 通过 PR merge commit 收入 main，发布源码、标签、构建与下载资产同源的未签名公开版。
 - 开工基线：`MAIN_BEFORE=dc2b4000a5f9126b63dc4048d1a8197105a9204b`；rc.2 集成头 `5763966f69eb335b955668718ea9dc6df849331e`；rc.2 标签仍为 `51eaea95c61568c408a16d8c3954c87c99a94790`。
-- 当前分支：`release/v1.0.1-public`，所有远端头已 fetch；旧 rc.2 标签、Release 和历史分支不改写。
+- 当前分支：`release/v1.0.1-evidence`（基于已合并 `main`），所有远端头已 fetch；旧 rc.2 标签、Release 和历史分支不改写。
 - 让步顺序：数据与回滚安全 → 构建来源一致 → 双平台可用 → 发布整洁 → 速度。
 - 硬边界：schema/迁移类别/白名单/键位/快照语义不变；不签名、不公证、不绕过 SmartScreen/Gatekeeper、不上传秘密。
-- 当前阶段：冻结 `1.0.1` 公开内容并建立不误触签名门的 dry-run/tag workflow。
+- 当前阶段：公开内容、workflow 和 dry-run 已冻结，等待最终 annotated tag 与 Release。
 - 证据要求：每个不可逆动作前重新 fetch/SHA；标签前 dry-run；记录 commit 错位红→绿；最多三轮完整验收。
 - 已知门槛：真实 Windows 安装/卸载烟测、真实 Mac 核心烟测、分支保护 API 和正式 Release 均需逐项核验。
 - 冻结完成：package/lock/Tauri/Cargo 均为 1.0.1；schema 仍为 1.0.0，rc.2 标签与资产未改写。
@@ -16,3 +16,7 @@
 - 下一步：提交并推送分支，重新 fetch 后创建 PR；PR 头运行 dry-run，待检查通过后 merge commit main，再固定 annotated tag 和公开 Release。
 - PR #2 已创建：<https://github.com/aswansong/macwin/pull/2>；head `f5c8b3b`，base `main@dc2b400`。PR 双平台检查已排队。
 - 已尝试 PR 头 `gh workflow run public-release.yml --ref release/v1.0.1-public`；GitHub 返回 `HTTP 404 workflow not found on default branch`，因为新 workflow 尚未进入默认分支。此为 GitHub dispatch 平台门槛，不修改 main 绕过；合并后立刻 dispatch dry-run。
+- PR #3（merge `37918ca`）修复版本守卫误判 `crc32fast`；PR #4（merge `b01cb7d`）修复 BUILD-INFO 字典排序；两次均经 Windows/macOS 必需检查通过。
+- 红→绿：dry-run `31097879379` prepare 失败、`31098518195` verify 失败；修复后 `31100367976` prepare/Windows/macOS/verify 全部成功，publish skipped。
+- 从 `31100367976` 下载验证资产后 `sha256sum -c SHA256SUMS.txt` 六项全部 `OK`；validator 输出 `PUBLIC_RELEASE_VALID: v1.0.1 b01cb7d0e96ffb53c2f9d318f7ab2aef59e97459 assets=7`。对应证据已写入 E-058。
+- 当前 main 精确 HEAD：`b01cb7d0e96ffb53c2f9d318f7ab2aef59e97459`；下一步重新 fetch 后创建不可移动 annotated `v1.0.1`，不移动/删除 rc.2 标签。

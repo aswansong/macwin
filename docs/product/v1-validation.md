@@ -51,7 +51,7 @@
 | 本地 macOS App bundle | Tauri `--bundles app` 完成前端、Rust release 编译和 `MacWin.app` 生成；临时关闭 updater 产物并 `--no-sign` 后可重复构建 | 仅未签名构建验证；updater 私钥、Developer ID、公证、stapling 和真实安装仍未完成 |
 | 本地 macOS DMG | Tauri `--bundles dmg` 生成 Apple Silicon DMG，`hdiutil verify` 校验有效 | 产物仍为未签名 `1.0.1-rc.2` 开发包；不替代 Developer ID、公证、stapling 或真实安装验收 |
 | GitHub 未签名 RC | 历史 Actions `31064223856` 与 publish job `92499884883` 成功；Pre-release 含 Windows x64 NSIS、Apple Silicon DMG、`README-TESTING.md` 和总 `SHA256SUMS.txt`，下载后两项均 `sha256sum -c ...: OK` | 历史知情测试包；不改写 rc.2 |
-| v1.0.1 公开版来源一致性 | 待 `release/v1.0.1-public` dry-run、PR merge、tag workflow 与 Release 下载审计 | 未签名；必须醒目标注 SmartScreen/Gatekeeper 风险，不生成未签名 updater |
+| v1.0.1 公开版来源一致性 | E-058：PR #2/#3/#4 以 merge commit 收口；dry-run `31100367976` 的双平台构建、聚合验证和下载后 SHA-256 全部通过；`BUILD-INFO` 与两份 `BUILD_COMMIT` 均指向 `b01cb7d…` | 标签、正式 Release、真实 Windows 安装/卸载烟测和真实 Mac 核心闭环仍待完成；未签名风险必须持续醒目标注，不生成未签名 updater |
 
 ## v1.0.1 公开版仍明确未完成
 
