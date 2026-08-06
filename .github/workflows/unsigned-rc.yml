@@ -99,7 +99,9 @@ jobs:
           $name = "MacWin_${env:APP_VERSION}_x64-setup.exe"
           Copy-Item $packages[0].FullName "unsigned-rc/$name"
           (Get-FileHash "unsigned-rc/$name" -Algorithm SHA256).Hash.ToLower() | Set-Content unsigned-rc/SHA256SUM-Windows.txt -Encoding ascii
-          "${env:GITHUB_SHA}" | Set-Content unsigned-rc/BUILD_COMMIT.txt -Encoding ascii
+          # Keep the cross-platform commit marker free of PowerShell's CRLF;
+          # the Linux publish job compares its bytes to GITHUB_SHA exactly.
+          "${env:GITHUB_SHA}" | Set-Content unsigned-rc/BUILD_COMMIT.txt -NoNewline -Encoding ascii
           Copy-Item docs/releases/v1.0.1-rc.2.md unsigned-rc/README-TESTING.md
 
       - name: Stage macOS package
