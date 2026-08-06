@@ -20,3 +20,11 @@
 - 红→绿：dry-run `31097879379` prepare 失败、`31098518195` verify 失败；修复后 `31100367976` prepare/Windows/macOS/verify 全部成功，publish skipped。
 - 从 `31100367976` 下载验证资产后 `sha256sum -c SHA256SUMS.txt` 六项全部 `OK`；validator 输出 `PUBLIC_RELEASE_VALID: v1.0.1 b01cb7d0e96ffb53c2f9d318f7ab2aef59e97459 assets=7`。对应证据已写入 E-058。
 - 当前 main 精确 HEAD：`b01cb7d0e96ffb53c2f9d318f7ab2aef59e97459`；下一步重新 fetch 后创建不可移动 annotated `v1.0.1`，不移动/删除 rc.2 标签。
+
+## 发布后审计（仅 audit/v1.0.1-windows-smoke，未合入 main）
+
+- 正式公开 Release 已完成：main、`v1.0.1` 剥离标签提交、workflow `GITHUB_SHA`、`BUILD-INFO` 与两份 `BUILD_COMMIT` 均为 `e7bd4fa5eae6295cdd81fd7829b47f48304ac3bf`；重新下载 7 个资产后 SHA-256 与 validator 均通过。
+- Windows 发布资产安装→启动→卸载 smoke：GitHub Actions run `31104614928` 输出 `WINDOWS_INSTALL_LAUNCH_UNINSTALL_SMOKE: PASS`；验证分支提交 `e9fa97c` 只增加验证 workflow，未合入 main。
+- 公开 Apple Silicon DMG 已只读挂载，内部主程序确认 `Mach-O 64-bit executable arm64`；公开包导入测试包、强制计划确认、应用和单模块恢复成功。
+- 全量恢复第一次返回 `ROLLBACK_VERIFY`，随后停止重复该失败动作；只读检查显示键盘映射/重复速率回到未设置，Finder 扩展名和滚动方向与迁移前值一致，但结果页未报告全量恢复成功。该发布后缺陷不改变已发布标签或资产来源，不能宣称真实 Mac 全量恢复闭环已通过。
+- 公开 Release、签名门、main 保护、rc.2 历史和 `BLOCKED.md`（“无”）均保持不变；后续应在新版本/新 PR 修复 `ROLLBACK_VERIFY` 后再做完整 Mac 回归。
