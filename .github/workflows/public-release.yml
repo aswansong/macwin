@@ -262,8 +262,9 @@ jobs:
               "schema_version": "1.0.0",
               "unsigned": True,
               "platforms": sorted(
-                  {"platform": item["platform"], "architecture": item["architecture"], "build_commit": item["build_commit"]}
-                  for item in infos
+                  ({"platform": item["platform"], "architecture": item["architecture"], "build_commit": item["build_commit"]}
+                   for item in infos),
+                  key=lambda item: item["platform"],
               ),
           }
           Path("release-upload/BUILD-INFO.json").write_text(json.dumps(aggregate, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
