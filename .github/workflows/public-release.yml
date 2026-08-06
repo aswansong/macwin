@@ -76,8 +76,9 @@ jobs:
           assert lock["version"] == expected
           assert lock["packages"][""]["version"] == expected
           cargo = Path("src-tauri/Cargo.toml").read_text(encoding="utf-8")
-          assert 'version = "1.0.1"' in cargo.split("[lib]", 1)[0]
-          assert "rc" not in cargo.lower()
+          package_section = cargo.split("[lib]", 1)[0]
+          assert 'version = "1.0.1"' in package_section
+          assert '-rc' not in package_section.lower()
           PY
 
   package:
