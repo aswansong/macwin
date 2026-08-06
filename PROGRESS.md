@@ -29,3 +29,4 @@
 - 全量恢复第一次返回 `ROLLBACK_VERIFY`，随后停止重复该失败动作；只读检查显示键盘映射/重复速率回到未设置，Finder 扩展名和滚动方向与迁移前值一致，但结果页未报告全量恢复成功。该发布后缺陷不改变已发布标签或资产来源，不能宣称真实 Mac 全量恢复闭环已通过。
 - 公开 Release、签名门、main 保护、rc.2 历史和 `BLOCKED.md`（“无”）均保持不变；后续应在新版本/新 PR 修复 `ROLLBACK_VERIFY` 后再做完整 Mac 回归。
 - 根因核查确认：本机原有 `v1.0.0` 兼容快照缺少内置键盘映射字段；已用临时 0700 目录备份并恢复原文件（恢复 SHA-256 `a4bfd3da988b0ed66de572ad163206b66e8c53f7da3d5eea266500b798ed9ff6`）。尝试用全新快照重跑时 Mac 已锁定，未绕过锁屏，未生成或覆盖新快照；公开 DMG 已卸载。
+- 新鲜快照回归已完成：Mac 解锁后从公开 `v1.0.1` DMG 重新导入 `windows-habits.habitpack`，强制计划确认并应用；生成的新快照包含 `built_in_modifier_key` 与映射字段（SHA-256 `cb9d1e6bed4da6b1785c9798f02656dd0dc4272a05ba02dbe61d2623cc6381a6`）。点击“全部恢复”后，显示文件扩展名、键盘重复速度、内置键盘 Control↔Command、滚动方向四项均显示“已恢复并验证”，未返回 `ROLLBACK_VERIFY`；只读 `defaults` 检查与恢复结果一致（Finder/KeyRepeat/InitialKeyRepeat/内置映射均未设置，滚动方向为 `1`）。旧快照已从 0700 临时目录按原 SHA-256 `a4bfd3da988b0ed66de572ad163206b66e8c53f7da3d5eea266500b798ed9ff6` 恢复，DMG 已卸载，公开应用进程已退出。
