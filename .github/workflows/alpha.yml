@@ -1,0 +1,64 @@
+name: Alpha validation
+
+on:
+  push:
+    branches: ["alpha/**"]
+  pull_request:
+    branches: ["alpha/**"]
+
+jobs:
+  checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@1.97.1
+        with:
+          components: clippy
+
+      - name: Assert Apple Silicon runner
+        if: matrix.os == 'macos-15'
+        run: test "$(uname -m)" = "arm64"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Test frontend
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Test Rust backend
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+
+      - name: Lint Rust backend
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+
+      - name: Validate M1 format and governance
+        run: ./scripts/validate-m1
+        shell: bash
+
+      - name: Build unbundled Tauri binary
+        run: npm run tauri build -- --no-bundle
+
+      - name: Upload unbundled Alpha artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: macwin-alpha-0.2-${{ runner.os }}
+          path: |
+            src-tauri/target/release/macwin
+            src-tauri/target/release/macwin.exe
+          if-no-files-found: error

@@ -1,0 +1,71 @@
+name: v1 validation
+
+on:
+  push:
+    branches: ["integration/v1.0.1-final-convergence", "release/v1.0.1", "main", "windows/v1.0.1-native-validation"]
+  pull_request:
+    branches: ["integration/v1.0.1-final-convergence", "release/v1.0.1", "main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@1.97.1
+        with:
+          components: clippy,rustfmt
+
+      - name: Assert Apple Silicon runner
+        if: matrix.os == 'macos-15'
+        run: test "$(uname -m)" = "arm64"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Test frontend
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+
+      - name: Test Rust backend
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+
+      - name: Lint Rust backend
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+
+      - name: Validate schemas and governance
+        run: ./scripts/validate-m1
+        shell: bash
+
+      - name: Build Tauri binary without bundling
+        run: npm run tauri build -- --no-bundle
+
+      - name: Upload validation binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: macwin-v1-validation-${{ runner.os }}
+          path: |
+            src-tauri/target/release/macwin
+            src-tauri/target/release/macwin.exe
+          if-no-files-found: error

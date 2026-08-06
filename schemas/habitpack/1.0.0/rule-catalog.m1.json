@@ -28,6 +28,12 @@
       "parameters_schema": "software-params.schema.json"
     },
     {
+      "rule_id": "fixture.software.application",
+      "rule_version": "1.0.0",
+      "module": "software",
+      "parameters_schema": "software-params.schema.json"
+    },
+    {
       "rule_id": "fixture.developer.lightweight",
       "rule_version": "1.0.0",
       "module": "developer",

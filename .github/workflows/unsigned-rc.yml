@@ -1,0 +1,166 @@
+name: unsigned v1.0.1 RC packages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["integration/v1.0.1-final-convergence", "release/v1.0.1"]
+
+permissions:
+  contents: write
+
+env:
+  APP_VERSION: 1.0.1-rc.2
+  RELEASE_TAG: v1.0.1-rc.2
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            platform: windows
+          - os: macos-15
+            target: aarch64-apple-darwin
+            platform: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out RC source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@1.97.1
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Assert RC version
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          expected = "1.0.1-rc.2"
+          for path in ("package.json", "src-tauri/tauri.conf.json"):
+              with open(path, encoding="utf-8") as fh:
+                  value = json.load(fh)["version"]
+              assert value == expected, (path, value)
+          with open("package-lock.json", encoding="utf-8") as fh:
+              lock = json.load(fh)
+          assert lock["version"] == expected
+          assert lock["packages"][""]["version"] == expected
+          PY
+          test "$(uname -m)" = "arm64" || [ "${{ matrix.platform }}" = "windows" ]
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: |
+          npm test
+          npm run build
+          cargo test --manifest-path src-tauri/Cargo.toml --locked
+
+      - name: Build unsigned Windows NSIS installer
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: npm run tauri build -- --target ${{ matrix.target }} --bundles nsis --no-sign --config src-tauri/tauri.unsigned.conf.json
+
+      - name: Build unsigned macOS DMG
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run tauri build -- --target ${{ matrix.target }} --bundles app --no-sign --config src-tauri/tauri.unsigned.conf.json
+          bundle_root="src-tauri/target/${{ matrix.target }}/release/bundle"
+          app="$bundle_root/macos/MacWin.app"
+          dmg="$bundle_root/dmg/MacWin_${APP_VERSION}_aarch64.dmg"
+          test -d "$app"
+          # Ad-hoc signing provides local bundle integrity only; it is not Developer ID signing.
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          mkdir -p "$bundle_root/dmg"
+          hdiutil create -volname MacWin -srcfolder "$app" -ov -format UDZO "$dmg"
+          hdiutil verify "$dmg"
+
+      - name: Stage Windows package
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force unsigned-rc | Out-Null
+          $packages = Get-ChildItem "src-tauri/target/${{ matrix.target }}/release/bundle/nsis" -File -Filter *.exe
+          if ($packages.Count -ne 1) { throw "Expected exactly one NSIS installer, found $($packages.Count)" }
+          $name = "MacWin_${env:APP_VERSION}_x64-setup.exe"
+          Copy-Item $packages[0].FullName "unsigned-rc/$name"
+          (Get-FileHash "unsigned-rc/$name" -Algorithm SHA256).Hash.ToLower() | Set-Content unsigned-rc/SHA256SUM-Windows.txt -Encoding ascii
+          # Keep the cross-platform commit marker free of PowerShell's CRLF;
+          # the Linux publish job compares its bytes to GITHUB_SHA exactly.
+          "${env:GITHUB_SHA}" | Set-Content unsigned-rc/BUILD_COMMIT.txt -NoNewline -Encoding ascii
+          Copy-Item docs/releases/v1.0.1-rc.2.md unsigned-rc/README-TESTING.md
+
+      - name: Stage macOS package
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p unsigned-rc
+          packages=(src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg)
+          test "${#packages[@]}" -eq 1
+          name="MacWin_${APP_VERSION}_aarch64.dmg"
+          cp "${packages[0]}" "unsigned-rc/$name"
+          (cd unsigned-rc && shasum -a 256 "$name" | awk '{print $1}' > SHA256SUM-macOS.txt)
+          printf '%s\n' "$GITHUB_SHA" > unsigned-rc/BUILD_COMMIT.txt
+          cp docs/releases/v1.0.1-rc.2.md unsigned-rc/README-TESTING.md
+
+      - name: Upload unsigned RC package
+        uses: actions/upload-artifact@v6
+        with:
+          name: macwin-v1.0.1-rc.2-${{ matrix.platform }}
+          path: unsigned-rc
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out RC source
+        uses: actions/checkout@v6
+
+      - name: Download both platform packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: macwin-v1.0.1-rc.2-*
+          path: release-upload
+          merge-multiple: true
+
+      - name: Verify and assemble public assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-upload
+          test "$(find . -maxdepth 1 -type f -name '*.exe' | wc -l | tr -d ' ')" = 1
+          test "$(find . -maxdepth 1 -type f -name '*.dmg' | wc -l | tr -d ' ')" = 1
+          test -f BUILD_COMMIT.txt
+          test "$(cat BUILD_COMMIT.txt)" = "$GITHUB_SHA"
+          test "$(find . -maxdepth 1 -type f -name 'BUILD_COMMIT.txt' | wc -l | tr -d ' ')" = 1
+          sha256sum *.exe *.dmg | awk '{print $1"  "$2}' > SHA256SUMS.txt
+          test -f README-TESTING.md
+          rm BUILD_COMMIT.txt SHA256SUM-Windows.txt SHA256SUM-macOS.txt
+
+      - name: Publish GitHub Pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.1-rc.2
+          target_commitish: ${{ github.sha }}
+          name: MacWin v1.0.1-rc.2（未签名测试版）
+          body_path: docs/releases/v1.0.1-rc.2.md
+          prerelease: true
+          make_latest: false
+          files: release-upload/*

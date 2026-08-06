@@ -16,7 +16,7 @@ from typing import Any
 from .validator import JSON_MEDIA, SECRET_MEDIA
 
 ROOT = Path(__file__).resolve().parents[2]
-MATRIX = json.loads((ROOT / "fixtures/m1/fixture-matrix.json").read_text())
+MATRIX = json.loads((ROOT / "fixtures/m1/fixture-matrix.json").read_text(encoding="utf-8"))
 
 
 def _candidate(module: str, number: int = 1) -> dict[str, Any]:

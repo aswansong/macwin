@@ -8,6 +8,7 @@ node_modules/
 dist/
 target/
 src-tauri/target/
+src-tauri/gen/
 
 # Local diagnostics and logs
 *.log
@@ -16,6 +17,10 @@ diagnostics/
 # Migration packages may contain Wi-Fi passwords
 *.habitpack
 .m1-validation-venv/
+
+# Python caches created by local validation and research fixtures
+__pycache__/
+*.py[cod]
 
 # Local backups must never be committed
 backups/

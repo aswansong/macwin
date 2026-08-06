@@ -8,19 +8,35 @@
 
 ### R1：可丢弃交互原型与格式规范（已完成）
 
-交互原型已冻结在 `prototype/ui-flow-v2-hardening` 的提交 `37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75` 并获接受；`main` 中的 `.habitpack` M1 格式规范和虚构夹具也已闭合，M1 已停止。原型使用虚构数据，不扫描、不提权、不联网、不修改系统，也不直接合入正式实现；M2 Wave 0 仅获局部研究授权。[D-024、D-028、D-029、E-018]
+交互原型已冻结在 `prototype/ui-flow-v2-hardening` 的提交 `37edc4edd52f2d0fb5aa7d796faa5fd7437bbb75` 并获接受；M1 `.habitpack` 格式规范和虚构夹具也已闭合。Alpha 0.1/0.2 在 `alpha/*` 分支验证了真实本地纵向切片，但仍是未签名知情测试构建；证据已归档，不直接合入 `main`。[D-028、D-030、D-031、E-020]
 
-### R2：技术预研（Wave 0 局部已授权；真实平台其余部分未授权）
+### R2：技术预研（Wave 0 历史记录）
 
-Wave 0 只允许以下四个隔离研究流：M1 `.habitpack` `1.0.0` 独立 parser；一次性 Tauri 2 最小壳与 mock bridge；synthetic snapshot/恢复；离线签名与 fictional supply-chain fixture。研究代码只能在 `codex/m2-*` 分支，不能创建 PR、合并 `main` 或 Release；只使用虚构数据和锁定开发验证依赖。真实平台的 Windows 白名单读取、macOS 设置适配、权限、Wi‑Fi、生产快照、第三方实际供应链和更新签名仍未授权。[D-022、D-029、E-018、OD-005、OD-006、OD-007]
+Wave 0 当时只允许以下四个隔离研究流：M1 `.habitpack` `1.0.0` 独立 parser；一次性 Tauri 2 最小壳与 mock bridge；synthetic snapshot/恢复；离线签名与 fictional supply-chain fixture。其研究代码只能在 `codex/m2-*` 分支，不能创建 PR、合并 `main` 或 Release。[D-022、D-029、E-018、OD-005、OD-006、OD-007]
 
-### R3：知情 Alpha（未授权）
+### Alpha 0.1：历史纵向切片
+
+Alpha 只允许 Windows 10/11 x64 白名单扫描、现有格式的导出/导入、强制计划、macOS Finder 扩展名和键盘重复速率的声明式应用、一次快照、按模块恢复、报告和指南。不得实现 Wi‑Fi/密码、Ctrl/Command 兼容层、第三方工具或 Homebrew 安装、软件自动安装、UAC/TCC、真实秘密、个人文件、更新、签名/公证或 Release。[D-030、E-019]
+
+### R3：知情 Alpha（历史阶段）
 
 允许未签名构建，但只分发给明确知道风险、愿意使用测试设备/可恢复环境并按测试协议反馈的人。[D-023]
 
-### R4：公开新手版本（未授权）
+### R4：v1.0.0 release 准备（历史）
 
-必须满足本文件的发布门槛、签名公证和真实设备矩阵，不要求新手绕过系统安全警告。[D-023]
+`release/v1.0.0` 已获 D-032 授权实现剩余 P0、Tauri bundle、更新草稿和 CI。当前构建仍需通过本文件第 6 节的所有阻断门，未签名构建只供明确知情测试者。
+
+### R4.1：v1.0.1-rc.2 未签名候选（历史已验证）
+
+`integration/v1.0.1-final-convergence` 已合流 Mac 与 Windows 原生验证并完成 rc.2 Pre-release。`v1.0.1-rc.2` 保留为历史未签名知情测试包，不改写、不删除。[D-040、D-042、E-055]
+
+### R4.2：v1.0.1 未签名公开版（当前）
+
+`release/v1.0.1-public` 负责把已验证 rc.2 通过新 PR merge commit 收入 `main`，冻结应用版本 `1.0.1`，在精确 main HEAD 创建不可移动 annotated tag `v1.0.1`，并发布非草稿、非 Pre-release、Latest 的公开版。Windows x64 NSIS 与 Apple Silicon macOS DMG 均未签名；Release、README-FIRST 和安装说明必须标注 SmartScreen/Gatekeeper 风险，不提供关闭或绕过安全策略的命令。公开 workflow 不生成 `latest.json` 或未签名自动更新资产；`BUILD-INFO.json`、`BUILD_COMMIT` 和 SHA-256 必须与 tag commit 一致。[D-043、E-057]
+
+### R5：可信签名公开版本（后续门槛）
+
+后续可信版本才需要补齐 Windows 签名、Apple Developer ID/公证、自动更新签名和完整真实设备矩阵；`v1.0.1` 未签名公开版不得被宣传为可信签名版本。[D-023、D-043]
 
 ## 2. P0 测试层级
 
@@ -99,10 +115,9 @@ M1 仓库统一入口为 `./scripts/validate-m1`；它只验证格式与虚构�
 
 ### 键盘
 
-- 普通应用中的每个白名单 Ctrl 动作产生预期结果；
-- 同一动作的 Command 原生组合仍有效；
-- Terminal、VS Code 终端、远程桌面和虚拟机中的 Ctrl 序列未被转换；
-- 关闭模块并恢复后，规则不再生效。[D-007]
+- 内置键盘 Control 与 Command 两个方向均产生预期结果；
+- 外接键盘不受修改，Option 与 Fn 不受修改；
+- 关闭模块并恢复后，映射精确回到迁移前值或不存在。[D-041]
 
 ### 指针
 
@@ -159,7 +174,7 @@ M1 仓库统一入口为 `./scripts/validate-m1`；它只验证格式与虚构�
 - Wi‑Fi 秘密生命周期及秘密扫描通过；
 - 模块恢复与重装发现备份演练通过；
 - README、隐私说明、已知限制和卸载/恢复说明与实际功能一致；
-- GitHub 安全报告入口和公开支持入口有效。[D-015、OD-001]
+- GitHub 安全报告入口和公开支持入口有效。[D-015、D-037]
 
 ## 7. 不构成通过的证据
 

@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.m1.fixtures import MATRIX, _json, _manifest, _write_zip, build_fixture, package_source
-from tools.m1.repo_checks import WAVE0_AUTHORIZATION, ROOT, feature_checks, json_checks, markdown_checks, traceability_checks
+from tools.m1.repo_checks import RELEASE_AUTHORIZATION, WAVE0_AUTHORIZATION, ROOT, feature_checks, json_checks, markdown_checks, traceability_checks
 from tools.m1.validator import MAX_JSON, MAX_JSON_INTEGER_DIGITS, MAX_JSON_NESTING, MAX_MANIFEST, MAX_SECRET, HabitpackError, _load_schemas, _schema_validate, _validate_deflate_stream, strict_json, validate_habitpack
 
 
@@ -333,9 +333,9 @@ class M1ValidatorTests(unittest.TestCase):
                 root = Path(directory)
                 target = root / "docs/execution"
                 target.mkdir(parents=True)
-                data = json.loads((ROOT / "docs/execution/feature-list.json").read_text())
+                data = json.loads((ROOT / "docs/execution/feature-list.json").read_text(encoding="utf-8"))
                 data.pop(field)
-                (target / "feature-list.json").write_text(json.dumps(data))
+                (target / "feature-list.json").write_text(json.dumps(data), encoding="utf-8")
                 with self.assertRaisesRegex(AssertionError, f"{field} is required"):
                     feature_checks(root)
 
@@ -365,9 +365,9 @@ class M1ValidatorTests(unittest.TestCase):
             target = root / "docs/execution"
             target.mkdir(parents=True)
             shutil.copytree(ROOT / "docs/product", root / "docs/product")
-            data = json.loads((ROOT / "docs/execution/feature-list.json").read_text())
+            data = json.loads((ROOT / "docs/execution/feature-list.json").read_text(encoding="utf-8"))
             reverse_features(data)
-            (target / "feature-list.json").write_text(json.dumps(data))
+            (target / "feature-list.json").write_text(json.dumps(data), encoding="utf-8")
             self.assertEqual(15, feature_checks(root))
 
     def test_feature_records_have_a_closed_typed_key_set(self) -> None:
@@ -462,24 +462,24 @@ class M1ValidatorTests(unittest.TestCase):
             target = root / "docs/execution"
             target.mkdir(parents=True)
             shutil.copytree(ROOT / "docs/product", root / "docs/product")
-            data = json.loads((ROOT / "docs/execution/feature-list.json").read_text())
+            data = json.loads((ROOT / "docs/execution/feature-list.json").read_text(encoding="utf-8"))
             mutate(data)
-            (target / "feature-list.json").write_text(json.dumps(data))
+            (target / "feature-list.json").write_text(json.dumps(data), encoding="utf-8")
             with self.assertRaisesRegex(AssertionError, message):
                 feature_checks(root)
 
-    def test_wave0_governance_rejects_invalid_authorization_combinations(self) -> None:
+    def test_release_governance_rejects_invalid_authorization_combinations(self) -> None:
         self._assert_feature_policy_rejected(
-            lambda data: data.__setitem__("production_implementation_authorized", True),
-            "production implementation must remain unauthorized",
+            lambda data: data.__setitem__("production_implementation_authorized", False),
+            "production implementation authorization is required",
         )
         self._assert_feature_policy_rejected(
-            lambda data: data.__setitem__("system_changes_authorized", True),
-            "system changes must remain unauthorized",
+            lambda data: data.__setitem__("system_changes_authorized", False),
+            "v1 system-change authorization is required",
         )
         self._assert_feature_policy_rejected(
-            lambda data: data["features"][0].__setitem__("status", "implemented"),
-            "Wave0 evidence must not advance real P0 status",
+            lambda data: data["features"][0].__setitem__("status", "verified"),
+            "invalid feature status",
         )
         for field in ("real_devices", "real_secrets", "permissions", "system_writes", "third_party_installation", "production_dependencies", "production_skeleton", "pr_merge", "release"):
             with self.subTest(forbidden=field):
@@ -501,6 +501,18 @@ class M1ValidatorTests(unittest.TestCase):
             lambda data: data.__setitem__("milestone_status", "completed_waiting_for_next_authorization"),
             "unexpected milestone status",
         )
+        for field in ("wifi", "passwords", "third_party_installation", "software_auto_install", "permissions", "real_secrets", "personal_files", "merge_main", "release"):
+            with self.subTest(alpha_forbidden=field):
+                self._assert_feature_policy_rejected(
+                    lambda data, field=field: data["alpha_authorization"].__setitem__(field, True),
+                    f"alpha authorization mismatch: {field}",
+                )
+        for field in RELEASE_AUTHORIZATION:
+            with self.subTest(release_forbidden=field):
+                self._assert_feature_policy_rejected(
+                    lambda data, field=field: data["release_authorization"].__setitem__(field, False),
+                    f"release authorization mismatch: {field}",
+                )
 
     def test_governance_rejects_unknown_closed_set_keys(self) -> None:
         for value in (True, False):
@@ -519,7 +531,7 @@ class M1ValidatorTests(unittest.TestCase):
                     lambda data, value=value: data["milestone_evidence"].__setitem__("unknown", value),
                     "milestone evidence has unknown keys",
                 )
-        for child in ("prototype", "format", "wave0"):
+        for child in ("prototype", "format", "wave0", "release"):
             with self.subTest(location=f"milestone_evidence.{child}"):
                 self._assert_feature_policy_rejected(
                     lambda data, child=child: data["milestone_evidence"][child].__setitem__("unknown", True),
@@ -532,7 +544,7 @@ class M1ValidatorTests(unittest.TestCase):
             (root / "docs/product").mkdir(parents=True)
             shutil.copy2(ROOT / "docs/product/decisions.md", root / "docs/product/decisions.md")
             shutil.copy2(ROOT / "docs/product/evidence.md", root / "docs/product/evidence.md")
-            (root / "README.md").write_text("unknown decision [D-999]\n")
+            (root / "README.md").write_text("unknown decision [D-999]\n", encoding="utf-8")
             with self.assertRaisesRegex(AssertionError, "D-999"):
                 traceability_checks(root)
 
@@ -542,17 +554,17 @@ class M1ValidatorTests(unittest.TestCase):
             (root / "docs/product").mkdir(parents=True)
             shutil.copy2(ROOT / "docs/product/decisions.md", root / "docs/product/decisions.md")
             shutil.copy2(ROOT / "docs/product/evidence.md", root / "docs/product/evidence.md")
-            (root / "docs/extra.MD").write_text("unknown [D-999]\n")
+            (root / "docs/extra.MD").write_text("unknown [D-999]\n", encoding="utf-8")
             with self.assertRaisesRegex(AssertionError, "D-999"):
                 traceability_checks(root)
-            (root / "docs/extra.MD").write_text("[jump](target.MD#标题)\n")
-            (root / "docs/target.MD").write_text("# 标题\n")
+            (root / "docs/extra.MD").write_text("[jump](target.MD#标题)\n", encoding="utf-8")
+            (root / "docs/target.MD").write_text("# 标题\n", encoding="utf-8")
             self.assertEqual(1, markdown_checks(root))
 
     def test_uppercase_json_is_strictly_checked(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "extra.JSON").write_text('{"duplicate":1,"duplicate":2}')
+            (root / "extra.JSON").write_text('{"duplicate":1,"duplicate":2}', encoding="utf-8")
             with self.assertRaises(HabitpackError) as caught:
                 json_checks(root)
             self.assertEqual("HP_JSON_DUPLICATE_KEY", caught.exception.code)

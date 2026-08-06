@@ -1,0 +1,18 @@
+# v1.0.1 public release progress
+- 目标：把已验证 rc.2 通过 PR merge commit 收入 main，发布源码、标签、构建与下载资产同源的未签名公开版。
+- 开工基线：`MAIN_BEFORE=dc2b4000a5f9126b63dc4048d1a8197105a9204b`；rc.2 集成头 `5763966f69eb335b955668718ea9dc6df849331e`；rc.2 标签仍为 `51eaea95c61568c408a16d8c3954c87c99a94790`。
+- 当前分支：`release/v1.0.1-public`，所有远端头已 fetch；旧 rc.2 标签、Release 和历史分支不改写。
+- 让步顺序：数据与回滚安全 → 构建来源一致 → 双平台可用 → 发布整洁 → 速度。
+- 硬边界：schema/迁移类别/白名单/键位/快照语义不变；不签名、不公证、不绕过 SmartScreen/Gatekeeper、不上传秘密。
+- 当前阶段：冻结 `1.0.1` 公开内容并建立不误触签名门的 dry-run/tag workflow。
+- 证据要求：每个不可逆动作前重新 fetch/SHA；标签前 dry-run；记录 commit 错位红→绿；最多三轮完整验收。
+- 已知门槛：真实 Windows 安装/卸载烟测、真实 Mac 核心烟测、分支保护 API 和正式 Release 均需逐项核验。
+- 冻结完成：package/lock/Tauri/Cargo 均为 1.0.1；schema 仍为 1.0.0，rc.2 标签与资产未改写。
+- 文档已加入 D-043/E-057 公开未签名边界；README、Release 说明和 README-FIRST.md 均明确 SmartScreen/Gatekeeper 风险与零绕过命令。
+- 新增 `.github/workflows/public-release.yml`：dispatch 永不发布，只有精确 `v1.0.1` tag push 发布；双平台 NSIS/DMG、BUILD-INFO、BUILD_COMMIT、SHA256 和发布前 validator 已接入；signed workflow 已去掉 tag push。
+- 新增 `scripts/validate-public-release-assets.py` 及 5 条成功/失败测试，覆盖 commit mismatch、asset count、hash mismatch、rc tag/version；静态 workflow 测试 3 条。
+- 本地验证：`npm test` 14/14；`npm run build` 通过；Cargo fmt/test/clippy 通过（20 passed、1 个既有外部测试 ignored）；`./scripts/validate-m1` 61/61 通过。
+- 更新入口已改为手动检查说明，移除启动时 `check_update(false)`，公开未签名构建不生成 updater/`latest.json`。
+- 下一步：提交并推送分支，重新 fetch 后创建 PR；PR 头运行 dry-run，待检查通过后 merge commit main，再固定 annotated tag 和公开 Release。
+- PR #2 已创建：<https://github.com/aswansong/macwin/pull/2>；head `f5c8b3b`，base `main@dc2b400`。PR 双平台检查已排队。
+- 已尝试 PR 头 `gh workflow run public-release.yml --ref release/v1.0.1-public`；GitHub 返回 `HTTP 404 workflow not found on default branch`，因为新 workflow 尚未进入默认分支。此为 GitHub dispatch 平台门槛，不修改 main 绕过；合并后立刻 dispatch dry-run。

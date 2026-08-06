@@ -4,7 +4,7 @@
 
 ## 1. M1 验证档案
 
-M1 只接受精确的 `schema_version: "1.0.0"`。其他 major、minor、patch 和非 `major.minor.patch` 字符串全部拒绝。这个严格档案用于消除当前样例的歧义，不决定未来兼容窗口；OD-011 仍未解决。
+M1 生成器和验证档案只输出、只验证精确的 `schema_version: "1.0.0"`；这是开发验证档案的固定基线。v1 生产导入器允许 `major=1` 且保持当前已知闭合字段与规则语义的 semver 包，未知 major、格式错误和新增未知字段全部拒绝并返回明确的版本提示。[D-038、E-044]
 
 固定上限如下：
 
@@ -109,7 +109,7 @@ SHA-256、size 和 schema 都针对解压后的原始文件字节；Deflate 可�
 
 校验器先从文件末尾的固定 EOCD 解析单卷字段、中央目录以及全部 local header 元数据；`0xffffffff` size sentinel 始终优先按 ZIP64 拒绝。任何 Stored 内容复制或 Deflate 解码前，它仅依据已解析的 canonical path 与 local/central 声明检查压缩包、条目、类型大小、总解压字节和 100:1 压缩比上限。通过预检后才验证连续压缩范围和唯一流；Deflate 解码器自身仍以对应路径类型上限为硬上限，且每次最多请求可信声明大小与该上限的较小值再加 1 字节。它不在不透明内容中裸搜 ZIP 签名字节，因此合法秘密即使包含 EOCD、ZIP64 EOCD 或 locator 签名片段也不会被误判。随后才读取内容，并检查可执行魔数、严格 JSON、schema、媒体、声明、哈希、规则、选择与秘密关系。任何一步失败都不把内容交给执行层。
 
-稳定错误格式为 `ERROR [HP_ERROR_CODE] fixture:path`。秘密内容永远不进入错误或日志。
+稳定错误格式为 `ERROR [HP_ERROR_CODE] fixture:path`。版本字段不符合 D-038 时使用 `HP_SCHEMA_VERSION`，以便界面给出“格式版本不受支持”的明确提示。秘密内容永远不进入错误或日志。
 
 ## 7. 虚构夹具与统一命令
 

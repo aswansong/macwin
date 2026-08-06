@@ -12,7 +12,13 @@
         "git",
         "vscode",
         "python",
-        "node"
+        "node",
+        "github-cli",
+        "uv",
+        "jupyter",
+        "ruff",
+        "codex-cli",
+        "claude-code"
       ]
     },
     "install_homebrew": {

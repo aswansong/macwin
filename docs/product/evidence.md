@@ -137,6 +137,284 @@
 - 产品含义：真实设备、真实秘密、UAC/TCC/管理员权限、系统设置读写、Wi‑Fi 密码、Karabiner/LinearMouse/Homebrew/系统服务/应用包实际安装、生产依赖、生产骨架、Alpha 和 Release 均未授权；15 个 P0 继续为 `specified`。需要真实设备、真实秘密、第三方实际安装、生产签名密钥或改变产品边界时，停止对应研究流。主控可见可用额度低于 20% 时停止派发新任务并保留目标，这是执行门禁而非产品功能状态。
 - 关联决定：D-029
 
+### E-019：负责人接受 M1 原型并授权 Alpha 0.1 纵向切片
+
+- 类型：负责人确认、执行授权
+- 摘要：负责人确认当前原型可接受，并授权在 `alpha/v0.1-vertical-slice` 实现本地、可运行的 Windows 10/11 x64 → Apple 芯片 macOS 15/26 Alpha 纵向切片。授权覆盖白名单扫描、现有 `.habitpack` 1.0.0 生成/导入、强制计划、Finder 扩展名与键盘重复速率的声明式应用、迁移前快照、按模块恢复、报告和指南。
+- 边界：本轮不做 Wi‑Fi/密码、Ctrl/Command 兼容、第三方工具或 Homebrew 安装、软件自动安装、UAC/TCC、真实秘密、更新、安装包/签名/公证、个人文件搬运或公开 Release。包内容只能映射到代码内固定规则；不得执行包内命令或联网上传扫描数据。
+- 产品含义：Alpha 验证真实平台边界与恢复语义，不等于面向普通新手的可信分发；未签名构建只供明确知情测试者。
+- 关联决定：D-030
+
 ## 使用限制
 
 这些证据能说明“为什么这样设计”，不能证明技术实现已经可用。涉及 macOS 26、Wi‑Fi 凭据导入、系统权限、第三方工具和签名分发的结论，在进入实现前仍需重新核对当时平台文档与真实设备行为。
+### E-020：Alpha 0.2 Wave 0 授权与安全边界
+
+- 负责人确认在独立分支 `alpha/v0.2-keyboard-compatibility` 继续研究型 M2 Wave 0，允许真实 Apple 芯片 Mac 偏好闭环、内置/外接键盘检测、选择性 Ctrl 白名单、Karabiner 非破坏规则合并、按模块恢复、本地自检和 CI 构建产物。
+- 仍保持本地离线、无账号、默认零上传；不搬个人文件，不处理 Wi‑Fi/密码，不静默安装第三方工具，不做全局 Ctrl/Command 交换，不创建 Release 或合并 `main`。
+- Alpha 0.2 的“真实”结论仅针对实际运行过的 Apple 芯片 Mac 与固定 macOS 版本；未测试的设备和应用矩阵不得宣称通过。
+
+### E-021：负责人授权 v1.0.0 正式实现与发布准备
+
+- 类型：负责人确认、执行授权
+- 摘要：负责人授权 MacWin 从 Alpha 0.2 持续推进到 v1.0.0 正式成品。授权覆盖剩余 P0 的真实实现、生产依赖审查、Tauri bundle、Windows x64 与 Apple Silicon macOS 安装包、CI 草稿 Release、PR、合并 `main`、标签和 GitHub Release；正式 Release 必须可信签名，macOS 必须完成 Developer ID 签名、公证和 stapling。
+- 边界：仍不搬运个人文件、浏览器书签/历史/密码/Cookie/登录状态、账号、Token、SSH 私钥、项目代码或聊天记录；不绕过 UAC/TCC/SIP/Gatekeeper/SmartScreen。Wi‑Fi 密码、第三方工具安装、更新签名和 `.habitpack` major 兼容必须满足各自安全不变量并经过对应决策门。签名凭据、真实四平台设备、系统弹窗和公开 Release 最终确认是集中人类门槛。
+- 关联决定：D-032
+
+### E-022：M2 Wave 0 v1 安全研究进展
+
+- 类型：技术研究、官方文档核对
+- 摘要：Windows `WlanGetProfile` 的明文 key 读取需要显式的 plaintext-key 标志和受保护的 WLAN 读取权限；默认通常只允许管理员。Apple `NEHotspotConfiguration` 能配置 WPA/WPA2 Personal 的 SSID/口令，但需要相应网络能力与 entitlement；它不是“读取旧密码”的接口。LinearMouse 官方说明确认其需要 Accessibility 权限，并且是独立的常驻鼠标/触控板工具。
+- 产品含义：Wi‑Fi 密码链路必须继续停在 OD-005 决策门，不能用命令行回显、剪贴板或未验证的跨平台配置文件冒充安全实现；鼠标/触控板独立方向在原生接口不足时必须明确降级并要求官方工具授权。当前实现已采用这两个安全降级原则。
+- 参考： [Microsoft WlanGetProfile](https://learn.microsoft.com/en-us/windows/win32/api/wlanapi/nf-wlanapi-wlangetprofile)、[Apple NEHotspotConfiguration](https://developer.apple.com/documentation/networkextension/nehotspotconfiguration)、[LinearMouse 辅助功能说明](https://github.com/linearmouse/linearmouse/blob/main/ACCESSIBILITY.md)
+- 关联决定：D-019、D-032、OD-005、OD-007
+
+### E-023：负责人再次确认原型与 M2 Wave 0 研究边界
+
+- 类型：负责人确认、执行授权复核
+- 摘要：负责人确认当前原型可以接受，并再次同意研究型 M2 Wave 0 授权方案。该确认只复核 D-029 的研究边界，不把研究分支变成生产分支；研究代码、虚构夹具和报告仍须使用 `codex/m2-*` 独立分支，禁止 PR、合并 `main` 和 Release。
+- 用量门禁：主控可见可用额度低于 20% 时暂停新增工作并保留 Goal；该门禁不是产品状态，也不能用 `goal complete` 或 `blocked` 伪装暂停。当前工具未返回剩余百分比，因此不据此声称已触发门禁。
+- 产品含义：M1 原型结论可继续作为研究输入；真实设备、真实秘密、权限、系统写入、第三方实际安装、生产依赖与公开发布仍需对应授权和人类验收门槛。
+- 关联决定：D-029、D-032、D-033
+
+### E-024：v1 RC 代码与双平台检查完成
+
+- 类型：技术验证、审查记录
+- 摘要：`release/v1.0.0` 的 RC 代码、隐私/安全边界和端到端 UX 走查已完成；报告页提供 HTML 与脱敏 JSON 保存入口，窄屏操作行允许换行。提交 `3fd3c84`、`093372c`、`396de5d` 的本地前端、Rust、Clippy、Tauri release 编译和 `./scripts/validate-m1` 均通过；GitHub Actions run `30742820321` 的 Windows latest 与 Apple Silicon macOS 15 双平台检查均通过。
+- 产品含义：当前分支的自动化与代码级发布准备通过；这不等于真实四平台设备、系统权限、签名、公证、安装/卸载或公开 Release 已验收。
+- 关联决定：D-032、D-033
+
+### E-025：v1 首批软件白名单已冻结
+
+- 类型：负责人授权、规格校准
+- 摘要：v1.0 首批识别范围明确限定为 Chrome、Edge、Firefox、Microsoft 365、WPS Office、Visual Studio Code、Git、Node.js LTS、Python 3、Codex CLI 和 Claude Code；Karabiner-Elements、LinearMouse 仅作为目标端辅助工具的知情确认。LibreOffice、GitHub CLI、uv、Jupyter、Ruff 等历史候选暂不进入 v1 扫描、`.habitpack` 或安装计划。
+- 产品含义：扫描器、格式 parser、计划元数据和演示夹具必须使用同一份首批目录；目录扩展必须另行决策并补齐来源、验证和回滚证据。
+- 关联决定：D-020、D-034、OD-003
+
+### E-026：软件手动完成状态已接入计划与报告
+
+- 类型：技术验证、隐私/安全审查
+- 摘要：Mac 计划对用户在 Windows 端选择的白名单软件提供一次性勾选和官方入口；应用阶段不静默下载、不绕过 Gatekeeper，并在结果与指南中输出 `manual_action_required`，恢复页不为未修改系统的软件显示恢复按钮。Rust 测试覆盖软件结果不会被伪报为已安装。
+- 产品含义：在可信来源、签名/哈希和安装后验证尚未满足前，用户仍能完成本地设置迁移并得到可执行的官方安装下一步。
+- 关联决定：D-013、D-026、D-034
+
+### E-027：更新检查保留用户确认并走签名安装路径
+
+- 类型：技术验证、供应链边界审查
+- 摘要：Tauri updater 已提供独立的检查和安装命令；安装命令拒绝未确认请求，只有用户确认后才下载并调用 updater 的签名校验安装路径。未注入正式公钥时返回 `UPDATE_NOT_CONFIGURED`，不会回退到未签名安装。
+- 产品含义：启动时可以静默检查，主动检查时才询问是否安装；离线或发布凭据未配置不影响本地迁移。
+- 关联决定：D-016、D-032、OD-006
+
+### E-028：迁移前快照提供明确删除动作
+
+- 类型：技术验证、生命周期审查
+- 摘要：迁移前快照仍保存在应用包外，卸载不会自动删除；设备自检页提供明确的“删除迁移前快照”按钮，删除前必须二次确认，删除后返回不可恢复状态。删除实现对不存在文件幂等，Rust 测试覆盖确认边界和删除结果。
+- 产品含义：满足“默认保留到用户主动删除”，同时不把删除应用误当成删除恢复能力。
+- 关联决定：D-012、D-026、OD-009
+
+### E-029：正式构建版本号与标签对齐
+
+- 类型：技术验证、发布流程审查
+- 摘要：提交 `8b17550` 新增 `scripts/prepare-release.py` 和单元测试；Release workflow 在构建前强制校验 `vMAJOR.MINOR.PATCH` 标签与 `src-tauri/Cargo.toml` 的包版本一致，并同步 `tauri.conf.json`、`package.json` 与 `package-lock.json`，避免正式包仍携带 `1.0.0-rc.1`。本地 40 项 Python/格式检查、前端/Rust 检查通过；GitHub Actions run `30744307355` 的 Windows latest 与 Apple Silicon macOS 15 检查均成功。
+- 产品含义：正式构建的应用版本、更新清单和运行时版本具备一致性检查；这不等于 Windows 签名、Apple 公证、真实设备验收或公开 Release 已完成。
+- 关联决定：D-032、D-033、OD-006
+
+### E-030：updater 产物选择逻辑具备离线测试
+
+- 类型：技术验证、发布流程审查
+- 摘要：提交 `2419cb8` 将 Release workflow 中的 updater manifest 选择逻辑抽为 `scripts/build-release-manifest.py`，并用 4 条离线夹具覆盖 macOS 唯一产物、Windows MSI 优先、NSIS 回退、空签名和候选歧义拒绝。该脚本不联网、不读取秘密、不执行安装包。
+- 产品含义：正式发布时不会在多个 Windows updater 产物或缺少签名文本时静默选错；这只是元数据选择验证，不等于签名、公证、真实安装或公开 Release 已完成。
+- 关联决定：D-032、D-033、OD-006
+
+### E-031：发布资产整体审计已加入发布门
+
+- 类型：技术验证、发布流程审查
+- 摘要：新增 `scripts/validate-release-assets.py` 及 4 条离线单元测试，并接入 Release publish job。脚本在发布前逐平台校验 `SHA256SUMS.txt`、每个文件的 SHA-256、Cargo/npm SBOM、macOS DMG、Windows 安装包、updater 压缩包及非空签名文本，并确认 `latest.json` 的版本、平台、URL 与实际产物一致。它不签名、不联网、不执行或安装任何产物。
+- 产品含义：即使构建 job 已完成，发布 job 也不会把缺少哈希、SBOM、安装包、签名文本或 updater 目标不一致的资产发布出去；这仍不替代真实凭据、代码签名、公证或设备验收。
+- 关联决定：D-032、D-033、OD-006
+
+### E-032：公开 Release 资产展平与完整哈希
+
+- 类型：技术验证、发布流程审查
+- 摘要：新增 `scripts/build-release-checksums.py`、`scripts/stage-release-assets.py` 及 8 条离线测试。构建阶段先生成 SBOM 再对该平台全部资产计算 SHA-256；发布阶段把两个 artifact 展平为唯一文件名，保留双平台 SBOM 和平台哈希，生成覆盖公开资产（含 `latest.json` 与中文变更说明）的总 `SHA256SUMS.txt`，避免同名资产覆盖或发布清单指向错误文件。
+- 产品含义：正式 Release 的安装包、updater、SBOM、哈希、manifest 和中文说明可以作为同一份无重名资产集合发布；这仍不替代签名、公证、stapling 和真实设备验收。
+- 关联决定：D-032、D-033、OD-006
+
+### E-033：取消模块与恢复边界修复
+
+- 类型：代码修复、回归测试
+- 摘要：修复 `apply_plan` 在用户取消键盘重复速度或选择性 Ctrl 后遗漏 `skipped` 结果的问题；恢复命令现在只接受本次实际应用或可恢复失败的模块，`rollback_all` 不再无条件触碰未选模块，恢复页也不为跳过/手动项目显示恢复按钮。新增回归测试确认取消模块不会写入目标值。
+- 产品含义：用户在计划页取消的设置不会出现在“已修改”或恢复动作中，也不会因为“全部恢复”覆盖迁移后用户后来主动做的新设置。
+- 关联决定：D-026、D-027、OD-009
+
+### E-034：手动 tag 的 macOS Release 路径一致
+
+- 类型：CI 流程修复、静态验证
+- 摘要：修复 signed Release workflow 在 `workflow_dispatch` 输入已有 tag 时仍使用 `github.ref_name` 生成和校验 macOS DMG 路径的问题；生成与公证步骤现在共用 `RELEASE_TAG=${{ inputs.tag || github.ref_name }}`。本地静态断言确认两处路径均使用该值。
+- 产品含义：手动重跑指定 tag 时，DMG 文件名、stapling 校验路径和发布资产保持一致，不会因分支名漂移导致发布 job 找不到已公证 DMG。
+- 关联决定：D-032、OD-006
+
+### E-035：手动 tag 检出源码一致性
+
+- 类型：CI 流程修复、静态验证
+- 摘要：Release workflow 的 build 和 publish 两个 checkout 步骤现在显式使用 `ref: ${{ inputs.tag || github.ref }}`；手动输入 tag 时不会再默认构建仓库默认分支，push tag 时仍检出触发该 run 的 tag。随后由 `prepare-release.py` 继续校验 tag 与 Cargo/npm/Tauri 版本一致。
+- 产品含义：正式资产的源码、版本号、updater manifest 和 tag 指向同一提交/版本，避免“Release 文件名正确但实际代码来自错误分支”的供应链错误。
+- 关联决定：D-032、D-033、OD-006
+
+### E-036：真实设备验收手册固定四平台与脱敏证据边界
+
+- 类型：执行准备、隐私/发布门槛
+- 摘要：新增 `docs/execution/real-device-acceptance.md`，固定 Windows 10/11 x64 与 Apple 芯片 macOS 15/26 四台目标环境、内置/外接键盘、鼠标/触控板、UAC/TCC 拒绝降级、离线软件待处理、单模块失败、选择性恢复、升级/卸载/重装和签名公证检查。证据只允许短设备 ID、应用版本、状态和脱敏观察，不允许密码、SSID、用户名、序列号、绝对路径、完整日志或迁移包原文。
+- 产品含义：最后的人工作业可以按同一矩阵复现，缺少设备或凭据时明确保持 `blocked`/`not-applicable`，不会把 CI 或开发构建冒充真实验收。
+- 关联决定：D-032、D-033、OD-005、OD-006、OD-007、OD-009、E-021、E-023
+
+### E-037：本地 macOS App bundle 可构建，updater 签名仍受凭据门控
+
+- 类型：技术验证、发布边界
+- 摘要：在 Apple 芯片 Mac 上执行 Tauri `--bundles app`，前端构建、Rust release 编译和 `MacWin.app` bundle 均成功；默认 updater 产物随后因配置为占位公钥且缺少私钥而拒绝签名。使用官方临时 config 覆盖 `bundle.createUpdaterArtifacts=false` 并显式 `--no-sign` 后，本地未签名 `MacWin.app` 可重复生成。临时覆盖不修改正式 `tauri.conf.json`。
+- 产品含义：代码级 macOS bundle 路径已验证；updater 签名、Developer ID、公证、stapling 和面向新手的安装包仍不能由本地未签名构建替代。
+- 关联决定：D-032、D-033、OD-006、E-021、E-023
+
+### E-038：本地未签名 macOS DMG 可生成并通过磁盘映像校验
+
+- 类型：技术验证、发布边界
+- 摘要：在同一临时未签名配置下执行 Tauri `--bundles dmg`，生成 Apple Silicon DMG；`hdiutil verify` 返回有效，磁盘映像内容可读。产物版本仍是 `1.0.0-rc.1`，未完成 Developer ID 签名、公证或 stapling。
+- 产品含义：DMG 编排和磁盘映像完整性已在本机验证；这只是开发构建证据，不能作为 GitHub Releases 正式安装包，也不能替代真实安装/升级/卸载验收。
+- 关联决定：D-032、D-033、OD-006、E-021、E-023
+
+### E-039：Windows 安装器签名顺序修正
+
+- 类型：发布链路安全审查、官方文档核对
+- 摘要：Tauri 官方 Windows 发布文档支持通过 `bundle.windows.signCommand` 指定安装器签名命令；当前 Release workflow 在 Windows runner 的临时证书库导入证书，并把 `signtool` 作为 `signCommand` 传给 Tauri，再独立验证生成的 `.exe`/`.msi`。这样代码签名发生在 updater 压缩包生成之前，避免事后修改安装器却继续使用旧 updater 签名。
+- 产品含义：正式构建仍必须提供真实 Windows 代码签名证书，并通过发布资产哈希、updater 签名和真实安装验收；本证据不表示当前仓库已有凭据或正式发布已完成。
+- 参考：[Tauri Windows Code Signing](https://tauri.app/distribute/sign/windows/)、[Tauri Windows Installer](https://tauri.app/distribute/windows-installer/)
+- 关联决定：D-032、OD-002、OD-006
+
+### E-040：updater 默认拒绝降级
+
+- 类型：供应链安全审查、官方文档核对
+- 摘要：当前 `tauri-plugin-updater` 使用默认版本比较，只有远端版本高于当前版本才会返回可安装更新；MacWin 的 updater builder 未设置 `version_comparator` 或 `allow_downgrades`，并通过静态回归测试防止后续误开启降级。
+- 产品含义：正式更新链路不会因服务端返回旧版本而自动降级；若未来需要有意回滚，必须新增负责人确认的发布决策、签名策略和真实设备验收，不能通过普通更新入口隐式实现。
+- 参考：[Tauri updater 官方文档](https://v2.tauri.app/zh-cn/plugin/updater/)
+- 关联决定：D-016、D-032、OD-006
+
+### E-041：负责人确认 v1 单快照恢复策略
+
+- 类型：负责人确认、代码与测试核对
+- 摘要：负责人确认第一版采用“一份迁移前快照＋按模块恢复”，并允许应用删除后重新识别此前保留的快照；当前实现将快照放在应用包外，删除动作需要显式确认，恢复命令只接受本次实际应用或可恢复失败的模块。
+- 产品含义：v1 不维护复杂的最近三次备份，也不把恢复描述为恢复出厂；卸载不会静默消除用户的恢复依据。
+- 关联决定：D-012、D-026、D-035
+
+### E-042：负责人确认 v1 报告格式
+
+- 类型：负责人确认、代码与测试核对
+- 摘要：负责人确认第一版提供个性化使用指南和可导出报告；当前实现提供本地 HTML 报告和脱敏 JSON 诊断导出，报告只绑定实际计划与结果，不上传或写入敏感凭据。
+- 产品含义：普通用户可以阅读 HTML 结果，问题排查可以使用脱敏 JSON；PDF、Markdown 等格式不属于 v1 承诺。
+- 关联决定：D-015、D-019、D-036
+
+### E-043：负责人确认 v1 支持入口
+
+- 类型：负责人确认、目标文本约束核对
+- 摘要：v1 只展示公开 GitHub Issues；未提供或未拍板的自媒体链接不进入界面、README 或错误日志输出。
+- 产品含义：用户有明确的公开反馈入口，产品不编造个人联系方式。
+- 关联决定：D-015、D-037、OD-001
+
+### E-044：同 major `.habitpack` 兼容门
+
+- 类型：代码验证、格式策略核对
+- 摘要：Rust 导入器接受 `1.1.0` 这类同 major 且保持当前已知闭合结构的包，拒绝 `2.0.0` 并返回 `HP_SCHEMA_VERSION`；M1 Python 验证档案和生成器仍精确输出 `1.0.0`。
+- 产品含义：同一主版本可做兼容修订，未知 major 或未知结构不会被静默解释。
+- 关联决定：D-009、D-027、D-038、OD-011
+
+### E-045：负责人授权先发布双平台未签名测试包
+
+- 类型：负责人确认、发布边界
+- 摘要：负责人要求在真实 Windows/Mac 设备验收前，先把源码、Windows 安装包和 macOS 安装包上传至公开 GitHub，以便取得设备后直接拉取测试；签名优先寻找免费开源方案，macOS 暂无免费 Developer ID 时只要求在自己的测试设备上按系统提供的手动确认流程运行。
+- 产品含义：可以创建清楚标记的非可信签名 Pre-release；macOS 可使用免费的 ad-hoc 签名保证 bundle 自身完整性，但不能删除隔离属性、关闭系统安全能力或把它宣传为 Developer ID 正式版本。正式 v1.0.0 仍需 D-032 的签名、公证、真实设备和最终确认。
+- 关联决定：D-023、D-032、D-039、OD-002
+
+### E-046：双平台未签名 RC 已发布
+
+- 类型：GitHub Actions 构建、发布资产验证
+- 摘要：GitHub Actions run `30785408954` 在 `release/v1.0.0` 提交 `89aae51` 上分别生成 Windows x64 NSIS 安装器和 Apple Silicon macOS DMG；两个 job 均通过测试、打包与 artifact 上传。DMG 通过 `hdiutil verify`，内部主程序为 arm64，只有 ad-hoc 签名而没有 Team ID 或 Apple 公证；Windows 文件识别为 NSIS 安装器。Pre-release `v1.0.0-rc.1` 已上传两个安装包和各自 SHA-256 清单。
+- 产品含义：负责人现在可从 [GitHub Pre-release](https://github.com/aswansong/macwin/releases/tag/v1.0.0-rc.1) 在真实设备下载测试；该证据不满足正式签名、公证、SmartScreen/Gatekeeper 可信分发或四平台验收。
+- 关联决定：D-023、D-032、D-039、OD-002
+
+### E-047：负责人授权 v1.0.1 未签名 RC 收口
+
+- 类型：负责人确认、发布范围与版本治理
+- 摘要：负责人授权从 `origin/integration/v1.0.0-visual-fidelity-v6` 的 `da64e77` 创建 `release/v1.0.1`，对齐前端、Tauri 和 Cargo 版本，运行真实 Windows x64 NSIS 与 Apple Silicon macOS DMG 的 GitHub Actions 打包，并创建 `v1.0.1-rc.1` Pre-release。授权不包括签名、公证、正式 `v1.0.1` Release、合并 `main` 或绕过 SmartScreen/Gatekeeper。
+- 产品含义：候选包是可复查、可下载的知情测试入口；`.habitpack` schema/ruleset 和快照格式仍保持 `1.0.0`，不会因为应用 RC 版本变化而扩大迁移数据范围。
+- 关联决定：D-039、D-040、OD-002、OD-006、OD-007
+
+### E-048：v1.0.1-rc.1 双平台未签名 Pre-release 已核验
+
+- 类型：GitHub Actions 构建、发布资产与哈希核验
+- 摘要：`release/v1.0.1` 提交 `26ec53f95def65e4be9847a74b8b3e2fa7eb2653` 的 v1 validation run `30824474914` 与 unsigned RC run `30824474842` 均成功；Windows job `91722419458` 生成一个 x64 NSIS 安装器，macOS job `91722419549` 在 Apple Silicon `macos-15` 生成一个 DMG，publish job `91725073580` 成功完成。Pre-release [`v1.0.1-rc.1`](https://github.com/aswansong/macwin/releases/tag/v1.0.1-rc.1) 为非 draft、prerelease，tag HEAD 与构建提交一致，资产恰好为 `MacWin_1.0.1-rc.1_x64-setup.exe`、`MacWin_1.0.1-rc.1_aarch64.dmg`、`SHA256SUMS.txt` 和 `README-TESTING.md`。
+- 哈希：Windows `8ac208babe263615011ad12457bed0b4d933cd966fee15e00e750ca5178b50b0`；macOS `7c81c91e6013e17a83cb7f36b37d57a75571efbb4ddf0a79f216dd0cbae3f605`。下载后重新计算的 SHA-256 与总清单一致。
+- 产品含义：负责人现在可以直接下载当前原生 App RC 进行真实设备验收；这仍是未签名知情测试包，不满足 Windows 可信签名、Apple Developer ID/公证、SmartScreen/Gatekeeper 可信分发或正式 v1.0.1 Release 门槛。
+- 关联决定：D-040、OD-002、OD-005、OD-006、OD-007
+
+### E-049：第三方键位规则实验不适合进入 rc.2
+
+- 类型：技术复盘、风险审查
+- 摘要：Alpha 0.2 的选择性 Ctrl 方案依赖第三方规则文件、设备/应用例外和常驻权限；在 Mac/Windows 合流时保留该写入路径会让恢复边界、冲突检测和外接设备行为难以向新手解释。当前实现已移除第三方配置写入，仅保留只读冲突提示。
+- 产品含义：rc.2 的键位范围收敛为 MacBook 内置键盘的原生逐设备 Control ↔ Command 成对映射；外接键盘默认不改变。
+- 关联决定：D-041、E-001、E-002
+
+### E-050：原生 modifier mapping 的快照与恢复合同
+
+- 类型：代码验证、平台接口实验
+- 摘要：macOS `defaults -currentHost` 能以数组字典同时写入四个 Control/Command 方向，并可重新读取验证；快照记录 modifier mapping key 是否存在和写入前的原始值。恢复分为“精确写回旧值”和“删除迁移前不存在的 key”，并对新旧快照字段使用兼容默认值。
+- 产品含义：键位模块不需要常驻进程或第三方安装；真实设备仍需验证内置键盘行为、重启/睡眠和外接键盘不变。
+- 关联决定：D-041、D-012、D-027
+
+### E-051：Mac/Windows rc.2 合流完成
+
+- 类型：分支整合、冲突回归
+- 摘要：从 `origin/release/v1.0.1` 创建 `integration/v1.0.1-final-convergence`，按 Mac `6553386` 后 Windows `0f4ec31` 合流；唯一冲突在 `habitpack.rs` 的外部回归测试，保留后在冲突后运行 Rust 目标测试通过。两端 Rust 适配、原生桥接和 Windows 严格验证记录均进入同一集成提交。
+- 产品含义：rc.2 的候选可在一个提交上同时验证 Mac 真实闭环和 Windows 原生扫描/导出边界；这不等于真实四平台发布门槛已关闭。
+- 关联决定：D-042、D-027、E-024、E-048
+
+### E-052：rc.2 图标与网页标题栏收口
+
+- 类型：视觉资产生成、静态回归
+- 摘要：以蓝色圆角方块和白色 `MW` 为仓库主图，使用 Tauri CLI 生成 PNG、ICO、ICNS 并配置 Windows/macOS bundle。Mac/Windows 页面均移除网页层仿系统交通灯/最小化关闭按钮；Mac 品牌回到左侧，右侧保留设备自检与设置入口。Windows 扫描页删除重复的模块隐私行，底部扫描免责声明保留。
+- 产品含义：系统窗口控制仍由 OS 提供，页面只承担品牌和应用内操作；OD-004 只收口应用图标子项，完整品牌体系仍待决定。
+- 关联决定：D-042、OD-004、D-021
+
+### E-053：Apple Silicon Mac 原生键位真实往返
+
+- 类型：真实 Mac 应用走查、系统读回验证
+- 摘要：在 macOS 26.5.2 Apple Silicon 机器上用 `MacWin_1.0.1-rc.2` 未签名 App 导入用户提供的 `windows-habits.habitpack`（SHA-256 `3d96b3abfbf8638f408aad4cd5e6bb1ee7c12c266a1915f9f2781212fd5c3b17`），通过强制计划确认后，结果页显示内置键盘 Control ↔ Command“已验证”；`defaults -currentHost read` 读回四个成对映射。随后在恢复页单独恢复键位，结果显示“已恢复并验证”，系统 mapping key 回到迁移前不存在状态；外接键盘、Option、Fn 未被写入。测试使用临时新快照，完成后恢复原有应用外快照并清理测试映射。
+- 产品含义：rc.2 的原生键位实现已完成一次真实应用级写入、读回和精确恢复；这不替代睡眠/重启、外接设备矩阵和签名包验收。
+- 关联决定：D-041、D-042、D-012
+
+### E-054：rc.2 本地 Apple Silicon 产物核验
+
+- 类型：Tauri release 构建、DMG 校验、架构与哈希核对
+- 摘要：在集成提交 `3bb9a5c` 上本地运行 `npm run tauri build -- --bundles app,dmg --no-sign --config src-tauri/tauri.unsigned.conf.json`；`MacWin.app` 主程序为 `arm64`，DMG 通过 `hdiutil verify`，包名为 `MacWin_1.0.1-rc.2_aarch64.dmg`，SHA-256 为 `8497b96046cda5a5258522c615092e163c79e7927f6388fdd14e22d188784cdc`。代码目录显示 ad-hoc/linker-signed、无 Team ID，不能视为 Developer ID 签名或公证。
+- 产品含义：本地包可供负责人和明确知情 Alpha 测试者继续验收；后续 GitHub 双平台 Actions 与公开 Pre-release 已由 E-055 核验，签名、公证和正式版本仍未完成。
+- 关联决定：D-040、D-042、OD-002、OD-006
+
+### E-055：rc.2 双平台 Actions 与公开 Pre-release 核验
+
+- 类型：GitHub Actions 构建、Release 资产下载与 SHA-256 复核
+- 摘要：最终集成提交 `122ac3c2e25d137fca2259981d78ddb6f2ea1afd` 的 v1 validation run `31064223858` 在 `macos-15` 与 `windows-latest` 均通过；unsigned RC run `31064223856` 的 Windows、macOS 打包及 publish job `92499884883` 均成功。Pre-release [`v1.0.1-rc.2`](https://github.com/aswansong/macwin/releases/tag/v1.0.1-rc.2) 为非 draft、prerelease，tag 指向同一提交，资产包含 `MacWin_1.0.1-rc.2_x64-setup.exe`、`MacWin_1.0.1-rc.2_aarch64.dmg`、`README-TESTING.md` 与 `SHA256SUMS.txt`。
+- 哈希：Windows `cbbbddf7ad904d44bd400eab9e9ff95a65027870f4c0f3a3dd8a13e900f20e92`；macOS `0cf908096d0e3cc37724a423d590f961bf2452110e4ca9a82695869c1f9cbf9d`。使用 `gh release download` 下载后执行 `sha256sum -c SHA256SUMS.txt`，两个文件均返回 `OK`。
+- 产品含义：负责人和明确知情测试者现在可以直接下载同一集成提交的双平台未签名测试包；这仍不代表 Developer ID/Windows 可信签名、公证、真实四平台矩阵或正式 `v1.0.1` 门槛已关闭。
+- 关联决定：D-040、D-042、OD-002、OD-006、OD-007
+
+### E-056：Windows 发布校验的 CRLF 回归修复
+
+- 类型：CI 失败定位、跨平台发布脚本修复
+- 摘要：最终文档提交前的 unsigned RC run `31063048216` 中，Windows/ macOS 打包均成功，但 publish 在比较 `BUILD_COMMIT.txt` 时因 PowerShell `Set-Content` 写入 CRLF 而失败；改为 `-NoNewline` 后，run `31063577136` 与 publish job `92497956679` 全绿。失败运行未覆盖 Release 资产，成功运行随后重新上传并核验同一提交资产。
+- 产品含义：发布门保留了同一提交的字节级校验，跨平台换行差异不能静默进入公开下载物。
+- 关联决定：D-042、OD-002、OD-006
+
+### E-057：v1.0.1 未签名公开版阶段授权与来源基线
+
+- 类型：负责人授权、发布范围冻结、远端状态核验
+- 摘要：在创建 `release/v1.0.1-public` 前重新 fetch/prune/tags，核对 `origin/main=dc2b4000a5f9126b63dc4048d1a8197105a9204b`、rc.2 集成头 `5763966f69eb335b955668718ea9dc6df849331e`、`v1.0.1-rc.2` 标签 `51eaea95c61568c408a16d8c3954c87c99a94790`；main 与集成分支相差 95 个提交、118 个文件。公开版允许通过新 PR merge commit 合入 main，标签固定在精确 main HEAD；不得移动或删除 rc.2 标签/Release，不做任何签名、公证或安全策略绕过。
+- 产品含义：本阶段把“公开可下载”与“可信签名”明确拆开；普通用户能在 README、Release 和安装说明看到支持范围、未签名风险、隐私边界和恢复方式，而源码和资产来源可以逐项复核。
+- 关联决定：D-043、D-032、OD-002、OD-006
