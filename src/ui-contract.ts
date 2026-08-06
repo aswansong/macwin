@@ -68,7 +68,7 @@ export function friendlyError(value: unknown): string {
     SNAPSHOT_LOAD: "无法读取迁移前快照，MacWin 已停止恢复；原设置保持不变。",
     ACCESSIBILITY_DENIED: "系统没有授予辅助功能权限；相关模块已降级，其他模块不受影响。",
     UAC_DENIED: "没有获得 Windows 管理员授权；相关项目已跳过，其他项目可以继续。",
-    UPDATE_NOT_CONFIGURED: "当前版本尚未配置可信更新源；本地迁移功能不受影响。",
+    UPDATE_NOT_CONFIGURED: "当前公开版未启用自动更新；请从 GitHub Releases 手动下载并校验 SHA256SUMS。本地迁移功能不受影响。",
   };
   return messages[code] ?? (code ? `操作未完成（错误码 ${code}）。MacWin 没有继续修改系统，请重试或查看错误提示。` : "发生未知错误，请查看报告中的错误码。");
 }

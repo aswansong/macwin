@@ -7,8 +7,6 @@ on:
         description: "Existing v1 tag to release"
         required: true
         type: string
-  push:
-    tags: ["v1.*"]
 
 permissions:
   contents: write

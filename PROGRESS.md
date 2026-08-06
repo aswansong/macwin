@@ -1,10 +1,16 @@
-# v1.0.1-rc.2 convergence progress
-- 目标：Mac/Windows 合流、内置键盘原生互换、正确图标、标题栏修正和未签名 rc.2。
-- 顺序/基线：证据合并 → 原生键位/恢复 → 图标/视觉 → 双平台发布；release/v1.0.1 + Mac 6553386 + Windows 0f4ec31。
-- 硬边界：不改 Wi‑Fi/schema 1.0.0/软件白名单/签名机制；不写 Karabiner。
-- 当前阶段：真实 Mac 原生键位往返、双平台 CI、RC 产物与下载哈希均已通过，正在完成最终审计。
-- 剩余差距：Developer ID/Windows 签名、公证、真实四平台与外设矩阵仍是人工门槛。
-- 证据要求：每次冲突后测试；红→绿反转测试；最多三轮验收。
-- 已证据：合流 e07c061；前端 14/14；Rust 20/0/1；Clippy、M1 55/55、外部包 1/1。
-- 反转验收：故意反转键位与标题栏断言均红，恢复后均绿；未保留临时代码。
-- 发布证据：最终 Actions `31064223858`/`31064223856`、publish `92499884883` 成功；双平台下载哈希匹配（E-055/E-056）。
+# v1.0.1 public release progress
+- 目标：把已验证 rc.2 通过 PR merge commit 收入 main，发布源码、标签、构建与下载资产同源的未签名公开版。
+- 开工基线：`MAIN_BEFORE=dc2b4000a5f9126b63dc4048d1a8197105a9204b`；rc.2 集成头 `5763966f69eb335b955668718ea9dc6df849331e`；rc.2 标签仍为 `51eaea95c61568c408a16d8c3954c87c99a94790`。
+- 当前分支：`release/v1.0.1-public`，所有远端头已 fetch；旧 rc.2 标签、Release 和历史分支不改写。
+- 让步顺序：数据与回滚安全 → 构建来源一致 → 双平台可用 → 发布整洁 → 速度。
+- 硬边界：schema/迁移类别/白名单/键位/快照语义不变；不签名、不公证、不绕过 SmartScreen/Gatekeeper、不上传秘密。
+- 当前阶段：冻结 `1.0.1` 公开内容并建立不误触签名门的 dry-run/tag workflow。
+- 证据要求：每个不可逆动作前重新 fetch/SHA；标签前 dry-run；记录 commit 错位红→绿；最多三轮完整验收。
+- 已知门槛：真实 Windows 安装/卸载烟测、真实 Mac 核心烟测、分支保护 API 和正式 Release 均需逐项核验。
+- 冻结完成：package/lock/Tauri/Cargo 均为 1.0.1；schema 仍为 1.0.0，rc.2 标签与资产未改写。
+- 文档已加入 D-043/E-057 公开未签名边界；README、Release 说明和 README-FIRST.md 均明确 SmartScreen/Gatekeeper 风险与零绕过命令。
+- 新增 `.github/workflows/public-release.yml`：dispatch 永不发布，只有精确 `v1.0.1` tag push 发布；双平台 NSIS/DMG、BUILD-INFO、BUILD_COMMIT、SHA256 和发布前 validator 已接入；signed workflow 已去掉 tag push。
+- 新增 `scripts/validate-public-release-assets.py` 及 5 条成功/失败测试，覆盖 commit mismatch、asset count、hash mismatch、rc tag/version；静态 workflow 测试 3 条。
+- 本地验证：`npm test` 14/14；`npm run build` 通过；Cargo fmt/test/clippy 通过（20 passed、1 个既有外部测试 ignored）；`./scripts/validate-m1` 61/61 通过。
+- 更新入口已改为手动检查说明，移除启动时 `check_update(false)`，公开未签名构建不生成 updater/`latest.json`。
+- 下一步：提交并推送分支，重新 fetch 后创建 PR；PR 头运行 dry-run，待检查通过后 merge commit main，再固定 annotated tag 和公开 Release。

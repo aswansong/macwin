@@ -26,13 +26,17 @@ Alpha 只允许 Windows 10/11 x64 白名单扫描、现有格式的导出/导入
 
 `release/v1.0.0` 已获 D-032 授权实现剩余 P0、Tauri bundle、更新草稿和 CI。当前构建仍需通过本文件第 6 节的所有阻断门，未签名构建只供明确知情测试者。
 
-### R4.1：v1.0.1-rc.2 未签名候选（当前）
+### R4.1：v1.0.1-rc.2 未签名候选（历史已验证）
 
-`integration/v1.0.1-final-convergence` 合流 Mac 与 Windows 原生验证，负责对齐 `1.0.1-rc.2`、原生内置键盘映射、标题栏/图标、双平台打包 CI、测试说明和发布资产校验。`v1.0.1-rc.2` 是 GitHub Pre-release，只供负责人和明确知情测试者；Windows 安装器未签名，macOS DMG 只有 ad-hoc 完整性签名，不得关闭 SmartScreen/Gatekeeper，也不代表正式 v1.0.1。[D-040、D-042]
+`integration/v1.0.1-final-convergence` 已合流 Mac 与 Windows 原生验证并完成 rc.2 Pre-release。`v1.0.1-rc.2` 保留为历史未签名知情测试包，不改写、不删除。[D-040、D-042、E-055]
 
-### R5：公开新手版本（尚未通过）
+### R4.2：v1.0.1 未签名公开版（当前）
 
-必须满足本文件的发布门槛、签名公证和真实设备矩阵，不要求新手绕过系统安全警告。[D-023]
+`release/v1.0.1-public` 负责把已验证 rc.2 通过新 PR merge commit 收入 `main`，冻结应用版本 `1.0.1`，在精确 main HEAD 创建不可移动 annotated tag `v1.0.1`，并发布非草稿、非 Pre-release、Latest 的公开版。Windows x64 NSIS 与 Apple Silicon macOS DMG 均未签名；Release、README-FIRST 和安装说明必须标注 SmartScreen/Gatekeeper 风险，不提供关闭或绕过安全策略的命令。公开 workflow 不生成 `latest.json` 或未签名自动更新资产；`BUILD-INFO.json`、`BUILD_COMMIT` 和 SHA-256 必须与 tag commit 一致。[D-043、E-057]
+
+### R5：可信签名公开版本（后续门槛）
+
+后续可信版本才需要补齐 Windows 签名、Apple Developer ID/公证、自动更新签名和完整真实设备矩阵；`v1.0.1` 未签名公开版不得被宣传为可信签名版本。[D-023、D-043]
 
 ## 2. P0 测试层级
 

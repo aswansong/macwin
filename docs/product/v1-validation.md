@@ -1,10 +1,14 @@
-# MacWin v1 验证矩阵（开发中）
+# MacWin v1 验证矩阵（v1.0.1 公开版收口中）
 
-状态：`integration/v1.0.1-final-convergence`（基于 `origin/release/v1.0.1`，合流 Mac `6553386` 与 Windows `0f4ec31`）。这份记录区分“代码已具备”“本地验证通过”和“仍需真实设备/凭据门槛”，`v1.0.1-rc.2` 仍是不签名知情测试版，不是正式 Release。[D-042、E-051]
+状态：`release/v1.0.1-public`（基于已验证 `integration/v1.0.1-final-convergence@5763966`，合流 Mac `6553386` 与 Windows `0f4ec31`）。这份记录区分“代码已具备”“本地/CI 验证通过”和“仍需真实设备/凭据门槛”；当前目标是明确未签名的公开 `v1.0.1`，不是可信签名版本。[D-043、E-057]
 
-## v1.0.1-rc.2 候选验证（Actions 已通过）
+## v1.0.1-rc.2 候选验证（历史 Actions 已通过）
 
 候选版本目标为前端/Tauri `1.0.1-rc.2`、Cargo `1.0.1`；`.habitpack` schema、ruleset 与 snapshot 继续保持 `1.0.0`。最终集成提交 `122ac3c2e25d137fca2259981d78ddb6f2ea1afd` 的 v1 validation run `31064223858`、unsigned RC run `31064223856` 及 publish job `92499884883` 均成功；Pre-release、同一提交和双平台 SHA-256 已下载复核。[D-042、E-055、E-056]
+
+## v1.0.1 公开版验证目标（当前）
+
+公开版必须把 `origin/main`、annotated tag `v1.0.1`、workflow `GITHUB_SHA`、两端 `BUILD_COMMIT`、`BUILD-INFO.json` 和下载资产绑定到同一提交；workflow 必须以精确 tag checkout，版本精确为 `1.0.1`，只生成一个 Windows x64 NSIS 和一个 Apple Silicon DMG，不生成 `latest.json` 或未签名 updater。发布后从 GitHub Release 重新下载全部资产并执行哈希、版本、架构、风险说明和来源审计。[D-043]
 
 ## integration/v1.0.0-visual-fidelity-v6 视觉整合补充
 
@@ -46,25 +50,26 @@
 | 真实设备验收准备 | [真实设备验收手册](../execution/real-device-acceptance.md) 固定 W10/W11/M15/M26、权限/外设/失败/恢复/升级卸载矩阵与脱敏证据字段 | 尚未执行；设备、签名凭据、系统弹窗和负责人最终确认仍是发布门槛 |
 | 本地 macOS App bundle | Tauri `--bundles app` 完成前端、Rust release 编译和 `MacWin.app` 生成；临时关闭 updater 产物并 `--no-sign` 后可重复构建 | 仅未签名构建验证；updater 私钥、Developer ID、公证、stapling 和真实安装仍未完成 |
 | 本地 macOS DMG | Tauri `--bundles dmg` 生成 Apple Silicon DMG，`hdiutil verify` 校验有效 | 产物仍为未签名 `1.0.1-rc.2` 开发包；不替代 Developer ID、公证、stapling 或真实安装验收 |
-| GitHub 未签名 RC | Actions `31064223856` 与 publish job `92499884883` 成功；Pre-release 含 Windows x64 NSIS、Apple Silicon DMG、`README-TESTING.md` 和总 `SHA256SUMS.txt`，下载后两项均 `sha256sum -c ...: OK` | 只供负责人和知情测试者；不合并 `main`，不替代正式签名、公证或真实设备验收 |
+| GitHub 未签名 RC | 历史 Actions `31064223856` 与 publish job `92499884883` 成功；Pre-release 含 Windows x64 NSIS、Apple Silicon DMG、`README-TESTING.md` 和总 `SHA256SUMS.txt`，下载后两项均 `sha256sum -c ...: OK` | 历史知情测试包；不改写 rc.2 |
+| v1.0.1 公开版来源一致性 | 待 `release/v1.0.1-public` dry-run、PR merge、tag workflow 与 Release 下载审计 | 未签名；必须醒目标注 SmartScreen/Gatekeeper 风险，不生成未签名 updater |
 
-## 尚未达到正式发布门槛
+## v1.0.1 公开版仍明确未完成
 
 - Wi‑Fi 密码：未实现真实凭据读写；在未证明平台安全不变量前不会把明文密码写入未加密包。
 - 软件自动安装：当前固定白名单提供官方入口；Mac 计划和报告会把已选择但未自动安装的项目标为 `manual_action_required`，不伪报已安装。签名/哈希、架构、版本和安装后可执行验证仍需完成。
 - 首批软件目录：仅 Chrome、Edge、Firefox、Microsoft 365、WPS Office、Visual Studio Code、Git、Node.js、Python、Codex CLI、Claude Code；历史候选不进入 v1 扫描或迁移包。[D-034、E-025]
 - LinearMouse：缺失、拒绝授权、设备断开/重连和卸载后的恢复矩阵仍需实际设备验收；键位模块不再依赖第三方写入。
 - 更新：Tauri updater 已加入代码和 GitHub Releases endpoint 草稿；手动安装路径要求用户确认，并由 updater 在下载后验证签名；`PENDING_RELEASE_KEY` 必须由发布凭据替换，不能用于正式更新。
-- 安装包：bundle 配置和签名 Release workflow 已草拟；Windows 可信签名、Developer ID、公证、stapling、真实安装/卸载尚未完成。
+- 安装包：公开版只承诺未签名 Windows x64 NSIS 与 Apple Silicon DMG；Windows 可信签名、Developer ID、公证、stapling 和可信自动更新仍未完成。
 - 真实矩阵：至少需要 Windows 10 x64、Windows 11 x64、Apple 芯片 macOS 15、Apple 芯片 macOS 26，以及内置键盘、外接 Windows 键盘、鼠标和触控板。
 
 ## 第三方依赖说明
 
 LinearMouse 是独立的 Mac 鼠标/触控板工具；MacWin 只检测其是否存在、提示官方入口和辅助功能授权，不静默安装或猜测其配置。参见[官方仓库](https://github.com/linearmouse/linearmouse)和[官方辅助功能说明](https://github.com/linearmouse/linearmouse/blob/main/ACCESSIBILITY.md)。
 
-## 发布前一次性人工门槛
+## 公开版后的后续人工门槛
 
-1. 配置 Tauri updater 公钥和签名私钥，并在隔离环境完成签名验证。
-2. 提供真实 Windows 10/11 与 macOS 15/26 设备，完成 UAC、TCC、LinearMouse 授权和拒绝路径，并验证内置键盘原生映射恢复。
+1. 配置 Tauri updater 公钥和签名私钥，并在隔离环境完成可信更新验证；`v1.0.1` 不启用未签名自动更新。
+2. 补齐真实 Windows 10/11 与 macOS 15/26 完整设备/外设矩阵，完成 UAC、TCC、LinearMouse 授权和拒绝路径，并验证内置键盘原生映射恢复。
 3. 在安装、升级、回滚和卸载后检查快照、报告、日志及敏感信息探针。
-4. 负责人确认 Release 内容后，才允许合并 `main`、创建 `v1.0.1` 标签和 GitHub Release；`v1.0.1-rc.2` 不满足这些门槛。
+4. 可信签名版本必须另行决定，不把本次未签名公开版描述为安全可信分发。

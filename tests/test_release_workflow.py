@@ -39,3 +39,8 @@ class ReleaseWorkflowTests(unittest.TestCase):
             "WINDOWS_CERTIFICATE_PASSWORD",
         ):
             self.assertIn(variable, text)
+
+    def test_signed_workflow_is_manual_only(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch:", text)
+        self.assertNotIn("  push:\n    tags:", text)

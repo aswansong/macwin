@@ -695,13 +695,16 @@ async function saveReport(format: "html" | "json"): Promise<void> {
 async function checkUpdate(showResult: boolean): Promise<void> {
   if (!isTauri) { if (showResult) window.alert("浏览器演示不会联网检查更新。"); return; }
   try { const result = await invokeOrPreview("check_update"); if (showResult && result.status === "available") { const confirmed = window.confirm(`发现新版本 ${result.version ?? ""}。MacWin 会先验证签名，再下载并安装。现在安装吗？`); if (confirmed) { const installed = await invokeOrPreview("install_update", { request: { confirmed: true } }); window.alert(installed.status === "installed_restart_required" ? `版本 ${installed.version ?? ""} 已安装，重启 MacWin 后生效。` : "当前已是最新版本。"); } } else if (showResult) window.alert("当前已是最新版本。"); }
-  catch (error) { if (showResult && parseNativeError(error) !== "UPDATE_NOT_CONFIGURED") recordError(error); if (showResult) window.alert("暂时无法检查更新；离线时不影响本地迁移功能。"); }
+  catch (error) {
+    const code = parseNativeError(error);
+    if (showResult && code !== "UPDATE_NOT_CONFIGURED") recordError(error);
+    if (showResult) window.alert(code === "UPDATE_NOT_CONFIGURED" ? friendlyError(code) : "暂时无法检查更新；离线时不影响本地迁移功能。");
+  }
 }
 
 async function loadRuntime(): Promise<void> {
   try { state = { ...state, runtime: await invokeOrPreview("runtime_info") }; }
   catch (error) { const code = recordError(error); state = { ...state, runtime: { platform: "unsupported", os_version: "无法读取", architecture: "unknown", supported: false, support_message: "无法确认当前设备是否受支持", alpha: false }, error: code }; }
-  if (isTauri) void checkUpdate(false);
   render();
 }
 

@@ -1,0 +1,319 @@
+name: MacWin v1.0.1 public unsigned release
+
+on:
+  # A dispatch is always a dry-run.  Only the exact v1.0.1 tag push can
+  # publish, which keeps an accidental branch build out of Releases.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Optional existing tag to dry-run (leave empty for the selected branch commit)"
+        required: false
+        default: ""
+        type: string
+  push:
+    tags: ["v1.0.1"]
+
+permissions:
+  contents: write
+
+env:
+  PUBLIC_TAG: v1.0.1
+  PUBLIC_VERSION: 1.0.1
+  SCHEMA_VERSION: 1.0.0
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.source.outputs.tag }}
+      commit: ${{ steps.source.outputs.commit }}
+      publish: ${{ steps.source.outputs.publish }}
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'push' && github.ref || inputs.tag || github.sha }}
+          fetch-depth: 0
+
+      - name: Resolve and freeze source identity
+        id: source
+        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            tag="$GITHUB_REF_NAME"
+            publish=true
+          elif [ -n "$INPUT_TAG" ]; then
+            tag="$INPUT_TAG"
+            publish=false
+          else
+            tag="$PUBLIC_TAG"
+            publish=false
+          fi
+          test "$tag" = "$PUBLIC_TAG"
+          commit="$(git rev-parse HEAD)"
+          if [ "$GITHUB_EVENT_NAME" = "push" ] || [ -n "$INPUT_TAG" ]; then
+            tag_commit="$(git rev-list -n 1 "$tag^{commit}")"
+            test "$tag_commit" = "$commit"
+          fi
+          printf 'tag=%s\ncommit=%s\npublish=%s\n' "$tag" "$commit" "$publish"
+          {
+            echo "tag=$tag"
+            echo "commit=$commit"
+            echo "publish=$publish"
+          } >> "$GITHUB_OUTPUT"
+          python3 scripts/prepare-release.py "$tag"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          expected = "1.0.1"
+          for path in (Path("package.json"), Path("src-tauri/tauri.conf.json")):
+              value = json.loads(path.read_text(encoding="utf-8"))["version"]
+              assert value == expected, (path, value)
+          lock = json.loads(Path("package-lock.json").read_text(encoding="utf-8"))
+          assert lock["version"] == expected
+          assert lock["packages"][""]["version"] == expected
+          cargo = Path("src-tauri/Cargo.toml").read_text(encoding="utf-8")
+          assert 'version = "1.0.1"' in cargo.split("[lib]", 1)[0]
+          assert "rc" not in cargo.lower()
+          PY
+
+  package:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            platform: windows
+            artifact_platform: windows-x64
+          - os: macos-15
+            target: aarch64-apple-darwin
+            platform: macos
+            artifact_platform: macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out exact tagged commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+          fetch-depth: 0
+
+      - name: Assert Apple Silicon runner
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: test "$(uname -m)" = "arm64"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@1.97.1
+        with:
+          targets: ${{ matrix.target }}
+          components: clippy,rustfmt
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Test frontend and build
+        run: |
+          npm test
+          npm run build
+
+      - name: Check Rust format, tests and Clippy
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+          cargo test --manifest-path src-tauri/Cargo.toml --locked
+          cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+
+      - name: Run M1 and release tests
+        shell: bash
+        run: ./scripts/validate-m1
+
+      - name: Build unique unsigned Windows NSIS installer
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: npm run tauri build -- --target ${{ matrix.target }} --bundles nsis --no-sign --config src-tauri/tauri.unsigned.conf.json
+
+      - name: Build unique unsigned Apple Silicon DMG
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run tauri build -- --target ${{ matrix.target }} --bundles app --no-sign --config src-tauri/tauri.unsigned.conf.json
+          bundle_root="src-tauri/target/${{ matrix.target }}/release/bundle"
+          app="$bundle_root/macos/MacWin.app"
+          dmg="$bundle_root/dmg/MacWin_1.0.1_aarch64.dmg"
+          test -d "$app"
+          mkdir -p "$bundle_root/dmg"
+          hdiutil create -volname MacWin -srcfolder "$app" -ov -format UDZO "$dmg"
+          hdiutil verify "$dmg"
+
+      - name: Stage Windows release asset
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force public-staging | Out-Null
+          $packages = Get-ChildItem "src-tauri/target/${{ matrix.target }}/release/bundle/nsis" -File -Filter *.exe
+          if ($packages.Count -ne 1) { throw "Expected exactly one NSIS installer, found $($packages.Count)" }
+          Copy-Item $packages[0].FullName "public-staging/MacWin_1.0.1_x64-setup.exe"
+          "${{ needs.prepare.outputs.commit }}" | Set-Content "public-staging/BUILD_COMMIT-windows.txt" -NoNewline -Encoding ascii
+          $info = [ordered]@{
+            tag = "${{ needs.prepare.outputs.tag }}"
+            commit = "${{ needs.prepare.outputs.commit }}"
+            version = "1.0.1"
+            schema_version = "1.0.0"
+            unsigned = $true
+            platform = "windows-x64"
+            architecture = "x86_64"
+            build_commit = "${{ needs.prepare.outputs.commit }}"
+          }
+          $info | ConvertTo-Json | Set-Content "public-staging/BUILD-INFO-windows.json" -Encoding utf8
+
+      - name: Stage macOS release asset
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public-staging
+          packages=(src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg)
+          test "${#packages[@]}" -eq 1
+          cp "${packages[0]}" public-staging/MacWin_1.0.1_aarch64.dmg
+          printf '%s' '${{ needs.prepare.outputs.commit }}' > public-staging/BUILD_COMMIT-macos.txt
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          commit = "${{ needs.prepare.outputs.commit }}"
+          Path("public-staging/BUILD-INFO-macos.json").write_text(json.dumps({
+              "tag": "${{ needs.prepare.outputs.tag }}",
+              "commit": commit,
+              "version": "1.0.1",
+              "schema_version": "1.0.0",
+              "unsigned": True,
+              "platform": "macos-arm64",
+              "architecture": "aarch64",
+              "build_commit": commit,
+          }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload platform staging
+        uses: actions/upload-artifact@v6
+        with:
+          name: macwin-v1.0.1-${{ matrix.platform }}
+          path: public-staging
+          if-no-files-found: error
+          retention-days: 30
+
+  verify:
+    needs: [prepare, package]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact source for release notes and validator
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+          fetch-depth: 0
+
+      - name: Download both platform staging artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: macwin-v1.0.1-*
+          path: platform-staging
+          merge-multiple: true
+
+      - name: Assemble and verify one public asset set
+        shell: bash
+        env:
+          RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-upload
+          test "$(find platform-staging -maxdepth 1 -type f -name 'MacWin_1.0.1_x64-setup.exe' | wc -l | tr -d ' ')" = 1
+          test "$(find platform-staging -maxdepth 1 -type f -name 'MacWin_1.0.1_aarch64.dmg' | wc -l | tr -d ' ')" = 1
+          test "$(find platform-staging -maxdepth 1 -type f -name 'BUILD_COMMIT-*.txt' | wc -l | tr -d ' ')" = 2
+          cp platform-staging/MacWin_1.0.1_x64-setup.exe release-upload/
+          cp platform-staging/MacWin_1.0.1_aarch64.dmg release-upload/
+          cp platform-staging/BUILD_COMMIT-windows.txt release-upload/
+          cp platform-staging/BUILD_COMMIT-macos.txt release-upload/
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("platform-staging")
+          expected = "${{ needs.prepare.outputs.commit }}"
+          infos = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(root.glob("BUILD-INFO-*.json"))]
+          assert len(infos) == 2, infos
+          assert {item["platform"] for item in infos} == {"windows-x64", "macos-arm64"}
+          assert all(item["commit"] == expected and item["build_commit"] == expected for item in infos)
+          aggregate = {
+              "tag": "${{ needs.prepare.outputs.tag }}",
+              "commit": expected,
+              "version": "1.0.1",
+              "schema_version": "1.0.0",
+              "unsigned": True,
+              "platforms": sorted(
+                  {"platform": item["platform"], "architecture": item["architecture"], "build_commit": item["build_commit"]}
+                  for item in infos
+              ),
+          }
+          Path("release-upload/BUILD-INFO.json").write_text(json.dumps(aggregate, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          Path("release-upload/README-FIRST.md").write_text(Path("docs/releases/README-FIRST.md").read_text(encoding="utf-8"), encoding="utf-8")
+          PY
+          (cd release-upload && sha256sum MacWin_1.0.1_x64-setup.exe MacWin_1.0.1_aarch64.dmg BUILD-INFO.json README-FIRST.md BUILD_COMMIT-windows.txt BUILD_COMMIT-macos.txt > SHA256SUMS.txt)
+          python3 scripts/validate-public-release-assets.py "$RELEASE_TAG" "$RELEASE_COMMIT" release-upload
+
+      - name: Upload verified public assets
+        uses: actions/upload-artifact@v6
+        with:
+          name: macwin-v1.0.1-public-assets
+          path: release-upload
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    if: needs.prepare.outputs.publish == 'true'
+    needs: [prepare, verify]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact tagged source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+          fetch-depth: 0
+
+      - name: Download verified public assets
+        uses: actions/download-artifact@v8
+        with:
+          name: macwin-v1.0.1-public-assets
+          path: release-upload
+
+      - name: Confirm tag and source identity before publish
+        shell: bash
+        env:
+          RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
+          test "$(git rev-list -n 1 'v1.0.1^{commit}')" = "$RELEASE_COMMIT"
+          python3 scripts/validate-public-release-assets.py v1.0.1 "$RELEASE_COMMIT" release-upload
+
+      - name: Publish MacWin v1.0.1 public unsigned release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.1
+          target_commitish: ${{ needs.prepare.outputs.commit }}
+          name: MacWin v1.0.1 公开版（未签名）
+          body_path: docs/releases/v1.0.1.md
+          draft: false
+          prerelease: false
+          make_latest: true
+          files: release-upload/*

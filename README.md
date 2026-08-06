@@ -4,7 +4,15 @@
 
 MacWin 是一个面向 Windows 迁移用户的本地桌面工具。它计划读取经过用户允许的 Windows 使用习惯，生成 `.habitpack` 迁移包，并在 Apple 芯片 Mac 上把这些习惯转换为安全、可解释、可回滚的配置。
 
-> 当前状态：**v1.0.1-rc.2 未签名测试版准备中**。`integration/v1.0.1-final-convergence` 合流 Mac/Windows 原生验证，正在验证双平台打包；当前构建只供负责人和明确知情测试者使用，不是面向普通用户的正式发布。[D-039、D-040、E-047]
+> 当前状态：**MacWin v1.0.1 公开版（未签名）**。它允许公众下载，但不是 Windows Authenticode 签名、Apple Developer ID 签名或公证版本；Windows SmartScreen 或 macOS Gatekeeper 可能阻止启动。遇到阻止请停止并阅读提示，不要关闭或绕过系统安全策略。[D-043、E-057]
+
+MacWin 的第一版只迁移习惯与环境，不搬运个人文件。公开版的唯一下载入口是 [GitHub Releases](https://github.com/aswansong/macwin/releases/latest)，发布页同时提供 SHA256 校验、构建来源和安装前说明。
+
+**Windows → Mac 三步：**
+
+1. 在 Windows 10/11 x64 扫描并勾选要迁移的项目，导出 `.habitpack`。
+2. 把迁移包用 U 盘或你信任的本地方式带到 Apple 芯片 Mac，导入并预览计划。
+3. 确认计划后执行；完成页会说明改了什么，并可按模块恢复迁移前快照。
 
 ## 第一版范围
 
@@ -12,7 +20,7 @@ MacWin 是一个面向 Windows 迁移用户的本地桌面工具。它计划读�
 - 目标：Apple 芯片 Mac，macOS 15/26
 - 迁移：白名单键盘重复习惯、MacBook 内置键盘 Control ↔ Command、鼠标/触控板滚动方向、浏览器与开发软件白名单检测、Finder 扩展名偏好、个性化使用指南
 - 不迁移：个人文件、浏览器历史/密码/Cookie、账号会话、完整系统、企业受管理配置
-- 尚在验证或需要发布门槛：Wi‑Fi 密码安全链路、可信软件自动安装、第三方工具授权、签名更新、公证和正式 Release
+- 尚未完成：Wi‑Fi 密码安全链路、可信软件自动安装、第三方工具授权、签名更新、公证和四设备真实矩阵
 - 明确不做：外接键盘全局改键或第三方重映射、个人文件、浏览器历史/密码/Cookie、账号会话、项目代码和任何迁移包内命令
 - 运行原则：核心能力本地、离线、无账号、无大模型
 
@@ -73,15 +81,16 @@ Windows 端在扫描页使用普通权限读取白名单注册表、键盘布局
 
 MacWin 明确不会执行迁移包中的命令、脚本或路径；不会上传扫描数据。软件条目只接受固定白名单和官方入口，无法在当前版本完成签名/哈希验证的安装会明确降级为手动入口。报告可在本地导出 HTML 或脱敏 JSON。
 
-## 普通用户使用（正式 Release 后）
+## 普通用户使用（v1.0.1 公开版）
 
-正式版本发布后，唯一下载入口是 [GitHub Releases](https://github.com/aswansong/macwin/releases/latest)。请只下载标记为 Windows x64 的签名安装包，或 Apple Silicon 的已签名、公证 DMG；`v1.0.1-rc.2` 未签名 Pre-release 仅供知情测试，不应让普通新手绕过 SmartScreen 或 Gatekeeper。
+请从 [v1.0.1 GitHub Release](https://github.com/aswansong/macwin/releases/latest) 下载与电脑架构相符的安装包，并先阅读 `README-FIRST.md`。Windows 安装包和 Apple Silicon DMG 均为**未签名**；SmartScreen/Gatekeeper 可能阻止它们。系统阻止时请停止，不要按网上教程关闭 SmartScreen、Gatekeeper、SIP 或 TCC，MacWin 也不会提供这类绕过命令。
 
 1. 在 Windows 上安装 MacWin，点击“开始检测”，确认要带走的项目后保存 `.habitpack`。迁移包只用 U 盘或你信任的本地方式带到 Mac，不会自动上传。
 2. 在 Apple 芯片 Mac 上安装 MacWin，点击“导入迁移包”。逐项查看迁移计划；在确认之前不会修改系统。确认后，MacWin 保存一份迁移前快照并逐项验证结果。
 3. 在完成页查看变更报告和个性化指南。软件只提供官方入口时，请按页面提示手动安装；这类项目会标为“需要手动完成”，不会伪报成功。
 4. 若要恢复，在结果页选择“恢复一个设置”或“全部恢复”。恢复针对迁移前快照，不是恢复出厂设置。
-5. 卸载 MacWin 不会删除应用包外的迁移前快照。确认以后不再需要恢复时，可在“设备自检”中明确删除快照；删除前会再次确认，删除后无法自动恢复。
+5. 公开版未启用签名更新链，不会在启动时联网或自动替换应用；需要新版本时请回到 GitHub Releases 手动下载，并重新核对 `SHA256SUMS.txt`。
+6. 卸载 MacWin 不会删除应用包外的迁移前快照。确认以后不再需要恢复时，可在“设备自检”中明确删除快照；删除前会再次确认，删除后无法自动恢复。
 
 ## 文档入口
 
@@ -101,7 +110,9 @@ MacWin 明确不会执行迁移包中的命令、脚本或路径；不会上传�
 
 ## 当前里程碑
 
-交互原型已冻结在独立分支 `prototype/ui-flow-v2-hardening`；v1.0.0 的历史发布准备保留在 `release/v1.0.0`，rc.2 合流分支为 `integration/v1.0.1-final-convergence`，基线包含 Mac `6553386` 与 Windows `0f4ec31`。在签名、公证、真实设备矩阵和负责人最终确认完成前，不得把本分支构建称为正式 Release。[D-039、D-040、E-047]
+交互原型已冻结在独立分支 `prototype/ui-flow-v2-hardening`；v1.0.0 和 rc.2 的历史分支、标签与 Release 保留不改。当前公开版在 `release/v1.0.1-public` 收口，目标是通过 PR merge commit 合入 `main`，再由同一提交创建 `v1.0.1` 标签和公开 Release。[D-043、E-057]
+
+公开版不代表可信签名正式版。Windows 签名、Apple Developer ID、公证、签名更新链和四设备真实验收属于后续阶段；在这些能力完成前，README、Release 和应用界面都必须保留未签名风险说明。
 
 M1 格式资产使用精确的 `1.0.0` 验证档案。开发者可运行 `./scripts/validate-m1` 校验 schema、虚构夹具、仓库 JSON、文档引用、依赖图和当前 v1 授权边界；首次运行需要联网安装锁定的开发验证依赖。这不是产品运行命令或公开兼容性承诺。
 
@@ -112,6 +123,8 @@ MacWin 的灵感来自 “I have a Mac, I have a Win … MacWin!”。幽默只�
 ## 非官方声明
 
 MacWin 不是 Apple Inc. 或 Microsoft Corporation 的官方产品，也不受其赞助或认可。Windows、macOS 及其他产品名称归各自权利人所有。
+
+问题反馈请提交到 [GitHub Issues](https://github.com/aswansong/macwin/issues)。请不要在 Issue、日志或截图中粘贴 Wi‑Fi 密码、迁移包、设备序列号、账号或个人路径。
 
 ## License
 

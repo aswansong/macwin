@@ -6,16 +6,16 @@ MacWin 帮助 Windows 10/11 x64 用户把使用习惯迁移到运行 macOS 15/26
 
 ## Current phase
 
-- M0、M1、Alpha 0.1/0.2 和 v1.0.0 历史 RC 已收口；当前状态为 `integration/v1.0.1-final-convergence` / `v1.0.1-rc.2`。[D-041、D-042、E-051]
-- 负责人已授权从 `origin/release/v1.0.1` 依次合流 Mac `6553386` 与 Windows `0f4ec31`，收口原生键位、图标、标题栏、版本、文档、CI 和未签名双平台 Pre-release；不得把它称为正式签名版本。[D-042]
+- M0、M1、Alpha 0.1/0.2、v1.0.0 历史 RC 和 rc.2 合流已收口；当前在 `release/v1.0.1-public` 准备 `v1.0.1` 未签名公开版。[D-041、D-042、D-043、E-057]
+- 负责人已授权通过 PR merge commit 将 rc.2 收入 `main`，以同一源码提交创建 `v1.0.1` 标签并发布非 Pre-release 未签名公开版；不得把它称为可信签名版本。[D-043]
 - Alpha 0.2 的代码和真实 Mac 证据仍保留在 `alpha/v0.2-keyboard-compatibility`；原型仍位于独立 `prototype/ui-flow-v2-hardening` 分支，只使用虚构数据，不作为正式实现。[D-028、D-031、E-020]
-- v1.0 仍坚持 Windows 10/11 x64 → Apple 芯片 macOS 15/26、习惯与环境迁移、默认本地离线、无账号、无聊天、无常驻和零个人文件迁移。`v1.0.1-rc.2` 仍是未签名知情测试构建，不得作为正式版本发布。[D-032、D-042]
+- v1.0 仍坚持 Windows 10/11 x64 → Apple 芯片 macOS 15/26、习惯与环境迁移、默认本地离线、无账号、无聊天、无常驻和零个人文件迁移。`v1.0.1` 是公众可下载但明确未签名的版本；SmartScreen/Gatekeeper 可能阻止，产品不提供绕过命令。[D-032、D-042、D-043]
 
 ## v1.0 执行边界
 
 负责人明确授权完成 P0-001 至 P0-015 的正式实现和验收，包括鼠标/触控板、白名单软件与轻量开发环境、个人 Wi‑Fi、报告导出、更新检查、bundle 安装包和发布流程。生产软件只允许官方来源、可验证签名/哈希和用户确认；普通用户不依赖 Homebrew，需使用时必须单独解释并确认。[D-032、E-021]
 
-明确非目标：个人文件、浏览器书签/历史/密码/Cookie/登录状态、账号、Token、SSH 私钥、环境变量秘密、项目代码、聊天记录、外接键盘全局改键、企业/证书 Wi‑Fi、绕过 UAC/TCC/SIP/Gatekeeper/SmartScreen、未签名正式分发。MacBook 内置键盘的原生 Control ↔ Command 映射按 D-041 执行；Wi‑Fi 密码仅在安全不变量和负责人确认同时满足时实现，否则集中停在决策门。[D-032、D-041]
+明确非目标：个人文件、浏览器书签/历史/密码/Cookie/登录状态、账号、Token、SSH 私钥、环境变量秘密、项目代码、聊天记录、外接键盘全局改键、企业/证书 Wi‑Fi、绕过 UAC/TCC/SIP/Gatekeeper/SmartScreen、把未签名构建宣传为可信签名。MacBook 内置键盘的原生 Control ↔ Command 映射按 D-041 执行；Wi‑Fi 密码仅在安全不变量和负责人确认同时满足时实现，否则集中停在决策门。[D-032、D-041、D-043]
 
 签名凭据、真实四平台设备、UAC/TCC 系统弹窗和公开 Release 最终确认是集中人类门槛；先完成所有不受影响的代码、测试、文档、CI 和草稿 Release，不伪造或绕过安全提示。
 
@@ -64,7 +64,7 @@ MacWin 帮助 Windows 10/11 x64 用户把使用习惯迁移到运行 macOS 15/26
 - Wi‑Fi 密码不得进入日志、报告、界面预览、错误信息或回滚快照。
 - 不绕过 UAC、TCC、SIP、Gatekeeper 或 SmartScreen。
 - 应用任何设置前必须生成一份迁移前快照；回滚应恢复迁移前状态，而不是猜测出厂值。
-- 未签名构建只用于明确知情的 Alpha 测试者。
+- 未签名构建默认只适合能理解风险并可恢复的用户；`v1.0.1` 公开版额外提供醒目的风险说明，不得指导关闭 SmartScreen、Gatekeeper、SIP 或 TCC。
 
 ## Documentation rules
 

@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0.0",
-  "goal": "MacWin v1.0.1 未签名 RC 测试发布",
-  "branch": "integration/v1.0.1-final-convergence",
-  "current_milestone": "v1.0.1_rc.2_convergence",
-  "status": "complete",
+  "goal": "MacWin v1.0.1 公开版同源发布",
+  "branch": "release/v1.0.1-public",
+  "current_milestone": "v1.0.1_public_unsigned_release",
+  "status": "in_progress",
   "completed": [
     "M0 documentation baseline",
     "M1 clickable prototype and habitpack 1.0.0 format",
@@ -44,7 +44,9 @@
     "GitHub Actions v1 validation run 31064223858 passed on macos-15 and windows-latest",
     "unsigned v1.0.1-rc.2 package run 31064223856 and publish job 92499884883 passed",
     "v1.0.1-rc.2 Pre-release assets downloaded and SHA-256 verified",
-    "final branch, release, boundary and workspace audit completed"
+    "final branch, release, boundary and workspace audit completed",
+    "v1.0.1 public release branch created from rc.2 convergence head",
+    "public unsigned release contract and source-consistency validator added"
   ],
   "failed_or_deferred": [
     "P0-008 real external-device reconnect matrix not complete",
@@ -74,13 +76,14 @@
     "autopilot checkpoint metadata aligned in commit bb347d2",
     "E-055/E-056 record final Actions runs 31064223858/31064223856, publish 92499884883, release assets, hashes and CRLF fix"
   ],
-  "next_action": "已完成；如需正式发布，先补齐签名、公证、真实设备矩阵并由负责人另行确认。",
+  "next_action": "完成公开 workflow dry-run、PR merge commit、同提交 v1.0.1 标签、Release 下载审计和 main 分支保护；保留未签名风险边界。",
   "human_gates": [
     "Apple Developer ID signing and notarization credentials",
     "Windows code-signing certificate",
     "real Windows 10/11 and macOS 15/26 devices",
     "UAC/TCC system dialogs",
-    "final public Release confirmation"
+    "final public Release confirmation",
+    "PR merge checks and exact main HEAD review before tag"
   ],
   "privacy": "No secrets, usernames, serial numbers, absolute paths, migration packages, or personal data are stored here."
 }
