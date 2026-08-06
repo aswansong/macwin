@@ -69,3 +69,39 @@ jobs:
             src-tauri/target/release/macwin
             src-tauri/target/release/macwin.exe
           if-no-files-found: error
+
+      - name: Smoke test published Windows installer
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        env:
+          RELEASE_URL: https://github.com/aswansong/macwin/releases/download/v1.0.1/MacWin_1.0.1_x64-setup.exe
+          CHECKSUMS_URL: https://github.com/aswansong/macwin/releases/download/v1.0.1/SHA256SUMS.txt
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'macwin-v1.0.1-installer-smoke'
+          New-Item -ItemType Directory -Force $root | Out-Null
+          $installer = Join-Path $root 'MacWin_1.0.1_x64-setup.exe'
+          $checksums = Join-Path $root 'SHA256SUMS.txt'
+          Invoke-WebRequest -Uri $env:RELEASE_URL -OutFile $installer
+          Invoke-WebRequest -Uri $env:CHECKSUMS_URL -OutFile $checksums
+          $line = Get-Content $checksums | Where-Object { $_ -match 'MacWin_1\.0\.1_x64-setup\.exe$' }
+          if (-not $line) { throw 'Release checksum entry for the Windows installer is missing' }
+          $expected = ($line -split '\s+')[0].ToLowerInvariant()
+          $actual = (Get-FileHash -Path $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "Release installer hash mismatch: $actual != $expected" }
+
+          $installRoot = Join-Path $root 'installed'
+          $install = Start-Process -FilePath $installer -ArgumentList @('/S', "/D=$installRoot") -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "NSIS install failed with exit code $($install.ExitCode)" }
+          $app = Get-ChildItem -Path $installRoot -Filter 'macwin.exe' -File -Recurse | Select-Object -First 1
+          $uninstaller = Get-ChildItem -Path $installRoot -Filter 'uninstall.exe' -File -Recurse | Select-Object -First 1
+          if (-not $app -or -not $uninstaller) { throw 'Installed app or uninstaller was not found' }
+          $process = Start-Process -FilePath $app.FullName -PassThru
+          Start-Sleep -Seconds 3
+          if ($process.HasExited) { throw 'Installed MacWin process exited before the launch smoke check' }
+          Stop-Process -Id $process.Id -Force
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "NSIS uninstall failed with exit code $($uninstall.ExitCode)" }
+          Start-Sleep -Seconds 1
+          if (Test-Path $app.FullName) { throw 'Installed app remained after uninstall' }
+          Write-Output "WINDOWS_INSTALL_LAUNCH_UNINSTALL_SMOKE: PASS hash=$actual"
