@@ -400,8 +400,8 @@
 ### E-055：rc.2 双平台 Actions 与公开 Pre-release 核验
 
 - 类型：GitHub Actions 构建、Release 资产下载与 SHA-256 复核
-- 摘要：最终集成提交 `d76041d970d9369289aef7496f883d094c8d9043` 的 v1 validation run `31063577130` 在 `macos-15` 与 `windows-latest` 均通过；unsigned RC run `31063577136` 的 Windows、macOS 打包及 publish job `92497956679` 均成功。Pre-release [`v1.0.1-rc.2`](https://github.com/aswansong/macwin/releases/tag/v1.0.1-rc.2) 为非 draft、prerelease，tag 指向同一提交，资产包含 `MacWin_1.0.1-rc.2_x64-setup.exe`、`MacWin_1.0.1-rc.2_aarch64.dmg`、`README-TESTING.md` 与 `SHA256SUMS.txt`。
-- 哈希：Windows `a9db613498f8fb8262874a4b0236dbaae87ad1eed8f862d2d282452a84d9a4c5`；macOS `a31f711adaeda19fb3dab3b832246bc1a177968a982da06b5bab2733b02f52d6`。使用 `gh release download` 下载后执行 `sha256sum -c SHA256SUMS.txt`，两个文件均返回 `OK`。
+- 摘要：最终集成提交 `122ac3c2e25d137fca2259981d78ddb6f2ea1afd` 的 v1 validation run `31064223858` 在 `macos-15` 与 `windows-latest` 均通过；unsigned RC run `31064223856` 的 Windows、macOS 打包及 publish job `92499884883` 均成功。Pre-release [`v1.0.1-rc.2`](https://github.com/aswansong/macwin/releases/tag/v1.0.1-rc.2) 为非 draft、prerelease，tag 指向同一提交，资产包含 `MacWin_1.0.1-rc.2_x64-setup.exe`、`MacWin_1.0.1-rc.2_aarch64.dmg`、`README-TESTING.md` 与 `SHA256SUMS.txt`。
+- 哈希：Windows `cbbbddf7ad904d44bd400eab9e9ff95a65027870f4c0f3a3dd8a13e900f20e92`；macOS `0cf908096d0e3cc37724a423d590f961bf2452110e4ca9a82695869c1f9cbf9d`。使用 `gh release download` 下载后执行 `sha256sum -c SHA256SUMS.txt`，两个文件均返回 `OK`。
 - 产品含义：负责人和明确知情测试者现在可以直接下载同一集成提交的双平台未签名测试包；这仍不代表 Developer ID/Windows 可信签名、公证、真实四平台矩阵或正式 `v1.0.1` 门槛已关闭。
 - 关联决定：D-040、D-042、OD-002、OD-006、OD-007
 

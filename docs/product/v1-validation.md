@@ -4,7 +4,7 @@
 
 ## v1.0.1-rc.2 候选验证（Actions 已通过）
 
-候选版本目标为前端/Tauri `1.0.1-rc.2`、Cargo `1.0.1`；`.habitpack` schema、ruleset 与 snapshot 继续保持 `1.0.0`。最终集成提交 `d76041d970d9369289aef7496f883d094c8d9043` 的 v1 validation run `31063577130`、unsigned RC run `31063577136` 及 publish job `92497956679` 均成功；Pre-release、同一提交和双平台 SHA-256 已下载复核。[D-042、E-055、E-056]
+候选版本目标为前端/Tauri `1.0.1-rc.2`、Cargo `1.0.1`；`.habitpack` schema、ruleset 与 snapshot 继续保持 `1.0.0`。最终集成提交 `122ac3c2e25d137fca2259981d78ddb6f2ea1afd` 的 v1 validation run `31064223858`、unsigned RC run `31064223856` 及 publish job `92499884883` 均成功；Pre-release、同一提交和双平台 SHA-256 已下载复核。[D-042、E-055、E-056]
 
 ## integration/v1.0.0-visual-fidelity-v6 视觉整合补充
 
@@ -46,7 +46,7 @@
 | 真实设备验收准备 | [真实设备验收手册](../execution/real-device-acceptance.md) 固定 W10/W11/M15/M26、权限/外设/失败/恢复/升级卸载矩阵与脱敏证据字段 | 尚未执行；设备、签名凭据、系统弹窗和负责人最终确认仍是发布门槛 |
 | 本地 macOS App bundle | Tauri `--bundles app` 完成前端、Rust release 编译和 `MacWin.app` 生成；临时关闭 updater 产物并 `--no-sign` 后可重复构建 | 仅未签名构建验证；updater 私钥、Developer ID、公证、stapling 和真实安装仍未完成 |
 | 本地 macOS DMG | Tauri `--bundles dmg` 生成 Apple Silicon DMG，`hdiutil verify` 校验有效 | 产物仍为未签名 `1.0.1-rc.2` 开发包；不替代 Developer ID、公证、stapling 或真实安装验收 |
-| GitHub 未签名 RC | Actions `31063577136` 与 publish job `92497956679` 成功；Pre-release 含 Windows x64 NSIS、Apple Silicon DMG、`README-TESTING.md` 和总 `SHA256SUMS.txt`，下载后两项均 `sha256sum -c ...: OK` | 只供负责人和知情测试者；不合并 `main`，不替代正式签名、公证或真实设备验收 |
+| GitHub 未签名 RC | Actions `31064223856` 与 publish job `92499884883` 成功；Pre-release 含 Windows x64 NSIS、Apple Silicon DMG、`README-TESTING.md` 和总 `SHA256SUMS.txt`，下载后两项均 `sha256sum -c ...: OK` | 只供负责人和知情测试者；不合并 `main`，不替代正式签名、公证或真实设备验收 |
 
 ## 尚未达到正式发布门槛
 
