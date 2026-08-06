@@ -14,3 +14,5 @@
 - 本地验证：`npm test` 14/14；`npm run build` 通过；Cargo fmt/test/clippy 通过（20 passed、1 个既有外部测试 ignored）；`./scripts/validate-m1` 61/61 通过。
 - 更新入口已改为手动检查说明，移除启动时 `check_update(false)`，公开未签名构建不生成 updater/`latest.json`。
 - 下一步：提交并推送分支，重新 fetch 后创建 PR；PR 头运行 dry-run，待检查通过后 merge commit main，再固定 annotated tag 和公开 Release。
+- PR #2 已创建：<https://github.com/aswansong/macwin/pull/2>；head `f5c8b3b`，base `main@dc2b400`。PR 双平台检查已排队。
+- 已尝试 PR 头 `gh workflow run public-release.yml --ref release/v1.0.1-public`；GitHub 返回 `HTTP 404 workflow not found on default branch`，因为新 workflow 尚未进入默认分支。此为 GitHub dispatch 平台门槛，不修改 main 绕过；合并后立刻 dispatch dry-run。
